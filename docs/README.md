@@ -1,15 +1,20 @@
 # Lore Platform — Documentation
 
-This folder contains the complete design documentation for the Lore Platform,
-a multi-project AI governance and memory system.
+Authoritative PRD, architecture, and tech-spec content for the Lore Platform
+now lives in [`planning-artifacts/`](../planning-artifacts/). Those files are
+consumed by BMAD agents via the `bmad-mcp-server` ClickUp integration — they
+are the single source of truth for product / architecture / technical-spec
+content and are kept deliberately narrow for LLM consumption. `docs/` remains
+the home for narrative, onboarding, and diagram-heavy team reference material
+that complements the canonical planning artifacts but is not read by agents.
 
 ## Documents
 
 | File | Document | Description |
 |------|----------|-------------|
-| [01-prd.md](01-prd.md) | Product Requirements Document | Goals, user stories, feature requirements, success metrics |
-| [02-technical-spec.md](02-technical-spec.md) | Technical Specification | API contracts, tool schemas, algorithms, data models |
-| [03-architecture.md](03-architecture.md) | Architecture Document | System diagrams, component structure, DB DDL, deployment |
+| [../planning-artifacts/PRD.md](../planning-artifacts/PRD.md) | Product Requirements Document | Goals, user stories, feature requirements, success metrics |
+| [../planning-artifacts/tech-spec.md](../planning-artifacts/tech-spec.md) | Technical Specification | API contracts, tool schemas, algorithms, data models |
+| [../planning-artifacts/architecture.md](../planning-artifacts/architecture.md) | Architecture Document | System diagrams, component structure, DB DDL, deployment |
 
 ## What Is Lore Platform?
 

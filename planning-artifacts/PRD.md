@@ -2,7 +2,6 @@
 
 Version: 1.0.0
 Status: Draft
-Author: BuildClear Product Team
 Date: March 2026
 
 ---
