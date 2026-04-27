@@ -1,0 +1,33 @@
+{
+  "name": "lore-memory-mcp",
+  "version": "0.1.0",
+  "description": "Persistent institutional memory MCP server backed by PostgreSQL + pgvector",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "drizzle-orm": "^0.39.0",
+    "fastify": "^4.28.0",
+    "openai": "^4.77.0",
+    "pg": "^8.13.3",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.11.10",
+    "drizzle-kit": "^0.30.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
