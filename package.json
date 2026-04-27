@@ -18,10 +18,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
     "drizzle-orm": "^0.39.0",
-    "fastify": "^4.28.0",
-    "openai": "^4.77.0",
-    "pg": "^8.13.3",
-    "postgres": "^3.4.5"
+    "pg": "^8.13.3"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

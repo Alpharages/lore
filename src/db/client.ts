@@ -15,6 +15,9 @@ const pool = new Pool({
 
 export const db = drizzle(pool, { schema });
 
+// Exact transaction type as provided by db.transaction — no cast needed.
+type DbTx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /**
@@ -23,7 +26,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  */
 export async function withProjectContext<T>(
   projectId: string,
-  fn: (tx: typeof db) => Promise<T>,
+  fn: (tx: DbTx) => Promise<T>,
 ): Promise<T> {
   if (!UUID_RE.test(projectId)) {
     throw new Error(`Invalid projectId: ${projectId}`);
@@ -33,7 +36,7 @@ export async function withProjectContext<T>(
     await tx.execute(
       sql`SELECT set_config('app.current_project_id', ${projectId}, true)`,
     );
-    return fn(tx as unknown as typeof db);
+    return fn(tx);
   });
 }
 

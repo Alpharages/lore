@@ -102,6 +102,10 @@ export const lessons = pgTable(
     firstSeenAt:     timestamp('first_seen_at', { withTimezone: true }).defaultNow(),
     lastSeenAt:      timestamp('last_seen_at', { withTimezone: true }).defaultNow(),
     sessionId:       uuid('session_id').references(() => sessions.id, { onDelete: 'set null' }),
+    // Self-referential FK to lessons(id) ON DELETE SET NULL is declared in the
+    // migration SQL. Drizzle's type inference cannot resolve the circular
+    // dependency when .references(() => lessons.id) is used here, so the FK
+    // is intentionally omitted from the ORM schema and enforced at DB level only.
     propagatedFrom:  uuid('propagated_from'),
     // embedding stored as text in Drizzle type system; vector(1536) in the DB
     embedding:       text('embedding'),
