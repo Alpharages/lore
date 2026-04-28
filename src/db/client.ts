@@ -13,6 +13,10 @@ const pool = new Pool({
   connectionTimeoutMillis: 5_000,
 });
 
+pool.on('error', (err) => {
+  console.error('pg pool error', err);
+});
+
 export const db = drizzle(pool, { schema });
 
 // Exact transaction type as provided by db.transaction — no cast needed.

@@ -25,22 +25,16 @@ const vectorColumn = (name: string) =>
   text(name).$type<number[]>().notNull();
 
 // ── projects ─────────────────────────────────────────────────────────────────
-export const projects = pgTable(
-  'projects',
-  {
-    id:          uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
-    slug:        text('slug').notNull().unique(),
-    name:        text('name').notNull(),
-    apiKeyHash:  text('api_key_hash').notNull(),
-    stackTags:   text('stack_tags').array().default(sql`'{}'`),
-    config:      jsonb('config').default(sql`'{}'`),
-    createdAt:   timestamp('created_at', { withTimezone: true }).defaultNow(),
-    updatedAt:   timestamp('updated_at', { withTimezone: true }).defaultNow(),
-  },
-  (t) => ({
-    idxProjectsStack: index('idx_projects_stack').on(t.stackTags),
-  }),
-);
+export const projects = pgTable('projects', {
+  id:          uuid('id').primaryKey().default(sql`uuid_generate_v4()`),
+  slug:        text('slug').notNull().unique(),
+  name:        text('name').notNull(),
+  apiKeyHash:  text('api_key_hash').notNull(),
+  stackTags:   text('stack_tags').array().default(sql`'{}'`),
+  config:      jsonb('config').default(sql`'{}'`),
+  createdAt:   timestamp('created_at', { withTimezone: true }).defaultNow(),
+  updatedAt:   timestamp('updated_at', { withTimezone: true }).defaultNow(),
+});
 
 // ── repositories ─────────────────────────────────────────────────────────────
 export const repositories = pgTable(
@@ -55,8 +49,7 @@ export const repositories = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
   (t) => ({
-    uniqProjectSlug:     uniqueIndex('repositories_project_id_slug_unique').on(t.projectId, t.slug),
-    idxRepositoriesStack: index('idx_repositories_stack').on(t.stackTags),
+    uniqProjectSlug: uniqueIndex('repositories_project_id_slug_unique').on(t.projectId, t.slug),
   }),
 );
 

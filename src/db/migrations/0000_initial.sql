@@ -113,31 +113,38 @@ CREATE TABLE IF NOT EXISTS preferences (
 -- before executing any query (see src/db/client.ts withProjectContext).
 
 ALTER TABLE lessons             ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lessons             FORCE ROW LEVEL SECURITY;
 ALTER TABLE patterns            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE patterns            FORCE ROW LEVEL SECURITY;
 ALTER TABLE sessions            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sessions            FORCE ROW LEVEL SECURITY;
 ALTER TABLE repositories        ENABLE ROW LEVEL SECURITY;
+ALTER TABLE repositories        FORCE ROW LEVEL SECURITY;
 ALTER TABLE preferences         ENABLE ROW LEVEL SECURITY;
+ALTER TABLE preferences         FORCE ROW LEVEL SECURITY;
 ALTER TABLE lesson_propagations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lesson_propagations FORCE ROW LEVEL SECURITY;
 
+-- NULLIF guard: current_setting returns '' (not NULL) when unset; casting ''::UUID throws.
 CREATE POLICY project_isolation ON lessons
-  USING (project_id = current_setting('app.current_project_id', true)::UUID
+  USING (project_id = NULLIF(current_setting('app.current_project_id', true), '')::UUID
          OR project_id IS NULL);
 
 CREATE POLICY project_isolation ON patterns
-  USING (project_id = current_setting('app.current_project_id', true)::UUID
+  USING (project_id = NULLIF(current_setting('app.current_project_id', true), '')::UUID
          OR project_id IS NULL);
 
 CREATE POLICY project_isolation ON sessions
-  USING (project_id = current_setting('app.current_project_id', true)::UUID);
+  USING (project_id = NULLIF(current_setting('app.current_project_id', true), '')::UUID);
 
 CREATE POLICY project_isolation ON repositories
-  USING (project_id = current_setting('app.current_project_id', true)::UUID);
+  USING (project_id = NULLIF(current_setting('app.current_project_id', true), '')::UUID);
 
 CREATE POLICY project_isolation ON preferences
-  USING (project_id = current_setting('app.current_project_id', true)::UUID);
+  USING (project_id = NULLIF(current_setting('app.current_project_id', true), '')::UUID);
 
 CREATE POLICY project_isolation ON lesson_propagations
-  USING (target_project_id = current_setting('app.current_project_id', true)::UUID);
+  USING (target_project_id = NULLIF(current_setting('app.current_project_id', true), '')::UUID);
 
 -- ── Indexes (architecture §4.2; tech-spec §5.1) ──────────────────────────────
 
