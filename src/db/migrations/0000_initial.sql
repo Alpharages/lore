@@ -155,6 +155,12 @@ CREATE INDEX idx_lessons_embedding ON lessons
   USING ivfflat (embedding vector_cosine_ops)
   WITH (lists = 100);
 
+-- projects
+CREATE INDEX idx_projects_stack ON projects USING GIN(stack_tags);
+
+-- repositories
+CREATE INDEX idx_repositories_stack ON repositories USING GIN(stack_tags);
+
 -- patterns
 CREATE INDEX idx_patterns_project   ON patterns(project_id);
 CREATE INDEX idx_patterns_stack     ON patterns USING GIN(stack_tags);

@@ -37,6 +37,9 @@ export const projects = pgTable(
     createdAt:   timestamp('created_at', { withTimezone: true }).defaultNow(),
     updatedAt:   timestamp('updated_at', { withTimezone: true }).defaultNow(),
   },
+  (t) => ({
+    idxProjectsStack: index('idx_projects_stack').on(t.stackTags),
+  }),
 );
 
 // ── repositories ─────────────────────────────────────────────────────────────
@@ -52,7 +55,8 @@ export const repositories = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
   },
   (t) => ({
-    uniqProjectSlug: uniqueIndex('repositories_project_id_slug_unique').on(t.projectId, t.slug),
+    uniqProjectSlug:     uniqueIndex('repositories_project_id_slug_unique').on(t.projectId, t.slug),
+    idxRepositoriesStack: index('idx_repositories_stack').on(t.stackTags),
   }),
 );
 
