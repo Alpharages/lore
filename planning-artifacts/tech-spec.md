@@ -1,24 +1,23 @@
 # Lore Platform — Technical Specification
 
 Version: 1.0.0
-Status: Draft
-Date: March 2026
+Status: Final (Draft for Implementation)
+Date: 2026-05-06
 
 ---
 
 ## 1. System Overview
 
-Lore Platform consists of three independently deployable components:
+Lore Platform consists of two independently deployable components:
 
 | Component | Type | Language | Deployment |
 |-----------|------|----------|------------|
-| @lore/cli | npm package | TypeScript/Node.js | Developer machine (global) |
-| lore-platform | GitHub releases | Markdown + YAML | Static files, downloaded by CLI |
-| lore-memory-mcp | HTTP server | TypeScript/Node.js | Docker, self-hosted |
+| `@lore/cli` | npm package | TypeScript / Node.js | Developer machine (global) |
+| `lore-memory-mcp` | HTTP server | TypeScript / Node.js | Docker, self-hosted |
 
 ---
 
-## 2. @lore/cli Specification
+## 2. `@lore/cli` Specification
 
 ### 2.1 Installation
 
@@ -26,7 +25,7 @@ Lore Platform consists of three independently deployable components:
 npm install -g @lore/cli
 ```
 
-Minimum Node.js version: 18.0.0
+Minimum Node.js version: 20.0.0
 
 ### 2.2 Commands
 
@@ -34,17 +33,21 @@ Minimum Node.js version: 18.0.0
 
 Reads `lore.yaml` (walks directory tree upward from CWD), then:
 
-1. Downloads skills tarball from release registry
-2. Extracts to `~/.lore/skills/<version>/`
-3. Writes Cursor MCP config to `~/.cursor/mcp.json`
-4. Writes CLAUDE.md include to `~/.claude/CLAUDE.md`
+1. Validate the YAML against the v1.0 schema.
+2. Verify `lore-memory-mcp` server reachability and version compatibility
+   against the `lore.version` range in `lore.yaml`.
+3. Write the Cursor MCP config to `~/.cursor/mcp.json` with entries for
+   `lore-memory`, `gitnexus`, and (when methodology declared)
+   `bmad-mcp-server`.
+4. Append the CLAUDE.md include to `~/.claude/CLAUDE.md`.
 5. For each repo in `lore.yaml`:
-   a. Runs `npx gitnexus analyze` (full index, first time)
-   b. Writes `post-commit` hook to `<repo>/.git/hooks/`
-   c. Writes `post-merge` hook to `<repo>/.git/hooks/`
-   d. Makes hooks executable (chmod 755)
+   a. Run `npx gitnexus analyze` (full index, first time)
+   b. Write `post-commit` hook to `<repo>/.git/hooks/`
+   c. Write `post-merge` hook to `<repo>/.git/hooks/`
+   d. Make hooks executable (chmod 755)
 
-**lore.yaml search algorithm:**
+**`lore.yaml` search algorithm:**
+
 ```
 current_dir = process.cwd()
 while (current_dir !== '/') {
@@ -54,8 +57,9 @@ while (current_dir !== '/') {
 throw new Error('lore.yaml not found')
 ```
 
-**Idempotency:** CLI checks `~/.lore/install-state.json` before each step.
-Steps already completed are skipped. State is updated after each step.
+**Idempotency:** CLI checks `~/.lore/install-state.json` before each
+step. Steps already completed are skipped. State is updated after each
+step.
 
 #### `lore init`
 
@@ -64,74 +68,53 @@ Interactive project initialization:
 ```
 Prompts:
   1. Project name (string)
-  2. Project slug (string, auto-derived from name, user can override)
+  2. Project slug (string, auto-derived from name; user can override)
   3. Repos (comma-separated list of repo names)
   4. For each repo: relative path and tech stack (multi-select)
-  5. MCP server URL (string, default: http://localhost:3100)
-  6. Skill version (string, default: latest)
+  5. Lore server URL (string, default: http://localhost:3100)
+  6. Use a methodology layer? (Y/n)
+       If Yes:
+         - Methodology type (currently only: bmad)
+         - Methodology version range (e.g. "^6.0.0")
+         - Tracker type (clickup | jira | asana)
+         - Tracker-specific identifiers (space, lists, custom fields)
+         - Validate tracker connection now? (Y/n)
 
 Actions:
-  1. Generate lore.yaml
+  1. Generate lore.yaml (see §2.5)
   2. Generate CLAUDE.md from template
   3. Generate ops/constitution.md from template
   4. For each repo: generate repos/<slug>/REPO_IDENTITY.md
-  5. POST /api/projects/register to MCP server
+  5. POST /api/projects/register to lore-memory-mcp
   6. Display returned API key with storage instructions
-```
-
-Generated `lore.yaml` structure:
-
-```yaml
-lore:
-  version: "1.3.0"
-
-project:
-  name: "My Project"
-  slug: "my-project"
-
-mcp:
-  server: "http://your-server:3100"
-
-skills:
-  core:
-    - bootstrap
-    - judge
-    - pr
-    - lesson
-    - memory
-    - status
-  stacks:
-    - nestjs-postgres
-    - react-vite
-
-repos:
-  - slug: backend
-    name: Backend API
-    path: ../my-project-backend
-    stack:
-      - nestjs
-      - typeorm
-      - postgres
-  - slug: frontend
-    name: Frontend
-    path: ../my-project-frontend
-    stack:
-      - react
-      - vite
-      - typescript
 ```
 
 #### `lore update`
 
-1. Fetch latest version metadata from release registry
-2. Compare to current version in `lore.yaml`
-3. If newer version available:
-   a. Display changelog diff
-   b. If major version bump: warn and require explicit confirmation
-   c. Download new skills tarball
-   d. Extract to `~/.lore/skills/<new-version>/`
-   e. Update `~/.lore/config.yaml` active version
-   f. Update version in `lore.yaml`
+1. Compare `lore.version` field in `lore.yaml` against the
+   `lore-memory-mcp` Docker image registry.
+2. If a newer image exists matching the declared range:
+   a. Display changelog (image release notes).
+   b. Verify backward-compatible schema migrations exist.
+   c. On confirmation: pull new image, run `db:migrate`, restart
+      `lore-memory-mcp`.
+   d. Update `lore.version` field in `lore.yaml`.
+
+#### `lore inbox`
+
+Lists pending lesson-propagation suggestions for the current project and
+allows interactive accept/reject.
+
+```
+GET /api/projects/<slug>/inbox
+→ Returns pending lesson_propagations with source lesson summary
+  (excluding source project name).
+
+For each suggestion, prompt:
+  [a]ccept | [r]eject | [s]kip | [q]uit
+On accept → call accept_propagation MCP tool
+On reject → call reject_propagation MCP tool
+```
 
 #### `lore project:register`
 
@@ -162,6 +145,7 @@ Response:
 ### 2.3 Git Hook Templates
 
 **post-commit:**
+
 ```bash
 #!/bin/sh
 # Auto-installed by @lore/cli
@@ -172,6 +156,7 @@ fi
 ```
 
 **post-merge:**
+
 ```bash
 #!/bin/sh
 # Auto-installed by @lore/cli
@@ -197,135 +182,80 @@ File: `~/.cursor/mcp.json`
     "gitnexus": {
       "command": "npx",
       "args": ["-y", "gitnexus@latest", "mcp"]
+    },
+    "bmad": {
+      "command": "npx",
+      "args": ["-y", "bmad-mcp-server@${methodology.version}"]
     }
   }
 }
 ```
 
 `MCP_SERVER_URL` is read from `lore.yaml`. `LORE_API_KEY` is read from
-environment variable at runtime by Cursor.
+the developer's environment at runtime by Cursor. The `bmad` entry is
+omitted when `methodology:` is not declared.
 
-### 2.5 Release Registry API
+### 2.5 `lore.yaml` Schema
 
-The CLI fetches skill releases from:
+```yaml
+lore:
+  version: "1.0.0"          # lore-memory-mcp compatibility range
 
-```
-GET https://github.com/<org>/lore-platform/releases/download/v<version>/skills.tar.gz
+project:
+  name: "My Project"
+  slug: "my-project"
+
+mcp:
+  server: "https://your-server"
+
+# Optional: methodology layer (BMAD)
+methodology:
+  type: bmad
+  version: "^6.0.0"
+  allowed_workflows:
+    - prd
+    - architecture
+    - debug-session
+    - bmad-code-review
+  default_dev_skill: clickup-dev-implement
+  default_review_skill: clickup-code-review
+
+# Required when methodology is declared
+tracker:
+  type: clickup           # clickup | jira | asana
+  space_id: "12345"
+  backlog_list_id: "67890"
+  active_sprint_list_id: "abcdef"
+  config:
+    custom_field_lesson_link: "field_id_xyz"
+
+repos:
+  - slug: backend
+    name: Backend API
+    path: ../my-project-backend
+    stack:
+      - nestjs
+      - typeorm
+      - postgres
+  - slug: frontend
+    name: Frontend
+    path: ../my-project-frontend
+    stack:
+      - react
+      - vite
+      - typescript
 ```
 
-Version metadata:
-```
-GET https://raw.githubusercontent.com/<org>/lore-platform/main/registry.json
-```
-
-`registry.json` structure:
-```json
-{
-  "latest": "1.3.0",
-  "versions": {
-    "1.3.0": {
-      "released": "2026-03-01",
-      "breaking": false,
-      "changelog": "https://..."
-    },
-    "1.2.0": {}
-  }
-}
-```
+**Validation rules:**
+- `methodology` is optional. When present, `tracker` is required.
+- `lore.version` is checked by `@lore/cli` against the running
+  `lore-memory-mcp` version on `lore install`.
 
 ---
 
-## 3. lore-platform Skills Specification
+## 3. `lore-memory-mcp` Server Specification
 
-### 3.1 Directory Structure (Release Tarball)
-
-```
-skills/
-├── core/
-│   ├── bootstrap/SKILL.md
-│   ├── judge/SKILL.md
-│   ├── pr/SKILL.md
-│   ├── lesson/SKILL.md
-│   ├── memory/SKILL.md
-│   └── status/SKILL.md
-├── stacks/
-│   ├── nestjs-postgres/SKILL.md
-│   ├── react-vite/SKILL.md
-│   ├── python-fastapi/SKILL.md
-│   ├── aws-lambda/SKILL.md
-│   └── django-postgres/SKILL.md
-└── registry.json
-```
-
-### 3.2 Skill File Format
-
-Each SKILL.md follows this structure:
-
-```markdown
----
-name: bootstrap
-version: 1.3.0
-description: Initialize a Lore session with full context loading
-user-invocable: true
-triggers:
-  - /bootstrap
-  - /bc-init
-depends-on:
-  mcp:
-    - lore-memory
-    - gitnexus
----
-
-# [Skill Name]
-
-[Instructions for the AI agent...]
-```
-
-### 3.3 Bootstrap Skill — MCP Call Sequence
-
-Phase 1 — All parallel (single response, independent calls):
-
-```
-Batch 1 (always):
-  mcp__lore-memory__query_lessons({
-    stack_tags: <from lore.yaml for current repo>,
-    limit: 5,
-    min_severity: "medium"
-  })
-
-  mcp__lore-memory__get_session_handoff({})
-
-  mcp__lore-memory__get_patterns({
-    stack_tags: <from lore.yaml>,
-    limit: 3
-  })
-
-  mcp__lore-memory__suggest_propagations({})
-
-  mcp__gitnexus__context({
-    repo: <current repo slug>
-  })
-
-  mcp__gitnexus__detect_changes({
-    scope: "staged"
-  })
-
-Batch 2 (if user provides task description):
-  mcp__lore-memory__search_similar({
-    text: <user task description>,
-    limit: 3
-  })
-
-  mcp__gitnexus__query({
-    query: <user task description>
-  })
-```
-
----
-
-## 4. lore-memory-mcp Server Specification
-
-### 4.1 Technology Stack
+### 3.1 Technology Stack
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
@@ -340,7 +270,7 @@ Batch 2 (if user provides task description):
 | Containerization | Docker + Docker Compose | latest |
 | Schema migration | Drizzle Kit | latest |
 
-### 4.2 Environment Variables
+### 3.2 Environment Variables
 
 ```env
 # Required
@@ -356,19 +286,19 @@ MAX_EMBEDDING_BATCH_SIZE=100
 SIMILARITY_THRESHOLD=0.90
 ```
 
-### 4.3 MCP Tools — Full Specification
+### 3.3 MCP Tools — Full Specification
 
 #### `query_lessons`
 
 ```typescript
 Input: {
-  stack_tags?: string[]       // filter by tech stack
-  category?: string           // "auth" | "database" | "ci-cd" | "deployment" | ...
-  min_severity?: string       // "critical" | "high" | "medium" | "low"
-  last_n_days?: number        // recency filter
-  repo_slug?: string          // scope to specific repo
+  stack_tags?: string[]
+  category?: string
+  min_severity?: "critical" | "high" | "medium" | "low"
+  last_n_days?: number
+  repo_slug?: string
   limit?: number              // default: 5, max: 20
-  include_global?: boolean    // include global lessons, default: true
+  include_global?: boolean    // default: true
 }
 
 Output: {
@@ -385,6 +315,7 @@ Output: {
     captured_by_user: string
     relevance_score: number
     scope: "global" | "project" | "repo"
+    provenance?: object        // includes trust_tier, source
   }>
   total_count: number
   query_ms: number
@@ -395,10 +326,10 @@ Output: {
 
 ```typescript
 Input: {
-  text: string                // natural language query
+  text: string
   limit?: number              // default: 3, max: 10
-  threshold?: number          // cosine similarity threshold, default: 0.70
-  include_patterns?: boolean  // also search patterns, default: true
+  threshold?: number          // default: 0.70
+  include_patterns?: boolean  // default: true
 }
 
 Output: {
@@ -406,7 +337,7 @@ Output: {
     type: "lesson" | "pattern"
     id: string
     title: string
-    prevention_rule: string
+    prevention_rule?: string
     similarity_score: number
     severity?: string
   }>
@@ -415,11 +346,11 @@ Output: {
 
 Implementation:
   1. Generate embedding for input text via OpenAI
-  2. Query: SELECT *, 1 - (embedding <=> $query_embedding) as similarity
-             FROM lessons
-             WHERE 1 - (embedding <=> $query_embedding) > $threshold
-             ORDER BY similarity DESC
-             LIMIT $limit
+  2. SELECT *, 1 - (embedding <=> $query_embedding) as similarity
+       FROM lessons
+       WHERE 1 - (embedding <=> $query_embedding) > $threshold
+       ORDER BY similarity DESC
+       LIMIT $limit
 ```
 
 #### `save_lesson`
@@ -436,20 +367,16 @@ Input: {
   root_cause?: string
   repo_slug?: string
   session_id?: string
-  captured_by_user?: string   // from LORE_USER env var
+  captured_by_user?: string
 }
 
 Processing:
   1. Generate embedding for: title + problem + fix + prevention_rule
-  2. Check for semantic duplicates:
-     SELECT id FROM lessons
-     WHERE project_id = $project_id
-       AND 1 - (embedding <=> $new_embedding) > 0.90
-     LIMIT 1
-  3. If duplicate found: call increment_occurrence(existing_id)
-     return { action: "incremented", lesson_id: existing_id }
-  4. If no duplicate: INSERT new lesson
-     return { action: "created", lesson_id: new_id }
+  2. Check for semantic duplicates (cosine ≥ 0.90)
+  3. If duplicate → call increment_occurrence(existing_id)
+  4. If no duplicate → INSERT new lesson with
+       provenance = { source: "manual", captured_by: <user>,
+                      trust_tier: "manual" }
 
 Output: {
   action: "created" | "incremented"
@@ -457,54 +384,82 @@ Output: {
 }
 ```
 
-#### `increment_occurrence`
+#### `capture_review_finding` (NEW)
 
 ```typescript
 Input: {
-  lesson_id: string
-  user_handle?: string
+  external_task_id: string
+  external_tracker_type: "clickup" | "jira" | "asana"
+  external_task_ref?: string
+  severity: "critical" | "high" | "medium" | "low"
+  finding: {
+    title: string
+    problem: string
+    root_cause?: string
+    fix: string
+    prevention_rule: string
+    stack_tags?: string[]      // inferred from repo if omitted
+    category?: string
+    code_pointer?: {
+      file: string
+      line_start: number
+      line_end: number
+    }
+  }
+  reviewer?: string
+  workflow?: string            // e.g. "bmad-code-review"
 }
 
 Processing:
-  UPDATE lessons
-  SET occurrence_count = occurrence_count + 1,
-      last_seen_at = NOW(),
-      hit_by_users = array_append(hit_by_users, $user_handle)
-  WHERE id = $lesson_id
+  1. Same as save_lesson, plus:
+  2. Stamp provenance server-side:
+       {
+         source: "bmad-code-review",
+         workflow: <workflow>,
+         skill: "clickup-code-review",
+         task_id: <external_task_id>,
+         reviewer: <reviewer>,
+         trust_tier: "high",
+         captured_at: <now>
+       }
+  3. Set external_task_id, external_task_ref, external_tracker_type
+     on the lesson.
 
 Output: {
+  action: "created" | "incremented"
   lesson_id: string
-  new_count: number
 }
 ```
 
-#### `get_session_handoff`
+#### `query_lessons_for_task` (NEW)
 
 ```typescript
 Input: {
-  repo_slug?: string
+  external_task_id: string
+  task_context?: {
+    title: string
+    description?: string
+    acceptance_criteria?: string
+    parent_epic_id?: string
+    stack_tags?: string[]
+  }
+  limit?: number              // default: 10
 }
 
 Processing:
-  SELECT * FROM sessions
-  WHERE project_id = $project_id
-    AND ($repo_slug IS NULL OR repo_slug = $repo_slug)
-  ORDER BY started_at DESC
-  LIMIT 1
+  1. Generate embedding from task_context.title + description.
+  2. Run combined query:
+       - Semantic similarity (pgvector cosine)
+       - Stack-tag overlap filter
+       - If parent_epic_id present: also pull lessons attached to
+         sibling tasks (lessons.external_task_id IN (sibling task IDs))
+  3. Score using relevance algorithm (§3.6).
+  4. Also fetch top patterns matching stack_tags.
 
 Output: {
-  found: boolean
-  session?: {
-    id: string
-    branch: string
-    task_summary: string
-    decisions: object[]
-    errors_hit: string[]
-    files_touched: string[]
-    started_at: string
-    ended_at: string
-    duration_minutes: number
-  }
+  lessons: Array<Lesson & { relevance_score: number, match_reason: string }>
+  patterns: Array<Pattern>
+  query_ms: number
 }
 ```
 
@@ -524,13 +479,47 @@ Output: {
 }
 ```
 
+#### `start_session_from_task` (NEW)
+
+```typescript
+Input: {
+  external_task_id: string
+  external_tracker_type: "clickup" | "jira" | "asana"
+  external_task_ref?: string
+  task_summary?: string        // auto-fetched if omitted by caller
+  branch: string
+  user_handle?: string
+  bmad_skill: string           // e.g. "clickup-dev-implement"
+  bmad_workflow?: string
+  repo_slug?: string
+}
+
+Processing:
+  1. Look for existing open session with same
+     (project_id, external_task_id, external_tracker_type).
+  2. If found → return resumed=true with prior_session_summary.
+  3. Else → INSERT new session row with bmad_skill / bmad_workflow.
+
+Output: {
+  session_id: string
+  resumed: boolean
+  prior_session_summary?: {
+    branch: string
+    decisions: object[]
+    files_touched: string[]
+    started_at: string
+    ended_at: string
+  }
+}
+```
+
 #### `end_session`
 
 ```typescript
 Input: {
   session_id: string
   decisions?: Array<{ what: string, why: string }>
-  errors_hit?: string[]           // lesson IDs encountered
+  lessons_applied?: string[]   // lesson UUIDs
   files_touched?: string[]
 }
 
@@ -538,6 +527,41 @@ Output: {
   session_id: string
   duration_minutes: number
 }
+```
+
+#### `link_lessons_to_task` (NEW)
+
+```typescript
+Input: {
+  external_task_id: string
+  consulted: string[]          // lesson UUIDs shown to agent
+  applied: string[]            // lesson UUIDs the agent acted on
+}
+
+Processing:
+  Update the open session for the given task with:
+    - lessons_consulted = lessons_consulted UNION consulted
+    - lessons_applied   = lessons_applied   UNION applied
+
+Output: { linked: number }
+```
+
+#### `increment_occurrence`
+
+```typescript
+Input: {
+  lesson_id: string
+  user_handle?: string
+}
+
+Processing:
+  UPDATE lessons
+  SET occurrence_count = occurrence_count + 1,
+      last_seen_at = NOW(),
+      hit_by_users = array_append(hit_by_users, $user_handle)
+  WHERE id = $lesson_id
+
+Output: { lesson_id: string, new_count: number }
 ```
 
 #### `get_patterns`
@@ -573,12 +597,10 @@ Input: {
   repo_slug?: string
 }
 
-Output: {
-  pattern_id: string
-}
+Output: { pattern_id: string }
 ```
 
-#### `suggest_propagations`
+#### `get_pending_propagations`
 
 ```typescript
 Input: {}   // project identified by API key
@@ -600,16 +622,14 @@ Output: {
 #### `accept_propagation`
 
 ```typescript
-Input: {
-  propagation_id: string
-}
+Input: { propagation_id: string }
 
 Processing:
-  1. Fetch source lesson
-  2. Copy to target project with project_id = current project
-  3. Add reference: propagated_from = source_lesson_id
-  4. Generate new embedding for target project context
-  5. Update propagation status to "accepted"
+  1. Fetch source lesson.
+  2. Copy to target project with project_id = current project,
+     occurrence_count = 1, propagated_from = source_lesson_id.
+  3. Generate fresh embedding (target context may differ).
+  4. Update lesson_propagations.status = "accepted".
 
 Output: {
   new_lesson_id: string
@@ -620,63 +640,37 @@ Output: {
 #### `reject_propagation`
 
 ```typescript
-Input: {
-  propagation_id: string
-}
+Input: { propagation_id: string }
 
-Output: {
-  action: "rejected"
-}
+Output: { action: "rejected" }
 ```
 
-#### `update_preferences`
-
-```typescript
-Input: {
-  user_handle: string
-  preferences: {
-    preferred_language?: string
-    verbosity?: "concise" | "normal" | "detailed"
-    auto_capture?: boolean
-    [key: string]: any
-  }
-}
-
-Output: {
-  updated: true
-}
-```
-
-### 4.4 REST API Endpoints (Non-MCP)
-
-These are administrative endpoints not exposed via MCP:
+### 3.4 REST API Endpoints (Non-MCP)
 
 ```
 POST   /api/projects/register     Register new project, get API key
 DELETE /api/projects/:slug        Deregister project
 GET    /api/projects/:slug/stats  Memory stats for project
+GET    /api/projects/:slug/inbox  Pending propagations (used by lore inbox CLI)
 GET    /health                    Server health check
 GET    /metrics                   Prometheus metrics
 ```
 
-### 4.5 Authentication Flow
-
-Every MCP request:
+### 3.5 Authentication Flow
 
 ```
-1. Extract Bearer token from Authorization header
-2. Hash token with bcrypt
-3. SELECT project_id FROM projects WHERE api_key_hash = $hash
-4. If not found: return 401
-5. Open DB connection
-6. SET LOCAL app.current_project_id = $project_id
-7. RLS activates for this transaction
-8. Execute tool logic
-9. Return result
-10. Release connection to pool
+1. Extract Bearer token from Authorization header.
+2. Look up project by bcrypt-comparing token against api_key_hash.
+3. If not found → 401.
+4. Open DB connection.
+5. SET LOCAL app.current_project_id = $project_id.
+6. RLS activates for this transaction.
+7. Execute tool logic.
+8. Return result.
+9. Release connection to pool.
 ```
 
-### 4.6 Relevance Scoring Algorithm
+### 3.6 Relevance Scoring Algorithm
 
 ```typescript
 function scoreLesson(lesson: Lesson, context: QueryContext): number {
@@ -698,8 +692,12 @@ function scoreLesson(lesson: Lesson, context: QueryContext): number {
     critical: 1.0, high: 0.8, medium: 0.5, low: 0.2
   }[lesson.severity] ?? 0.5;
 
-  // Semantic similarity (from pgvector query, 0-1)
+  // Semantic similarity (from pgvector query, 0–1)
   const semantic = context.semanticScore ?? 0.5;
+
+  // Trust tier — currently stored but weight = 1.0 in v1.0;
+  // tunable in future versions
+  const trustWeight = 1.0;
 
   return (
     severityWeight * 0.30 +
@@ -707,11 +705,11 @@ function scoreLesson(lesson: Lesson, context: QueryContext): number {
     semantic       * 0.25 +
     frequency      * 0.10 +
     stackMatch     * 0.10
-  );
+  ) * trustWeight;
 }
 ```
 
-### 4.7 Cross-Project Propagation Engine
+### 3.7 Cross-Project Propagation Engine
 
 ```typescript
 // Runs every PROPAGATION_INTERVAL_MS (default: 1 hour)
@@ -726,7 +724,8 @@ async function runPropagation(db: Database): Promise<void> {
   `);
 
   for (const lesson of provenLessons) {
-    // Find other projects with overlapping stack (at least 1 common tag)
+    // Find other projects with overlapping stack (at least 1 common tag).
+    // Tracker type is irrelevant — propagation is tracker-agnostic.
     const candidates = await db.query(`
       SELECT p.id
       FROM projects p
@@ -752,11 +751,12 @@ async function runPropagation(db: Database): Promise<void> {
 
 ---
 
-## 5. Database Specification
+## 4. Database Specification
 
-### 5.1 pgvector Index Configuration
+### 4.1 pgvector Index Configuration
 
-For <= 100,000 vectors (startup/small team):
+For ≤ 100,000 vectors (startup/small team):
+
 ```sql
 CREATE INDEX idx_lessons_embedding ON lessons
   USING ivfflat (embedding vector_cosine_ops)
@@ -764,15 +764,17 @@ CREATE INDEX idx_lessons_embedding ON lessons
 ```
 
 For > 100,000 vectors:
+
 ```sql
 CREATE INDEX idx_lessons_embedding ON lessons
   USING hnsw (embedding vector_cosine_ops)
   WITH (m = 16, ef_construction = 64);
 ```
 
-HNSW has better query performance but higher build time and memory usage.
+HNSW has better query performance but higher build time and memory
+usage.
 
-### 5.2 RLS Policy Template
+### 4.2 RLS Policy Template
 
 ```sql
 CREATE POLICY project_isolation ON {table}
@@ -782,29 +784,28 @@ CREATE POLICY project_isolation ON {table}
   );
 
 -- Tables with RLS enabled:
--- lessons, patterns, sessions, repositories,
--- preferences, lesson_propagations
+-- lessons, patterns, sessions, repositories, lesson_propagations
 ```
 
 ---
 
-## 6. Embedding Strategy
+## 5. Embedding Strategy
 
-### 6.1 What Gets Embedded
+### 5.1 What Gets Embedded
 
 | Record Type | Embedded Text |
 |-------------|---------------|
 | Lesson | title + " " + problem + " " + fix + " " + prevention_rule |
 | Pattern | title + " " + description + " " + (code_example ?? "") |
 
-### 6.2 Embedding Model
+### 5.2 Embedding Model
 
 - Model: `text-embedding-3-small`
 - Dimensions: 1536
 - Cost: ~$0.00002 per lesson (negligible)
 - Max input tokens: 8191
 
-### 6.3 Embedding Implementation
+### 5.3 Embedding Implementation
 
 ```typescript
 async function embedLesson(lesson: LessonInput): Promise<number[]> {
@@ -826,29 +827,32 @@ async function embedLesson(lesson: LessonInput): Promise<number[]> {
 
 ---
 
-## 7. Error Handling
+## 6. Error Handling
 
-### 7.1 MCP Tool Errors
+### 6.1 MCP Tool Errors
 
 All tools return structured errors:
+
 ```typescript
 {
   error: true,
-  code: "LESSON_NOT_FOUND" | "INVALID_PROJECT" | "EMBEDDING_FAILED" | ...,
+  code: "LESSON_NOT_FOUND" | "INVALID_PROJECT" | "EMBEDDING_FAILED"
+        | "TASK_NOT_FOUND" | ...,
   message: string,
   retryable: boolean
 }
 ```
 
-### 7.2 OpenAI Embedding Failures
+### 6.2 OpenAI Embedding Failures
 
 If embedding generation fails:
-- Log error with lesson_id
+
+- Log error with `lesson_id`
 - Store lesson WITHOUT embedding
 - Mark `embedding_status: 'pending'`
 - Background job retries failed embeddings every 5 minutes
 
-### 7.3 Database Connection Failures
+### 6.3 Database Connection Failures
 
 - Connection pool size: 10
 - Connection timeout: 5 seconds
@@ -857,43 +861,48 @@ If embedding generation fails:
 
 ---
 
-## 8. Team Memory Model
+## 7. Team Memory Model
 
-### 8.1 Shared vs. Private Data
+### 7.1 Shared vs. Private Data
 
 | Data | Shared (team) | Private (individual) |
 |------|---------------|----------------------|
 | Lessons learned | Yes | — |
 | Code patterns | Yes | — |
 | Prevention rules | Yes | — |
-| Sessions | — | Yes — your session handoff |
-| Preferences | — | Yes — your personal settings |
+| Sessions | Yes (queryable by all team members) | Originator recorded in `user_handle` |
 
-### 8.2 User Handle
+There is no per-developer memory pool in v1.0. Memory is team-shared,
+project-isolated.
+
+### 7.2 User Handle
 
 Each developer sets once in their local environment:
 
 ```bash
 export LORE_USER=alice
-export LORE_API_KEY=lore_bc_xxxx    # same for whole team
+export LORE_API_KEY=lore_project_xxxx    # same key for whole team
 ```
 
-### 8.3 Deduplication via Semantic Similarity
+### 7.3 Deduplication via Semantic Similarity
 
 When two developers hit the same bug simultaneously:
 
-1. Developer A saves lesson → `embedding` generated, stored
-2. Developer B's `save_lesson` runs:
-   - Semantic similarity check against existing lessons
-   - If match > 90%: `increment_occurrence()` instead of new record
-   - `hit_by_users[]` appended with Developer B's handle
-3. One clean lesson, occurrence_count = 2
+1. Developer A's `clickup-code-review` captures lesson →
+   `embedding` generated, stored.
+2. Developer B's `clickup-code-review` runs `capture_review_finding`:
+   - Semantic similarity check against existing lessons.
+   - If match > 0.90: `increment_occurrence()` instead of new record.
+   - `hit_by_users[]` appended with Developer B's handle.
+3. One clean lesson, occurrence_count = 2 → eligible for cross-project
+   propagation.
 
-### 8.4 API Key Distribution
+### 7.4 API Key Distribution
 
 ```
 Project lead: lore project:register → gets LORE_PROJECT_API_KEY
-             → stores in team secrets manager (1Password / Doppler / AWS)
+              → stores in team secrets manager
+                (1Password / Doppler / AWS Secrets Manager)
 
 Each developer: gets key from secrets manager
                 sets: export LORE_API_KEY=lore_project_xxxx

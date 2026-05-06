@@ -1,24 +1,33 @@
 # Lore Platform — Product Requirements Document
 
 Version: 1.0.0
-Status: Draft
-Date: March 2026
+Status: Final (Draft for Implementation)
+Date: 2026-05-06
 
 ---
 
 ## 1. Executive Summary
 
-Lore Platform is a multi-project AI governance and memory system that gives
-every developer on every project a consistent, intelligent, memory-backed AI
-coding experience. It operates across three layers: a skills platform that
-instructs AI agents how to behave, a persistent memory server that stores and
-retrieves institutional knowledge, and a CLI that makes the entire system
-invisible to developers.
+Lore is the institutional memory layer for BMAD-driven development. It
+captures, recalls, and propagates lessons learned across sessions,
+developers, and projects so that AI coding agents stop repeating mistakes
+the team has already solved.
 
-The system solves a fundamental problem in AI-assisted development: AI agents
-have no memory between sessions, no knowledge of team history, and no awareness
-of mistakes already made. Lore Platform gives AI agents persistent, searchable,
-cross-session, cross-developer, and optionally cross-project institutional memory.
+Lore consists of two components: a self-hosted memory server
+(`lore-memory-mcp`, Postgres + pgvector + MCP tools) and a CLI
+(`@lore/cli`) that wires the development ecosystem together. Lore does not
+own methodology, tracker integration, or AI agent behavior — those belong
+to bmad-mcp-server. Lore exposes MCP tools; BMAD custom-skills call them
+by convention.
+
+The system is designed to compound. Every code review captured by BMAD's
+`clickup-code-review` becomes a lesson. Lessons accumulate across projects
+on the same stack. BMAD planning agents query Lore before producing PRDs
+and architecture documents — making the next planning cycle smarter than
+the last.
+
+Design rationale: see `lore-bmad-ecosystem.md` for the discussion that
+shaped these scope decisions.
 
 ---
 
@@ -26,33 +35,30 @@ cross-session, cross-developer, and optionally cross-project institutional memor
 
 ### 2.1 Current State
 
-Teams using AI coding assistants (Cursor, Claude Code) face these problems:
+Teams using AI coding assistants face these problems:
 
-1. **Zero institutional memory** — Every session starts from scratch. The agent
-   has no knowledge of past mistakes, team decisions, or proven patterns.
+1. **Zero institutional memory.** Every session starts from scratch. The
+   agent has no knowledge of past mistakes, team decisions, or proven
+   patterns.
 
-2. **Knowledge loss** — When a developer solves a hard bug, that knowledge lives
-   only in their head. The next developer hits the same bug. The agent hits the
-   same bug.
+2. **Knowledge loss.** When a developer solves a hard bug, that knowledge
+   lives only in their head or in a closed PR comment. The next developer
+   hits the same bug.
 
-3. **Inconsistent AI behavior** — Different developers get different quality AI
-   assistance depending on how well they prompt and what context they manually
-   provide.
+3. **Code-review insights die in PR comments.** Reviewers (human or AI)
+   flag the same anti-patterns repeatedly because findings are not
+   captured anywhere queryable.
 
-4. **Onboarding friction** — New developers spend weeks learning the same lessons
+4. **No cross-project learning.** A team running NestJS in two projects
+   relearns the same database mistakes in each.
+
+5. **Onboarding friction.** New developers spend weeks learning lessons
    the team already learned the hard way.
-
-5. **No codebase awareness** — AI agents read individual files but cannot
-   understand dependencies, call chains, or blast radius of changes.
-
-6. **Config fragmentation** — Every project has its own ad-hoc AI configuration
-   that drifts over time and is never shared.
 
 ### 2.2 Impact
 
-- Repeated bugs across developers and sessions
-- Inconsistent code quality
-- Slow onboarding
+- Repeated bugs across developers, sessions, and projects
+- Inconsistent code quality despite adversarial review
 - High cognitive load on developers to manually provide context
 - No compounding improvement in AI assistance over time
 
@@ -60,14 +66,14 @@ Teams using AI coding assistants (Cursor, Claude Code) face these problems:
 
 ## 3. Vision
 
-> Every developer on every project gets an AI agent that already knows your
-> stack, remembers every mistake your team has ever made, learns from other
-> projects running the same technology, and requires zero setup beyond one
-> CLI command.
+> Every code review automatically teaches the team's AI agents. Every
+> lesson learned propagates to other projects on the same stack. Every
+> BMAD planning workflow starts informed by what already failed and what
+> already worked.
 
-AI assistance should compound over time. The longer a team uses the system,
-the better the AI gets — because every session adds to a shared knowledge base
-that benefits every future session.
+AI assistance compounds when memory is shared. The longer a team uses
+Lore, the more BMAD's left side (planning) is shaped by what BMAD's right
+side (execution) discovered.
 
 ---
 
@@ -75,117 +81,109 @@ that benefits every future session.
 
 ### 4.1 Goals
 
-- G1: Provide persistent, searchable institutional memory across sessions and developers
-- G2: Standardize AI agent behavior across multiple projects via versioned skills
-- G3: Zero-friction developer setup (one CLI command)
-- G4: Automatic knowledge capture — no manual documentation required
-- G5: Cross-project knowledge propagation for teams running similar stacks
-- G6: Deep code intelligence via knowledge graph integration (GitNexus)
-- G7: Project isolation — no data leakage between projects
-- G8: Team-shared memory — all developers benefit from each other's experience
+- **G1** Persistent, semantically searchable memory of lessons and
+  patterns, scoped per project with cross-project propagation
+- **G2** Automatic capture from BMAD code-review findings via
+  `capture_review_finding`
+- **G3** Just-in-time memory recall during BMAD execution skills via
+  `query_lessons_for_task` and `start_session_from_task`
+- **G4** Project isolation enforced at the database level via Row-Level
+  Security
+- **G5** Zero-friction install — one CLI command wires lore-memory +
+  bmad-mcp-server + GitNexus into Cursor/Claude
+- **G6** Tracker-agnostic — works with ClickUp today, Jira/Asana when
+  bmad-mcp-server adds them
+- **G7** Self-hostable; no SaaS dependency
 
 ### 4.2 Non-Goals
 
-- NOT a general-purpose AI assistant or chatbot
-- NOT a replacement for git history or commit messages
-- NOT a code review tool
-- NOT a project management tool
-- NOT a SaaS product (self-hosted only in v1)
-- NOT an offline-first system
-- NOT a per-developer memory system (memory is team-owned)
+- **NOT** a methodology or workflow system (bmad-mcp-server's domain)
+- **NOT** a tracker or PM tool (ClickUp/Jira/Asana via bmad-mcp-server)
+- **NOT** a code-intelligence layer (GitNexus's domain)
+- **NOT** a behavior platform — Lore exposes MCP tools, not skills
+- **NOT** a code-review tool — review is BMAD's job; Lore captures the
+  findings
+- **NOT** a session-bootstrap or git-workflow tool
+- **NOT** a SaaS product (self-hosted only)
+- **NOT** a per-developer separate memory pool — memory is team-shared,
+  project-isolated
 
 ---
 
 ## 5. Users and Personas
 
-### 5.1 Developer (Primary User)
+### 5.1 Developer (Primary)
 
-**Profile:** Software engineer working on a project that uses Cursor or Claude Code.
+**Profile:** Software engineer using Cursor or Claude Code on a project
+with bmad-mcp-server installed.
 
 **Goals:**
-- Write code faster with fewer repeated mistakes
-- Get relevant context without manual setup
-- Have the AI understand the codebase architecture
-
-**Pain points:**
-- AI forgets everything between sessions
-- Has to re-explain the same context repeatedly
-- AI makes changes that break things it didn't know about
+- Get relevant past lessons surfaced automatically when starting a
+  tracked task
+- Have AI code reviews automatically capture findings as reusable lessons
+- Avoid repeating bugs the team already solved
 
 **Interaction with Lore:**
 - Runs `lore install` once
-- Types `/bootstrap` at session start
-- Never thinks about the system again
+- Invokes BMAD skills (`clickup-dev-implement`, `clickup-code-review`);
+  Lore is invisibly queried/updated by those skills
+- Occasionally runs `lore inbox` to triage propagation suggestions
 
----
+### 5.2 Project Lead (Secondary)
 
-### 5.2 Project Lead (Secondary User)
-
-**Profile:** Tech lead or senior developer responsible for a project.
+**Profile:** Tech lead responsible for a project's setup and
+AI-assistance quality.
 
 **Goals:**
-- Ensure consistent AI behavior across the team
-- Capture and propagate team knowledge
-- Onboard new developers quickly
-
-**Pain points:**
-- Team members get inconsistent AI quality
-- Same mistakes happen across the team
-- Onboarding takes too long
+- Initialize a new project so all developers benefit from team memory
+- Ensure proven lessons propagate from sister projects on the same stack
 
 **Interaction with Lore:**
-- Runs `lore init` to set up a new project
-- Manages `lore.yaml`
-- Reviews admin dashboard for team memory health
+- Runs `lore init` to create `lore.yaml`, register the project, and
+  obtain an API key
+- Reviews `lore inbox` periodically to accept/reject cross-project
+  propagation suggestions
 
----
+### 5.3 Platform Administrator (Tertiary)
 
-### 5.3 Platform Administrator (Tertiary User)
-
-**Profile:** DevOps or platform engineer maintaining the Lore infrastructure.
+**Profile:** DevOps or platform engineer maintaining the Lore
+infrastructure.
 
 **Goals:**
-- Keep the memory server running reliably
-- Manage project registrations
-- Monitor system health
+- Keep `lore-memory-mcp` running reliably
+- Manage project registration and API keys
 
 **Interaction with Lore:**
 - Manages Docker deployment
-- Creates/revokes project API keys
-- Monitors Postgres and MCP server health
+- Creates/revokes project API keys via admin REST endpoints
 
 ---
 
 ## 6. System Components
 
-The platform consists of three independent components and one per-project
-configuration artifact:
+Lore is two components plus a per-project config artifact.
 
-### 6.1 @lore/cli (npm package)
+### 6.1 `@lore/cli` (npm package)
 
-The developer-facing command-line tool. Handles installation, project
-initialization, updates, and all setup tasks. Developers install this globally
-once and never manually configure anything.
+The developer-facing CLI. Handles install, project initialization, MCP
+config writing for all three ecosystem servers (lore-memory +
+bmad-mcp-server + GitNexus), the `lore inbox` propagation surface, and
+version-compatibility checks. Installed globally once per developer.
 
-### 6.2 lore-platform (GitHub repository + releases)
+### 6.2 `lore-memory-mcp` (Docker, self-hosted)
 
-The skills library. Contains versioned markdown skill files that instruct AI
-agents how to behave. Skills are stack-agnostic (core) or stack-specific
-(nestjs, react, python, etc.). Published as versioned releases. The CLI
-downloads the correct version automatically.
+Always-on HTTP server exposing memory tools via MCP. Backed by PostgreSQL
+with pgvector. Stores lessons, patterns, sessions, and propagation
+suggestions. Enforces project isolation via Row-Level Security. Runs the
+cross-project propagation engine on a schedule.
 
-### 6.3 lore-memory-mcp (Docker, self-hosted)
+### 6.3 `lore.yaml` (per-project config artifact)
 
-The persistent memory server. An always-on HTTP server that exposes memory
-tools via the Model Context Protocol. Backed by PostgreSQL with pgvector
-for semantic search. Stores lessons learned, patterns, sessions, and
-preferences. Enforces project isolation via Row-Level Security.
-
-### 6.4 lore.yaml (per-project config file)
-
-A single configuration file committed to each project's config repository.
-Declares the project identity, repos, tech stack, skill version, and MCP
-connection. The CLI reads this file to set up everything else.
+A single YAML file committed to the project's primary repository.
+Declares project identity, repos, stack tags, methodology + tracker
+(when used), Lore server URL, and version pins. Acts as the project's
+**ratification document** — `@lore/cli` reads it to wire everything
+else.
 
 ---
 
@@ -193,255 +191,222 @@ connection. The CLI reads this file to set up everything else.
 
 ### 7.1 CLI — `lore install`
 
-**FR-01:** CLI must read `lore.yaml` from the current directory or any
-parent directory.
-
-**FR-02:** CLI must download the exact skill version declared in `lore.yaml`
-from the release registry.
-
-**FR-03:** CLI must configure Cursor MCP settings (`~/.cursor/mcp.json`)
-automatically without developer intervention.
-
-**FR-04:** CLI must run `gitnexus analyze` for each repo declared in
-`lore.yaml` on first install.
-
-**FR-05:** CLI must install git hooks (`post-commit`, `post-merge`) in each
-declared repo automatically.
-
-**FR-06:** CLI must add the CLAUDE.md include path to `~/.claude/CLAUDE.md`.
-
-**FR-07:** Install must complete in under 60 seconds for a typical project
-(3-5 repos, ~1000 files each).
-
-**FR-08:** CLI must be idempotent — running `lore install` multiple times
-must not corrupt state.
-
----
+- **FR-01** CLI must read `lore.yaml` from the current directory or any
+  parent directory.
+- **FR-02** CLI must validate `lore.yaml` against the v1.0 schema; abort
+  on missing required fields with a clear error.
+- **FR-03** CLI must write or update `~/.cursor/mcp.json` with entries
+  for `lore-memory`, `gitnexus`, and (when methodology is declared)
+  `bmad-mcp-server`.
+- **FR-04** CLI must write the CLAUDE.md include path to
+  `~/.claude/CLAUDE.md`.
+- **FR-05** CLI must verify `lore-memory-mcp` server reachability and
+  version compatibility against the `lore.version` range in `lore.yaml`.
+- **FR-06** CLI must be idempotent — running `lore install` multiple
+  times must not corrupt MCP config or duplicate entries.
+- **FR-07** Install must complete in under 30 seconds for a typical
+  project.
 
 ### 7.2 CLI — `lore init`
 
-**FR-09:** CLI must interactively gather project name, slug, repo list,
-tech stacks, and MCP server URL.
-
-**FR-10:** CLI must generate `lore.yaml`, `CLAUDE.md`, `constitution.md`,
-and `REPO_IDENTITY.md` for each declared repo.
-
-**FR-11:** CLI must register the project with the MCP memory server and
-return an API key.
-
-**FR-12:** CLI must validate that the MCP server is reachable before
-completing initialization.
-
----
+- **FR-08** CLI must interactively gather project name, slug, repo list,
+  stack tags per repo, and Lore server URL.
+- **FR-09** CLI must offer a methodology layer (BMAD). When accepted, it
+  prompts for tracker type (`clickup` | `jira` | `asana`) and
+  tracker-specific identifiers (space, lists, custom fields).
+- **FR-10** CLI must validate the tracker connection during init when
+  methodology is declared (by calling bmad-mcp-server's tracker check
+  tool).
+- **FR-11** CLI must generate `lore.yaml`, `CLAUDE.md`,
+  `constitution.md`, and `REPO_IDENTITY.md` for each declared repo.
+- **FR-12** CLI must register the project with `lore-memory-mcp` via REST
+  and display the one-time API key with storage instructions.
+- **FR-13** CLI must complete in under 5 minutes for a typical 3-repo
+  project.
 
 ### 7.3 CLI — `lore update`
 
-**FR-13:** CLI must check the release registry for newer skill versions.
+- **FR-14** CLI must check the `lore-memory-mcp` Docker image registry
+  for newer versions matching the `lore.version` range in `lore.yaml`.
+- **FR-15** CLI must display a changelog before applying updates.
+- **FR-16** CLI must verify backward-compatible schema migrations exist
+  before pulling a new image.
+- **FR-17** CLI must update the `lore.version` field in `lore.yaml` after
+  a successful update.
 
-**FR-14:** CLI must display a changelog diff before applying updates.
+### 7.4 CLI — `lore inbox`
 
-**FR-15:** CLI must prompt the user before applying breaking changes
-(major version bumps).
+- **FR-18** CLI must list all pending lesson-propagation suggestions for
+  the current project.
+- **FR-19** For each suggestion, CLI must display the source lesson
+  title, problem summary, severity, source stack tags, and occurrence
+  count — without revealing the source project name.
+- **FR-20** CLI must accept interactive accept/reject responses and call
+  the corresponding MCP tools.
 
-**FR-16:** CLI must update `lore.yaml` version field after successful update.
+### 7.5 Memory Server — Lessons
 
----
+- **FR-21** Server must store lessons with: `title`, `problem`,
+  `root_cause`, `fix`, `prevention_rule`, `stack_tags`, `category`,
+  `severity`, `occurrence_count`, `provenance` (JSONB), and optional
+  `external_task_id` / `external_task_ref` / `external_tracker_type`.
+- **FR-22** Server must generate OpenAI embeddings for every lesson on
+  save (`text-embedding-3-small`, 1536 dims).
+- **FR-23** `query_lessons` must support filtering by `stack_tags`,
+  `category`, `severity`, date range, and `repo_id`.
+- **FR-24** `query_lessons` must rank results by a relevance score that
+  combines recency, frequency, stack-tag overlap, severity, and
+  provenance trust tier.
+- **FR-25** `search_similar` must accept a natural-language string and
+  return semantically similar lessons via pgvector cosine similarity.
+- **FR-26** `save_lesson` must check for semantic duplicates (cosine
+  similarity ≥ 0.90) and increment `occurrence_count` on the matched
+  lesson rather than inserting a new row.
+- **FR-27** Lessons must be scoped to one of: global (null `project_id`),
+  project-level, or repo-level.
 
-### 7.4 Memory Server — Lessons
+### 7.6 Memory Server — Sessions and BMAD Integration
 
-**FR-17:** Server must store lessons with: title, problem description,
-root cause, fix, prevention rule, stack tags, category, severity, and
-occurrence count.
+- **FR-28** `start_session_from_task` must accept `external_task_id` +
+  `external_tracker_type` and either resume an existing session for that
+  task or create a new one. Resume returns a `prior_session_summary`.
+- **FR-29** `start_session_from_task` must record `bmad_skill`,
+  `bmad_workflow`, `branch`, and `user_handle`.
+- **FR-30** `start_session` (no task ID) must remain available for
+  manual sessions outside a tracker.
+- **FR-31** `end_session` must record `decisions` (JSONB), `lessons_applied`
+  (UUIDs), and `files_touched` (text array).
+- **FR-32** `query_lessons_for_task` must accept an `external_task_id`
+  plus optional `task_context` (title, description, parent_epic_id,
+  stack_tags) and return relevant lessons + patterns ranked by combined
+  semantic, tag-overlap, and epic-scoped relevance.
+- **FR-33** `link_lessons_to_task` must record both `consulted` (lesson
+  IDs shown to the agent) and `applied` (lesson IDs the agent acted on)
+  against the active session.
+- **FR-34** `capture_review_finding` must accept structured review
+  output (severity + finding fields per the tech-spec) plus
+  `external_task_id` and create a lesson with
+  `provenance.trust_tier = "high"` and
+  `provenance.source = "bmad-code-review"`.
+- **FR-35** `capture_review_finding` must run the same
+  semantic-deduplication check as `save_lesson`.
 
-**FR-18:** Server must generate OpenAI embeddings for every lesson on save.
+### 7.7 Memory Server — Patterns
 
-**FR-19:** `query_lessons` must support filtering by: stack tags, category,
-severity, date range, and repo.
+- **FR-36** `save_pattern` must accept `title`, `description`,
+  `code_example`, `stack_tags`, `category`; generate an embedding.
+- **FR-37** `get_patterns` must filter by `stack_tags` and `category`,
+  return results sorted by `usage_count` descending.
+- **FR-38** Calling `get_patterns` must increment `usage_count` for
+  returned patterns.
 
-**FR-20:** `query_lessons` must return results ranked by relevance score
-(recency + frequency + stack match + severity).
+### 7.8 Memory Server — Cross-Project Propagation
 
-**FR-21:** `search_similar` must accept a natural language text string and
-return semantically similar lessons using pgvector cosine similarity.
+- **FR-39** A background job must run on a configurable interval
+  (default: 1 hour) to identify lessons with `occurrence_count >= 2` and
+  `severity IN ('critical','high')`.
+- **FR-40** For each qualifying lesson, the job must identify other
+  projects with overlapping `stack_tags` and create
+  `lesson_propagations` records with `status = 'suggested'`.
+- **FR-41** Propagation must be tracker-agnostic — a lesson captured in
+  a ClickUp-tracked project can propagate to a Jira-tracked project on
+  the same stack.
+- **FR-42** `get_pending_propagations` MCP tool must return pending
+  suggestions for the current project (also the data source for
+  `lore inbox`).
+- **FR-43** `accept_propagation` must copy the source lesson to the
+  target project with `propagated_from` set and `occurrence_count` reset
+  to 1.
+- **FR-44** `reject_propagation` must mark the suggestion as `rejected`
+  with `reviewed_at` timestamp.
 
-**FR-22:** When `save_lesson` is called, server must check for semantic
-duplicates (>90% cosine similarity) and increment occurrence count instead
-of creating a new record.
+### 7.9 Memory Server — Project Isolation
 
-**FR-23:** Lessons must be scoped to: global (null project), project-level,
-or repo-level.
+- **FR-45** Every project must have a unique API key issued at
+  registration.
+- **FR-46** Row-Level Security must be enabled on all data tables
+  (`lessons`, `patterns`, `sessions`, `repositories`,
+  `lesson_propagations`).
+- **FR-47** An authenticated request must only be able to read or write
+  data belonging to its own project, plus global (null `project_id`)
+  records where the table allows.
+- **FR-48** No application-level filtering for isolation — isolation
+  must be enforced at the database level only.
+- **FR-49** API keys must be stored as bcrypt hashes (cost 12); plain
+  text must never be persisted.
 
----
+### 7.10 Ecosystem Integration
 
-### 7.5 Memory Server — Sessions
-
-**FR-24:** `start_session` must record: project, repo, branch, task summary,
-and timestamp.
-
-**FR-25:** `end_session` must record: decisions made, errors hit (lesson IDs),
-files touched, and end timestamp.
-
-**FR-26:** `get_session_handoff` must return the most recent session for the
-current project/repo with a human-readable summary.
-
----
-
-### 7.6 Memory Server — Cross-Project Propagation
-
-**FR-27:** A background job must run hourly to identify lessons with
-occurrence_count >= 2 and severity critical/high.
-
-**FR-28:** For each qualifying lesson, the job must identify other projects
-with overlapping stack tags and create propagation suggestions.
-
-**FR-29:** `suggest_propagations` tool must return pending suggestions for
-the current project.
-
-**FR-30:** Accepting a propagation must copy the lesson to the target project
-with a reference to the source.
-
----
-
-### 7.7 Memory Server — Project Isolation
-
-**FR-31:** Every project must have a unique API key.
-
-**FR-32:** Row-Level Security must be enabled on all data tables.
-
-**FR-33:** An authenticated request must only be able to read/write data
-belonging to its own project or global (null project_id) records.
-
-**FR-34:** There must be no application-level filtering for isolation —
-isolation must be enforced at the database level only.
-
----
-
-### 7.8 Bootstrap Skill
-
-**FR-35:** Bootstrap must detect which repo it is running in by walking
-the directory tree for `lore.yaml`.
-
-**FR-36:** Bootstrap must fire all MCP calls as parallel tool calls in
-a single response (not sequential).
-
-**FR-37:** Bootstrap must display: constitution status, repo identity,
-top 5 relevant lessons, semantic matches for the current task, session
-handoff, MCP status, GitNexus codebase stats, and cross-project suggestions.
-
-**FR-38:** Bootstrap must check git branch and block work on protected
-branches.
-
-**FR-39:** Bootstrap must ask: "New task or existing work?" and handle
-branch creation or sync accordingly.
-
----
-
-### 7.9 Auto-Capture
-
-**FR-40:** The lesson skill must track error types silently during a session.
-
-**FR-41:** When the same error type occurs 2 or more times in a session,
-the skill must automatically call `save_lesson` without prompting the developer.
-
-**FR-42:** Auto-captured lessons must include: error message, stack tags
-from current repo, category inferred from error type, and severity inferred
-from impact.
-
-**FR-43:** The skill must call `increment_occurrence` when an existing lesson
-is hit again (semantic match > 90%).
-
----
-
-### 7.10 GitNexus Integration
-
-**FR-44:** `lore install` must run `npx gitnexus analyze` for each repo
-automatically.
-
-**FR-45:** Git post-commit hook must run `npx gitnexus analyze --incremental
---quiet` in the background after every commit.
-
-**FR-46:** Git post-merge hook must run `npx gitnexus analyze --incremental
---quiet` after every pull/merge.
-
-**FR-47:** Bootstrap must query GitNexus for codebase stats and include
-them in the session report.
-
-**FR-48:** Bootstrap must check GitNexus index staleness and trigger
-re-index if older than 24 hours.
+- **FR-50** `lore install` must run `npx gitnexus analyze` for each repo
+  on first install.
+- **FR-51** `lore install` must install `post-commit` and `post-merge`
+  git hooks that run `npx gitnexus analyze --incremental --quiet` in
+  the background.
+- **FR-52** When methodology is declared, `lore install` must add the
+  bmad-mcp-server entry to `~/.cursor/mcp.json` with the version pinned
+  per `methodology.version` in `lore.yaml`.
+- **FR-53** BMAD custom-skills are expected (by convention, not
+  enforcement) to call Lore MCP tools at the documented integration
+  points (see `lore-bmad-ecosystem.md` §8.1). Lore does not validate
+  that they do.
 
 ---
 
 ## 8. Non-Functional Requirements
 
-**NFR-01 Performance:** `query_lessons` must respond in < 200ms for
-projects with up to 10,000 lessons.
-
-**NFR-02 Performance:** `search_similar` (semantic search) must respond
-in < 500ms.
-
-**NFR-03 Performance:** Bootstrap (all parallel MCP calls) must complete
-in < 3 seconds total.
-
-**NFR-04 Availability:** Memory server must target 99.5% uptime (self-hosted,
-best effort).
-
-**NFR-05 Scalability:** Single Postgres instance must support 50+ projects
-and 100,000+ lessons without schema changes.
-
-**NFR-06 Security:** API keys must be stored as bcrypt hashes. Plain text
-keys must never be stored.
-
-**NFR-07 Security:** All MCP communication must be over HTTPS in production.
-
-**NFR-08 Privacy:** No code content is stored in the memory server — only
-lesson metadata and natural language descriptions.
-
-**NFR-09 Observability:** All MCP tool calls must be logged with: project_id,
-tool name, duration, and success/failure.
-
-**NFR-10 Maintainability:** Skills must be valid markdown files that any
-team member can read and edit without technical knowledge.
+- **NFR-01 Performance:** `query_lessons` must respond in < 200ms for
+  projects with up to 10,000 lessons.
+- **NFR-02 Performance:** `search_similar` must respond in < 500ms.
+- **NFR-03 Performance:** `query_lessons_for_task` must respond in
+  < 500ms (includes embedding generation + epic-scoped query).
+- **NFR-04 Availability:** Memory server must target 99.5% uptime
+  (self-hosted, best effort).
+- **NFR-05 Scalability:** Single Postgres instance must support 50+
+  projects and 100,000+ lessons without schema changes.
+- **NFR-06 Security:** API keys stored as bcrypt hashes (cost 12); rate
+  limiting on auth (max 20 failed attempts per IP per minute before
+  `429`).
+- **NFR-07 Security:** All MCP communication over HTTPS in production.
+  HTTP allowed only for `localhost`.
+- **NFR-08 Privacy:** No code content stored — only natural-language
+  metadata and `code_pointer` (file + line range references).
+- **NFR-09 Observability:** All MCP calls logged with `project_id` (masked),
+  tool name, duration, success/failure.
+- **NFR-10 Maintainability:** Lessons and patterns must be valid
+  JSON-serializable structures; no opaque blobs.
 
 ---
 
 ## 9. User Stories
 
-### Developer Stories
+### Developer
 
-**US-01:** As a developer, I want to run one command to set up AI assistance
-for a project so that I can start working immediately without configuration.
+- **US-01** As a developer, I want one command to set up AI assistance
+  for a project so I can start working without configuration.
+- **US-02** As a developer, I want relevant past lessons surfaced when I
+  start work on a tracked task, so I avoid repeating mistakes.
+- **US-03** As a developer, I want my code-review findings automatically
+  captured as lessons, so my team's institutional memory grows without
+  manual effort.
+- **US-04** As a developer, I want session continuity across days — when
+  I re-open a task, I want yesterday's context.
+- **US-05** As a developer, I want to manually save a lesson when I
+  solve a hard bug outside a review flow.
 
-**US-02:** As a developer, I want to see relevant past mistakes at session
-start so that I don't repeat errors my team has already solved.
+### Project Lead
 
-**US-03:** As a developer, I want the AI to understand the codebase
-architecture so that it doesn't make changes that break downstream dependencies.
+- **US-06** As a project lead, I want to initialize a new project's Lore
+  configuration in under 5 minutes.
+- **US-07** As a project lead, I want to receive lesson suggestions from
+  sister projects on the same stack.
+- **US-08** As a project lead, I want to triage propagation suggestions
+  via `lore inbox` without leaving my terminal.
 
-**US-04:** As a developer, I want my session context to persist between
-days so that I don't have to re-explain what I was working on.
+### Cross-Project
 
-**US-05:** As a developer, I want mistakes to be captured automatically
-so that I don't have to manually document them.
-
-### Project Lead Stories
-
-**US-06:** As a project lead, I want to initialize a new project config
-in under 5 minutes so that I can onboard the team quickly.
-
-**US-07:** As a project lead, I want all developers to use the same skill
-version so that AI behavior is consistent across the team.
-
-**US-08:** As a project lead, I want to see which mistakes are most
-common across the team so that I can address systemic issues.
-
-**US-09:** As a project lead, I want new developers to inherit all team
-lessons on day one so that onboarding is faster.
-
-### Cross-Project Stories
-
-**US-10:** As a project lead, I want to receive lesson suggestions from
-other projects using the same stack so that I can benefit from their
-experience without manual coordination.
+- **US-09** As a project lead, I want lessons from a ClickUp-tracked
+  project to propagate to a Jira-tracked project on the same stack —
+  tracker should not matter.
 
 ---
 
@@ -450,22 +415,28 @@ experience without manual coordination.
 | Metric | Target | Measurement |
 |--------|--------|-------------|
 | Setup time (new developer) | < 2 minutes | CLI timing |
-| Lessons captured per project/month | > 20 | DB count |
-| Repeat bug rate | Decrease 50% over 3 months | Occurrence count trend |
-| Bootstrap completion time | < 3 seconds | MCP response timing |
-| Developer adoption rate | > 90% of team active weekly | Session start counts |
-| Cross-project propagation acceptance rate | > 60% | propagations table |
+| Lessons captured per project per month | > 20 | DB count |
+| Captured-via-review ratio | > 70% of new lessons | `provenance.source` breakdown |
+| Repeat bug rate | Decrease 50% over 3 months | `occurrence_count` trend |
+| Cross-project propagation acceptance rate | > 60% | `lesson_propagations` table |
+| MCP tool P95 latency | All under NFR thresholds | Observability logs |
 | New developer time-to-productivity | Decrease 30% | Team survey |
 
 ---
 
 ## 11. Out of Scope (v1)
 
-- SaaS hosted version
-- Web UI for memory browsing (v2)
+- SaaS-hosted version of `lore-memory-mcp`
+- Web UI for memory browsing (planned for v2)
 - Real-time collaboration features
-- Integration with Jira / Linear / ClickUp
-- Mobile app
-- Slack / Teams notifications
-- Fine-tuning models on captured lessons
-- Per-developer separate memory pools
+- Methodology layers other than BMAD (architectural seam exists, but no
+  implementations besides BMAD in v1)
+- Per-developer separate memory pools (memory is team-shared)
+- Code-content storage or fine-tuning models on lessons
+- Slack / Teams notifications for propagation suggestions
+- Heuristic auto-capture (the "same error 2× in a session" pattern from
+  the inspiration project does not apply to server-backed memory; see
+  `lore-bmad-ecosystem.md` §9.2)
+- Bootstrap session-initialization skill (replaced by JIT memory queries
+  inside BMAD custom-skills + `CLAUDE.md` auto-load; see
+  `lore-bmad-ecosystem.md` §9.1)

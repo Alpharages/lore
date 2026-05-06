@@ -1,35 +1,39 @@
 # Lore Platform — Architecture Document
 
 Version: 1.0.0
-Status: Draft
-Date: March 2026
+Status: Final (Draft for Implementation)
+Date: 2026-05-06
 
 ---
 
 ## 1. Architecture Overview
 
-Lore Platform is a three-component distributed system designed around
-a hub-and-spoke model. The memory server is the hub. Developer machines
-and CI systems are spokes. Each spoke communicates with the hub exclusively
-through the MCP protocol using project-scoped API keys.
+Lore is a two-component distributed system. `lore-memory-mcp` is the
+hub. Developer machines are spokes. Each spoke communicates with the hub
+exclusively through the MCP protocol using project-scoped API keys.
 
 ### 1.1 Core Architectural Principles
 
-1. **Separation of concerns:** Skills (behavior) and memory (data) are
-   independent systems that never depend on each other's internals.
+1. **Separation of concerns.** Lore owns memory; bmad-mcp-server owns
+   methodology and tracker integration; GitNexus owns code intelligence.
+   None depend on the others' internals.
 
-2. **Project isolation by default:** The database enforces isolation at
+2. **Project isolation by default.** The database enforces isolation at
    the storage layer. Application code cannot accidentally leak data.
 
-3. **Developer experience first:** Every architectural decision is evaluated
-   against: "does this add friction for the developer?"
+3. **Developer experience first.** Every architectural decision is
+   evaluated against: "does this add friction for the developer?"
 
-4. **No single point of failure for development:** If the memory server
-   is down, development continues. Sessions start without memory context
-   rather than blocking.
+4. **No single point of failure for development.** If `lore-memory-mcp`
+   is down, BMAD skills continue without memory context rather than
+   blocking.
 
-5. **Compounding value:** The architecture is designed to become more
-   valuable over time as lessons accumulate, not degrade.
+5. **Compounding value.** The architecture is designed to become more
+   valuable over time as lessons accumulate.
+
+6. **One-way dependency.** Lore does not call bmad-mcp-server. BMAD
+   custom-skills call Lore. This keeps Lore deployable and useful even
+   when BMAD is absent.
 
 ---
 
@@ -39,36 +43,40 @@ through the MCP protocol using project-scoped API keys.
 ╔═══════════════════════════════════════════════════════════════════╗
 ║                         EXTERNAL SYSTEMS                          ║
 ║                                                                   ║
-║  ┌─────────────┐    ┌──────────────┐    ┌────────────────────┐   ║
-║  │  GitHub     │    │  OpenAI API  │    │  npm Registry      │   ║
-║  │  (releases) │    │  (embeddings)│    │  (@lore/cli)      │   ║
-║  └──────┬──────┘    └──────┬───────┘    └─────────┬──────────┘   ║
-╚═════════│════════════════════│══════════════════════│═════════════╝
-          │ download           │ embed                │ install
-          ▼                    ▼                      ▼
+║  ┌──────────────┐   ┌──────────────┐   ┌────────────────────┐    ║
+║  │  OpenAI API  │   │  Tracker     │   │  npm Registry      │    ║
+║  │  (embeddings)│   │  (ClickUp/   │   │  (@lore/cli,       │    ║
+║  │              │   │   Jira/Asana)│   │   bmad-mcp-server) │    ║
+║  └──────┬───────┘   └──────┬───────┘   └─────────┬──────────┘    ║
+╚═════════│══════════════════│═════════════════════│═══════════════╝
+          │ embed             │ tracker queries    │ install
+          ▼                   │                    ▼
 ╔═══════════════════════════════════════════════════════════════════╗
 ║                      DEVELOPER MACHINE                            ║
 ║                                                                   ║
 ║  ┌─────────────────────────────────────────────────────────────┐ ║
-║  │  Cursor IDE                                                  │ ║
-║  │  ┌──────────────┐  ┌────────────────┐  ┌─────────────────┐  │ ║
-║  │  │  AI Agent    │  │  MCP Client    │  │  lore skills   │  │ ║
-║  │  │  (Claude)    │←→│  (built-in)    │  │  (~/.lore/)    │  │ ║
-║  │  └──────────────┘  └───────┬────────┘  └─────────────────┘  │ ║
-║  └────────────────────────────│─────────────────────────────────┘ ║
-║                               │ MCP/HTTP                          ║
-║  ┌────────────────────────────│────────────────────────────────┐  ║
-║  │  Local Tools               │                                 │  ║
-║  │  ┌────────────────┐        │     ┌──────────────────────┐   │  ║
-║  │  │ GitNexus MCP   │←───────┘     │  Project Repos        │   │  ║
-║  │  │ (stdio, local) │              │  (.git/hooks active)  │   │  ║
-║  │  └────────────────┘              └──────────────────────┘   │  ║
-║  └────────────────────────────────────────────────────────────── ┘ ║
-╚═══════════════════════════════════╦═══════════════════════════════╝
-                                    ║ HTTPS
-╔═══════════════════════════════════╩═══════════════════════════════╗
-║                       SELF-HOSTED SERVER                          ║
-║                                                                   ║
+║  │  Cursor / Claude Code                                       │ ║
+║  │  ┌──────────────┐   ┌─────────────┐                         │ ║
+║  │  │  AI Agent    │←─→│  MCP Client │                         │ ║
+║  │  └──────────────┘   └──┬───┬───┬──┘                         │ ║
+║  └────────────────────────│───│───│────────────────────────────┘ ║
+║                           │   │   │                              ║
+║              MCP/HTTPS    │   │   │ MCP/stdio                    ║
+║       ┌───────────────────┘   │   └─────────┐                    ║
+║       │                       │ MCP/stdio   │                    ║
+║       │              ┌────────▼──────────┐  │                    ║
+║       │              │ bmad-mcp-server   │  │                    ║
+║       │              │  (npx)            │──┼──→ tracker (above) ║
+║       │              └────────┬──────────┘  │                    ║
+║       │                       │             ▼                    ║
+║       │              ┌────────▼──────────┐ ┌──────────────────┐  ║
+║       │              │ Project Repos     │ │ GitNexus (stdio) │  ║
+║       │              │ (git hooks active)│ └──────────────────┘  ║
+║       │              └───────────────────┘                       ║
+╚═══════│══════════════════════════════════════════════════════════╝
+        │ HTTPS
+╔═══════│══════════════════════════════════════════════════════════╗
+║       ▼              SELF-HOSTED SERVER                          ║
 ║  ┌─────────────────────────────────────────────────────────────┐ ║
 ║  │  lore-memory-mcp (Docker)                                   │ ║
 ║  │                                                              │ ║
@@ -77,22 +85,27 @@ through the MCP protocol using project-scoped API keys.
 ║  │  │  Tools   │  │ Middleware│  │  Service │  │  Engine   │  │ ║
 ║  │  └────┬─────┘  └─────┬─────┘  └────┬─────┘  └─────┬─────┘  │ ║
 ║  │       └──────────────┴──────────────┴──────────────┘         │ ║
-║  └─────────────────────────────────────────────────────────────┘  ║
+║  └─────────────────────────────────────────────────────────────┘ ║
 ║                                                                   ║
-║  ┌─────────────────────────────────────────────────────────────┐  ║
-║  │  PostgreSQL 16 + pgvector                                    │  ║
-║  │  projects  repositories  lessons  patterns  sessions          │  ║
-║  │  preferences  lesson_propagations                             │  ║
-║  │  Row-Level Security: project_id isolation                     │  ║
-║  └─────────────────────────────────────────────────────────────┘  ║
+║  ┌─────────────────────────────────────────────────────────────┐ ║
+║  │  PostgreSQL 16 + pgvector                                   │ ║
+║  │  projects  repositories  lessons  patterns  sessions          │ ║
+║  │  lesson_propagations                                          │ ║
+║  │  Row-Level Security: project_id isolation                     │ ║
+║  └─────────────────────────────────────────────────────────────┘ ║
 ╚═══════════════════════════════════════════════════════════════════╝
 ```
+
+**Important arrows:**
+- BMAD agents call Lore directly via the MCP client.
+- Lore never calls BMAD or trackers.
+- The tracker arrow originates from bmad-mcp-server only.
 
 ---
 
 ## 3. Component Architecture
 
-### 3.1 @lore/cli Internal Structure
+### 3.1 `@lore/cli` Internal Structure
 
 ```
 @lore/cli/
@@ -101,25 +114,25 @@ through the MCP protocol using project-scoped API keys.
 │   ├── commands/
 │   │   ├── install.ts        ← lore install
 │   │   ├── init.ts           ← lore init
-│   │   ├── update.ts         ← lore update
-│   │   └── project.ts        ← lore project:register|list
+│   │   ├── update.ts         ← lore update (Docker image)
+│   │   ├── inbox.ts          ← lore inbox (propagation triage)
+│   │   └── project.ts        ← lore project:register|list (admin)
 │   ├── core/
 │   │   ├── config-finder.ts  ← lore.yaml discovery (walk up)
 │   │   ├── config-parser.ts  ← lore.yaml validation + parsing
-│   │   ├── registry.ts       ← Skill release registry client
-│   │   ├── downloader.ts     ← Tarball download + extraction
-│   │   ├── cursor-config.ts  ← Write ~/.cursor/mcp.json
+│   │   ├── cursor-config.ts  ← Write ~/.cursor/mcp.json (3 servers)
 │   │   ├── claude-config.ts  ← Write ~/.claude/CLAUDE.md
 │   │   ├── git-hooks.ts      ← Install post-commit/post-merge
 │   │   ├── gitnexus.ts       ← Run gitnexus analyze
+│   │   ├── version-check.ts  ← Verify lore-memory-mcp compat
 │   │   └── state.ts          ← ~/.lore/install-state.json
 │   ├── generators/
-│   │   ├── lore-yaml.ts     ← Generate lore.yaml from prompts
+│   │   ├── lore-yaml.ts      ← Generate lore.yaml from prompts
 │   │   ├── claude-md.ts      ← Generate CLAUDE.md from template
 │   │   ├── constitution.ts   ← Generate constitution.md
 │   │   └── repo-identity.ts  ← Generate REPO_IDENTITY.md
 │   └── api/
-│       └── mcp-client.ts     ← HTTP client for project registration
+│       └── mcp-client.ts     ← HTTP client (registration + inbox)
 ├── templates/
 │   ├── CLAUDE.md.hbs
 │   ├── constitution.md.hbs
@@ -127,7 +140,7 @@ through the MCP protocol using project-scoped API keys.
 └── package.json
 ```
 
-### 3.2 lore-memory-mcp Internal Structure
+### 3.2 `lore-memory-mcp` Internal Structure
 
 ```
 lore-memory-mcp/
@@ -140,14 +153,17 @@ lore-memory-mcp/
 │   │       ├── search-similar.ts
 │   │       ├── save-lesson.ts
 │   │       ├── increment-occurrence.ts
-│   │       ├── get-session-handoff.ts
 │   │       ├── start-session.ts
+│   │       ├── start-session-from-task.ts
 │   │       ├── end-session.ts
+│   │       ├── query-lessons-for-task.ts
+│   │       ├── link-lessons-to-task.ts
+│   │       ├── capture-review-finding.ts
 │   │       ├── get-patterns.ts
 │   │       ├── save-pattern.ts
-│   │       ├── suggest-propagations.ts
+│   │       ├── get-pending-propagations.ts
 │   │       ├── accept-propagation.ts
-│   │       └── update-preferences.ts
+│   │       └── reject-propagation.ts
 │   ├── api/
 │   │   ├── routes/
 │   │   │   ├── projects.ts   ← REST: register, deregister, stats
@@ -181,62 +197,54 @@ lore-memory-mcp/
 projects ──────────────────────────────────────────────┐
   │id (PK)                                             │
   │slug (UNIQUE)                                       │
-  │name                                                │
-  │api_key_hash                                        │
-  │stack_tags[]                                        │
-  │config (JSONB)                                      │
+  │name, api_key_hash                                  │
+  │stack_tags[], config (JSONB)                        │
   │                                                    │
   ├──< repositories                                    │
-  │     │id (PK)                                       │
-  │     │project_id (FK)                               │
-  │     │slug, name                                    │
-  │     │stack_tags[], boundaries[]                    │
+  │     │id (PK), project_id (FK)                      │
+  │     │slug, name, stack_tags[], boundaries[]        │
   │                                                    │
   ├──< lessons                                         │
-  │     │id (PK)                                       │
-  │     │project_id (FK, nullable = global)            │
+  │     │id (PK), project_id (FK, nullable = global)   │
   │     │repo_id (FK, nullable)                        │
+  │     │title, problem, root_cause, fix,              │
+  │     │prevention_rule                               │
   │     │stack_tags[], category, severity              │
-  │     │title, problem, root_cause                    │
-  │     │fix, prevention_rule                          │
-  │     │occurrence_count                              │
-  │     │hit_by_users[], captured_by_user              │
+  │     │occurrence_count, hit_by_users[]              │
   │     │first_seen_at, last_seen_at                   │
-  │     │embedding vector(1536)                        │
-  │     │embedding_status                              │
+  │     │embedding vector(1536), embedding_status      │
   │     │propagated_from (FK → lessons.id)             │
+  │     │external_task_id, external_task_ref           │
+  │     │external_tracker_type                         │
+  │     │provenance (JSONB)                            │
   │     │                                              │
   │     └──< lesson_propagations                       │
   │           │source_lesson_id (FK)                   │
   │           │target_project_id (FK) ─────────────────┘
-  │           │status (suggested|accepted|rejected)
-  │           │suggested_at, reviewed_at
+  │           │status, suggested_at, reviewed_at
   │
   ├──< patterns
-  │     │id (PK)
-  │     │project_id (FK, nullable)
+  │     │id (PK), project_id (FK, nullable)
   │     │repo_id (FK, nullable)
   │     │stack_tags[], category
   │     │title, description, code_example
   │     │usage_count, last_used_at
   │     │embedding vector(1536)
+  │     │external_task_id, external_task_ref,
+  │     │external_tracker_type
   │
-  ├──< sessions
-  │     │id (PK)
-  │     │project_id (FK)
-  │     │repo_id (FK, nullable)
-  │     │user_handle, branch, task_summary
-  │     │decisions (JSONB[])
-  │     │errors_hit (UUID[])
-  │     │files_touched (TEXT[])
-  │     │started_at, ended_at
-  │
-  └──< preferences
-        │id (PK)
-        │project_id (FK)
-        │user_handle (UNIQUE with project_id)
-        │prefs (JSONB)
-        │updated_at
+  └──< sessions
+        │id (PK), project_id (FK)
+        │repo_id (FK, nullable)
+        │user_handle, branch, task_summary
+        │decisions (JSONB)
+        │lessons_consulted (UUID[])
+        │lessons_applied (UUID[])
+        │files_touched (TEXT[])
+        │external_task_id, external_task_ref
+        │external_tracker_type
+        │bmad_skill, bmad_workflow
+        │started_at, ended_at
 ```
 
 ### 4.2 Full DDL
@@ -268,58 +276,74 @@ CREATE TABLE repositories (
 );
 
 CREATE TABLE sessions (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  project_id      UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  repo_id         UUID REFERENCES repositories(id) ON DELETE SET NULL,
-  user_handle     TEXT,
-  branch          TEXT,
-  task_summary    TEXT,
-  decisions       JSONB DEFAULT '[]',
-  errors_hit      UUID[] DEFAULT '{}',
-  files_touched   TEXT[] DEFAULT '{}',
-  started_at      TIMESTAMPTZ DEFAULT NOW(),
-  ended_at        TIMESTAMPTZ
+  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id            UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  repo_id               UUID REFERENCES repositories(id) ON DELETE SET NULL,
+  user_handle           TEXT,
+  branch                TEXT,
+  task_summary          TEXT,
+  decisions             JSONB DEFAULT '[]',
+  lessons_consulted     UUID[] DEFAULT '{}',
+  lessons_applied       UUID[] DEFAULT '{}',
+  files_touched         TEXT[] DEFAULT '{}',
+  external_task_id      TEXT,
+  external_task_ref     TEXT,
+  external_tracker_type TEXT
+                        CHECK (external_tracker_type IN ('clickup','jira','asana')),
+  bmad_skill            TEXT,
+  bmad_workflow         TEXT,
+  started_at            TIMESTAMPTZ DEFAULT NOW(),
+  ended_at              TIMESTAMPTZ
 );
 
 CREATE TABLE lessons (
-  id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  project_id        UUID REFERENCES projects(id) ON DELETE CASCADE,
-  repo_id           UUID REFERENCES repositories(id) ON DELETE SET NULL,
-  stack_tags        TEXT[] DEFAULT '{}',
-  category          TEXT,
-  severity          TEXT DEFAULT 'medium'
-                    CHECK (severity IN ('critical','high','medium','low')),
-  title             TEXT NOT NULL,
-  problem           TEXT NOT NULL,
-  root_cause        TEXT,
-  fix               TEXT NOT NULL,
-  prevention_rule   TEXT NOT NULL,
-  occurrence_count  INT DEFAULT 1,
-  hit_by_users      TEXT[] DEFAULT '{}',
-  captured_by_user  TEXT,
-  first_seen_at     TIMESTAMPTZ DEFAULT NOW(),
-  last_seen_at      TIMESTAMPTZ DEFAULT NOW(),
-  session_id        UUID REFERENCES sessions(id) ON DELETE SET NULL,
-  propagated_from   UUID REFERENCES lessons(id) ON DELETE SET NULL,
-  embedding         vector(1536),
-  embedding_status  TEXT DEFAULT 'pending'
-                    CHECK (embedding_status IN ('pending','complete','failed')),
-  created_at        TIMESTAMPTZ DEFAULT NOW()
+  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id            UUID REFERENCES projects(id) ON DELETE CASCADE,
+  repo_id               UUID REFERENCES repositories(id) ON DELETE SET NULL,
+  stack_tags            TEXT[] DEFAULT '{}',
+  category              TEXT,
+  severity              TEXT DEFAULT 'medium'
+                        CHECK (severity IN ('critical','high','medium','low')),
+  title                 TEXT NOT NULL,
+  problem               TEXT NOT NULL,
+  root_cause            TEXT,
+  fix                   TEXT NOT NULL,
+  prevention_rule       TEXT NOT NULL,
+  occurrence_count      INT DEFAULT 1,
+  hit_by_users          TEXT[] DEFAULT '{}',
+  captured_by_user      TEXT,
+  first_seen_at         TIMESTAMPTZ DEFAULT NOW(),
+  last_seen_at          TIMESTAMPTZ DEFAULT NOW(),
+  session_id            UUID REFERENCES sessions(id) ON DELETE SET NULL,
+  propagated_from       UUID REFERENCES lessons(id) ON DELETE SET NULL,
+  embedding             vector(1536),
+  embedding_status      TEXT DEFAULT 'pending'
+                        CHECK (embedding_status IN ('pending','complete','failed')),
+  external_task_id      TEXT,
+  external_task_ref     TEXT,
+  external_tracker_type TEXT
+                        CHECK (external_tracker_type IN ('clickup','jira','asana')),
+  provenance            JSONB DEFAULT '{}',
+  created_at            TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE patterns (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  project_id    UUID REFERENCES projects(id) ON DELETE CASCADE,
-  repo_id       UUID REFERENCES repositories(id) ON DELETE SET NULL,
-  stack_tags    TEXT[] DEFAULT '{}',
-  category      TEXT,
-  title         TEXT NOT NULL,
-  description   TEXT NOT NULL,
-  code_example  TEXT,
-  usage_count   INT DEFAULT 1,
-  last_used_at  TIMESTAMPTZ DEFAULT NOW(),
-  embedding     vector(1536),
-  created_at    TIMESTAMPTZ DEFAULT NOW()
+  id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  project_id            UUID REFERENCES projects(id) ON DELETE CASCADE,
+  repo_id               UUID REFERENCES repositories(id) ON DELETE SET NULL,
+  stack_tags            TEXT[] DEFAULT '{}',
+  category              TEXT,
+  title                 TEXT NOT NULL,
+  description           TEXT NOT NULL,
+  code_example          TEXT,
+  usage_count           INT DEFAULT 1,
+  last_used_at          TIMESTAMPTZ DEFAULT NOW(),
+  embedding             vector(1536),
+  external_task_id      TEXT,
+  external_task_ref     TEXT,
+  external_tracker_type TEXT
+                        CHECK (external_tracker_type IN ('clickup','jira','asana')),
+  created_at            TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE lesson_propagations (
@@ -333,21 +357,11 @@ CREATE TABLE lesson_propagations (
   UNIQUE(source_lesson_id, target_project_id)
 );
 
-CREATE TABLE preferences (
-  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  project_id  UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-  user_handle TEXT NOT NULL,
-  prefs       JSONB DEFAULT '{}',
-  updated_at  TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(project_id, user_handle)
-);
-
 -- ROW-LEVEL SECURITY
 ALTER TABLE lessons             ENABLE ROW LEVEL SECURITY;
 ALTER TABLE patterns            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE repositories        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE preferences         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lesson_propagations ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY project_isolation ON lessons
@@ -364,28 +378,29 @@ CREATE POLICY project_isolation ON sessions
 CREATE POLICY project_isolation ON repositories
   USING (project_id = current_setting('app.current_project_id',true)::UUID);
 
-CREATE POLICY project_isolation ON preferences
-  USING (project_id = current_setting('app.current_project_id',true)::UUID);
-
 CREATE POLICY project_isolation ON lesson_propagations
   USING (target_project_id = current_setting('app.current_project_id',true)::UUID);
 
 -- INDEXES
-CREATE INDEX idx_lessons_project    ON lessons(project_id);
-CREATE INDEX idx_lessons_repo       ON lessons(repo_id);
-CREATE INDEX idx_lessons_severity   ON lessons(severity);
-CREATE INDEX idx_lessons_last_seen  ON lessons(last_seen_at DESC);
-CREATE INDEX idx_lessons_stack      ON lessons USING GIN(stack_tags);
-CREATE INDEX idx_lessons_embedding  ON lessons
+CREATE INDEX idx_lessons_project       ON lessons(project_id);
+CREATE INDEX idx_lessons_repo          ON lessons(repo_id);
+CREATE INDEX idx_lessons_severity      ON lessons(severity);
+CREATE INDEX idx_lessons_last_seen     ON lessons(last_seen_at DESC);
+CREATE INDEX idx_lessons_stack         ON lessons USING GIN(stack_tags);
+CREATE INDEX idx_lessons_external_task ON lessons(external_task_id)
+  WHERE external_task_id IS NOT NULL;
+CREATE INDEX idx_lessons_embedding     ON lessons
   USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
-CREATE INDEX idx_patterns_project   ON patterns(project_id);
-CREATE INDEX idx_patterns_stack     ON patterns USING GIN(stack_tags);
-CREATE INDEX idx_patterns_embedding ON patterns
+CREATE INDEX idx_patterns_project      ON patterns(project_id);
+CREATE INDEX idx_patterns_stack        ON patterns USING GIN(stack_tags);
+CREATE INDEX idx_patterns_embedding    ON patterns
   USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
 
-CREATE INDEX idx_sessions_project   ON sessions(project_id);
-CREATE INDEX idx_sessions_started   ON sessions(started_at DESC);
+CREATE INDEX idx_sessions_project       ON sessions(project_id);
+CREATE INDEX idx_sessions_started       ON sessions(started_at DESC);
+CREATE INDEX idx_sessions_external_task ON sessions(external_task_id)
+  WHERE external_task_id IS NOT NULL;
 
 CREATE INDEX idx_propagations_target ON lesson_propagations(target_project_id);
 CREATE INDEX idx_propagations_status ON lesson_propagations(status)
@@ -396,98 +411,146 @@ CREATE INDEX idx_propagations_status ON lesson_propagations(status)
 
 ## 5. Data Flow Diagrams
 
-### 5.1 Session Bootstrap Flow
+### 5.1 BMAD-Driven Task Flow (replaces old Bootstrap flow)
 
 ```
-Developer types /bootstrap
+Developer invokes BMAD skill on a tracker task
+e.g.: "work on task-1234" → clickup-dev-implement
        │
        ▼
-Bootstrap skill reads lore.yaml
-  → project: my-project
-  → repo: backend
-  → stack: [nestjs, typeorm, postgres]
-  → mcp_server: https://your-server
+clickup-dev-implement step-01 (parse task ID)
        │
        ▼
-Parallel MCP calls (single response):
-  ┌──────────────┬──────────────┬──────────────┬──────────────┐
-  │query_lessons │search_similar│ get_handoff  │suggest_props │
-  │(stack filter)│(task text)   │(last session)│(cross-proj)  │
-  └──────┬───────┴──────┬───────┴──────┬───────┴──────┬───────┘
-         │              │              │              │
-  ┌──────┴───────┬───────┴───────┐     │              │
-  │GitNexus ctx  │GitNexus changes│    │              │
-  │(repo stats)  │(staged diff)   │    │              │
-  └──────┬───────┴───────┬────────┘    │              │
-         │               │             │              │
-         └───────────────┴─────────────┴──────────────┘
-                                 │
-                                 ▼
-                      Compile session report
-                                 │
-                                 ▼
-                       Display to developer
-                                 │
-                                 ▼
-                       start_session() called
+Lore: start_session_from_task({
+        external_task_id: "task-1234",
+        external_tracker_type: "clickup",
+        branch: "feature/abc",
+        bmad_skill: "clickup-dev-implement"
+      })
+  → Lore checks for existing session
+  → Returns session_id + (resumed | new)
+  → If resumed: includes prior_session_summary
+       │
+       ▼
+clickup-dev-implement step-02 (fetch task from ClickUp)
+       │
+       ▼
+Lore: query_lessons_for_task({
+        external_task_id: "task-1234",
+        task_context: { title, description, parent_epic_id, stack_tags }
+      })
+  → semantic + tag-overlap + epic-scoped query
+  → returns lessons + patterns ranked
+       │
+       ▼
+clickup-dev-implement step-04 (implementation loop, code edits)
+       │
+       ▼
+[During or at end of implementation:]
+Lore: link_lessons_to_task({
+        external_task_id: "task-1234",
+        consulted: [...],
+        applied: [...]
+      })
+       │
+       ▼
+clickup-dev-implement step-06 (status transition)
+       │
+       ▼
+Lore: end_session({
+        session_id: <id>,
+        decisions: [...],
+        files_touched: [...]
+      })
 ```
 
-### 5.2 Auto-Capture Flow
+### 5.2 Review-Driven Capture Flow
 
 ```
-Agent encounters error
+clickup-code-review skill invoked on a task in "in review" state
        │
        ▼
-Lesson skill checks session error tracker
-  → First occurrence → record, count = 1
-  → Second occurrence → threshold reached
+clickup-code-review step-02 (fetch task + git diff)
        │
        ▼
-search_similar(error_message)
+Lore: query_lessons_for_task → returns prior anti-patterns for context
        │
-  ┌────┴─────────────────┐
-  │ Similarity > 90%?    │
-  │                      │
-  YES                    NO
-  │                      │
-  ▼                      ▼
-increment_           save_lesson()
-occurrence()           → embed via OpenAI
-  → count++             → store in DB
-  → add to              → queue propagation
-    hit_by_users[]
+       ▼
+clickup-code-review step-04 (run bmad-code-review workflow)
+  → Adversarial review produces structured findings
+       │
+       ▼
+For each finding with severity ≥ high:
+       │
+       ▼
+Lore: capture_review_finding({
+        external_task_id: "task-1234",
+        external_tracker_type: "clickup",
+        severity: "high",
+        finding: {
+          title, problem, root_cause, fix, prevention_rule,
+          stack_tags, category, code_pointer
+        },
+        reviewer: <user>,
+        workflow: "bmad-code-review"
+      })
+       │
+       ▼
+Lore embedding service generates vector
+       │
+       ▼
+Semantic dedup check (cosine ≥ 0.90)
+       │
+   ┌───┴────────────────┐
+   │                    │
+   YES                  NO
+   │                    │
+   ▼                    ▼
+increment_         INSERT new lesson
+occurrence         with provenance:
+on existing        {
+lesson               source: "bmad-code-review",
+                     trust_tier: "high",
+                     task_id: "task-1234",
+                     reviewer: "<user>",
+                     captured_at: "..."
+                   }
+                          │
+                          ▼
+                    Queue for propagation engine
+                    (next hourly run)
 ```
 
 ### 5.3 Cross-Project Propagation Flow
 
 ```
-Propagation engine (hourly)
+Propagation engine (hourly background job)
        │
        ▼
-Find proven lessons
-  (occurrence >= 2, severity high/critical)
+Find proven lessons:
+  WHERE occurrence_count >= 2
+    AND severity IN ('critical', 'high')
        │
        ▼
 For each lesson:
-  Find projects with overlapping stack_tags
-  Exclude: source project + already-suggested
-  INSERT lesson_propagations (status: suggested)
+  Find projects where:
+    project_id != source_project
+    AND stack_tags && lesson.stack_tags
+    AND no existing propagation suggestion
        │
        ▼
-Next /bootstrap in target project:
-  suggest_propagations() → returns pending
+INSERT lesson_propagations (status: suggested)
        │
        ▼
-Developer sees: "Lesson from similar project:
-  [title] — [N] occurrences. Accept? [Yes/No]"
+Surfaces in target project via:
+  • lore inbox (CLI command for the project lead)
+  • get_pending_propagations (MCP tool for AI agents)
        │
-  ┌────┴────┐
-  YES       NO
-  │         │
-  ▼         ▼
-Copy lesson  status → rejected
-to project
-status → accepted
+       ▼
+Project lead accepts → lesson copied to target
+                       (occurrence_count reset to 1,
+                        propagated_from set)
+          rejects   → suggestion marked rejected
 ```
 
 ---
@@ -575,9 +638,9 @@ server {
 
 | Scale | Projects | Daily Sessions | Recommended Spec |
 |-------|----------|---------------|-----------------|
-| Small | 1-5 | < 50 | 2 vCPU, 4GB RAM, 50GB SSD |
-| Medium | 5-20 | < 500 | 4 vCPU, 8GB RAM, 100GB SSD |
-| Large | 20-50 | < 2000 | 8 vCPU, 16GB RAM, 500GB SSD |
+| Small | 1–5 | < 50 | 2 vCPU, 4GB RAM, 50GB SSD |
+| Medium | 5–20 | < 500 | 4 vCPU, 8GB RAM, 100GB SSD |
+| Large | 20–50 | < 2000 | 8 vCPU, 16GB RAM, 500GB SSD |
 
 **Memory estimation for vectors:**
 - 100k lessons × 1536 dimensions × 4 bytes ≈ 600MB RAM
@@ -592,11 +655,12 @@ server {
 | Threat | Mitigation |
 |--------|-----------|
 | Project A reads Project B's data | RLS at DB level, not application level |
-| API key theft | Hashed storage (bcrypt), rotate via admin API |
+| API key theft | Hashed storage (bcrypt cost 12), rotate via admin API |
 | SQL injection | Parameterized queries only (Drizzle ORM) |
-| Code leakage to OpenAI | Only natural language metadata embedded, never source code |
+| Code leakage to OpenAI | Only natural language metadata embedded; never source code |
 | MCP server compromise | Minimal DB user permissions |
 | Brute force on API keys | bcrypt hashing, rate limiting on auth |
+| Falsified `provenance` data | `provenance` is server-stamped (not caller-supplied) for all `capture_review_finding` calls; manual `save_lesson` provenance is `{ source: "manual", captured_by: <user_handle> }` |
 
 ### 7.2 DB User Permissions
 
@@ -614,7 +678,8 @@ lore_{project_slug}_{random_24_chars}
 Example: lore_buildclear_k8mN2xP9qR7vL5wJ3hF6tY
 ```
 
-Plain text key shown once at registration. bcrypt hash (cost 12) stored in DB.
+Plain text key shown once at registration. bcrypt hash (cost 12) stored
+in DB.
 
 ---
 
@@ -625,12 +690,12 @@ Plain text key shown once at registration. bcrypt hash (cost 12) stored in DB.
 ```json
 {
   "level": "info",
-  "tool": "query_lessons",
+  "tool": "query_lessons_for_task",
   "project_id": "uuid-redacted",
-  "duration_ms": 45,
-  "result_count": 5,
+  "duration_ms": 285,
+  "result_count": 7,
   "success": true,
-  "timestamp": "2026-03-17T10:23:45Z"
+  "timestamp": "2026-05-06T10:23:45Z"
 }
 ```
 
@@ -656,6 +721,7 @@ GET /health
 | DB connection pool utilization | > 80% |
 | Embedding generation failure rate | > 5% |
 | MCP tool response time P95 | > 1000ms |
+| `query_lessons_for_task` P95 | > 800ms |
 | Propagation job last run | > 2 hours ago |
 | Postgres disk usage | > 80% of volume |
 
@@ -663,18 +729,7 @@ GET /health
 
 ## 9. Build and Release Process
 
-### 9.1 lore-platform Release (GitHub Actions)
-
-```bash
-git tag v1.4.0 && git push origin v1.4.0
-
-# GitHub Action:
-# 1. tar -czf skills.tar.gz skills/
-# 2. Update registry.json with new version metadata
-# 3. Create GitHub Release with tarball attached
-```
-
-### 9.2 lore-memory-mcp Deployment
+### 9.1 `lore-memory-mcp` Deployment
 
 ```bash
 git pull origin main
@@ -685,7 +740,7 @@ docker compose up -d mcp-server
 
 Postgres stays running during MCP server restart — zero downtime for DB.
 
-### 9.3 @lore/cli Release
+### 9.2 `@lore/cli` Release
 
 ```bash
 npm version patch|minor|major
@@ -694,17 +749,11 @@ npm publish --access public
 
 ---
 
-## 10. Three-Component Summary
+## 10. Two-Component Summary
 
 ```
-lore-platform (GitHub releases)
-  Purpose:  AI agent behavior instructions (skills)
-  Nature:   Static markdown files
-  Consumed: Downloaded by @lore/cli to ~/.lore/skills/
-  Updates:  Git tag → GitHub Release → CLI downloads on lore update
-
 @lore/cli (npm global package)
-  Purpose:  Developer-facing setup and management tool
+  Purpose:  Developer-facing setup, init, install, update, inbox
   Nature:   Node.js CLI
   Consumed: Developers install globally once
   Updates:  npm publish → developers run npm update -g @lore/cli
@@ -713,11 +762,17 @@ lore-memory-mcp (Docker, self-hosted)
   Purpose:  Persistent memory server for all projects
   Nature:   Always-on HTTP server + PostgreSQL
   Consumed: Cursor MCP client (HTTP calls from every AI session)
+            BMAD custom-skills (via convention)
   Updates:  git pull → docker compose up -d
 
-Per-project config (lore.yaml + CLAUDE.md)
-  Purpose:  Project identity and skill/MCP wiring
-  Nature:   Config files committed to project config repo
+Per-project config (lore.yaml + CLAUDE.md + constitution.md +
+                    REPO_IDENTITY.md)
+  Purpose:  Project identity, methodology + tracker declaration,
+            and MCP wiring (the "ratification document")
+  Nature:   Config files committed to project's primary repo
   Consumed: @lore/cli reads lore.yaml to configure everything
-  Updates:  lore update bumps version field in lore.yaml
+            BMAD reads tracker config to route work
+            AI agents read CLAUDE.md / constitution.md
+            on every session
+  Updates:  lore update bumps lore.version field in lore.yaml
 ```
