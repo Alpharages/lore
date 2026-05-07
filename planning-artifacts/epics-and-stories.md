@@ -54,6 +54,7 @@ repeatable migration,
       DB without error
 
 **Technical Notes:**
+
 - Use Drizzle ORM schema definitions in `src/db/schema.ts`
 - `pgvector/pgvector:pg16` Docker image provides the extension
 - See architecture §4.2 for full DDL
@@ -69,7 +70,7 @@ repeatable migration,
 **Acceptance Criteria:**
 
 - [ ] `POST /api/projects/register` accepts `{name, slug, stack_tags[],
-      repos[]}` and returns a one-time plain-text API key in format
+repos[]}` and returns a one-time plain-text API key in format
       `lore_{slug}_{24_random_chars}`
 - [ ] Plain-text key shown exactly once; only bcrypt hash (cost 12)
       stored in DB
@@ -150,7 +151,7 @@ heart of Lore's value proposition.
 - [ ] `embedding_status` starts as `pending`, transitions to `complete`
       or `failed`
 - [ ] Server-stamps `provenance = { source: "manual",
-      captured_by: <user_handle>, trust_tier: "manual" }`
+captured_by: <user_handle>, trust_tier: "manual" }`
 - [ ] Returns the new lesson `id` and embedding status, or matched
       `lesson_id` and `action: "incremented"` on duplicate
 - [ ] Scoped to authenticated project's `project_id`
@@ -253,7 +254,7 @@ hand-off.
       optional `external_task_ref`, `task_summary`, `branch`,
       `user_handle`, `bmad_skill`, `bmad_workflow`, `repo_slug`
 - [ ] If an open session exists for `(project_id, external_task_id,
-      external_tracker_type)` → return `resumed: true` with
+external_tracker_type)` → return `resumed: true` with
       `prior_session_summary` (branch, decisions, files_touched,
       started_at, ended_at)
 - [ ] Otherwise → INSERT new session with all task / BMAD fields
@@ -322,8 +323,8 @@ task,
       problem, root_cause, fix, prevention_rule, stack_tags, category,
       code_pointer), optional `reviewer`, `workflow`
 - [ ] Server-stamps `provenance = { source: "bmad-code-review",
-      workflow, skill: "clickup-code-review", task_id: <id>,
-      reviewer, trust_tier: "high", captured_at: <now> }`
+workflow, skill: "clickup-code-review", task_id: <id>,
+reviewer, trust_tier: "high", captured_at: <now> }`
 - [ ] Sets `external_task_id`, `external_task_ref`,
       `external_tracker_type` on the lesson row
 - [ ] Runs the same semantic deduplication check as `save_lesson`
@@ -332,7 +333,7 @@ task,
 - [ ] Lesson is queryable via `query_lessons` and `search_similar`
       immediately after embedding completes
 - [ ] Cross-project propagation engine picks it up after `occurrence_count
-      >= 2` with no engine-side changes
+  > = 2` with no engine-side changes
 
 ---
 
@@ -441,7 +442,7 @@ similar stacks,
 - [ ] Prints each suggestion in human-readable form (title, problem
       summary, severity, source stack tags, occurrence count)
 - [ ] For each suggestion, prompts: `[a]ccept | [r]eject | [s]kip |
-      [q]uit`
+[q]uit`
 - [ ] Calls `accept_propagation` or `reject_propagation` accordingly
 - [ ] Empty inbox prints a clear "no pending suggestions" message and
       exits 0
@@ -622,10 +623,7 @@ the project.
 
 - [ ] Compares `lore.version` field in `lore.yaml` to available image
       tags in the Docker registry
-- [ ] If newer compatible version exists:
-      - Display image release notes
-      - Verify backward-compatible schema migrations exist
-      - Prompt for confirmation
+- [ ] If newer compatible version exists: - Display image release notes - Verify backward-compatible schema migrations exist - Prompt for confirmation
 - [ ] On confirmation: pulls new image, runs `db:migrate`, restarts
       `lore-memory-mcp`
 - [ ] Updates `lore.version` field in `lore.yaml`
@@ -733,7 +731,7 @@ caller.
       the caller and constructs the field server-side
 - [ ] `save_lesson` ignores any `provenance` value passed by the caller
       and stamps `{ source: "manual", captured_by: <user_handle>,
-      trust_tier: "manual" }`
+trust_tier: "manual" }`
 - [ ] Test: caller attempts to set `provenance.trust_tier = "high"` via
       `save_lesson` — server overrides and persists
       `trust_tier = "manual"`
@@ -742,25 +740,25 @@ caller.
 
 ## Story Sizing Summary
 
-| Epic | Stories | Complexity |
-|------|---------|------------|
-| 1 — Memory Server Foundation | 4 | Medium |
-| 2 — Lessons, Sessions, BMAD Integration | 10 | High |
-| 3 — Cross-Project Propagation | 4 | Medium |
-| 4 — CLI Init | 2 | Medium |
-| 5 — CLI Install & Update | 6 | Medium |
-| 6 — Security and NFRs | 5 | Medium |
-| **Total** | **31** | |
+| Epic                                    | Stories | Complexity |
+| --------------------------------------- | ------- | ---------- |
+| 1 — Memory Server Foundation            | 4       | Medium     |
+| 2 — Lessons, Sessions, BMAD Integration | 10      | High       |
+| 3 — Cross-Project Propagation           | 4       | Medium     |
+| 4 — CLI Init                            | 2       | Medium     |
+| 5 — CLI Install & Update                | 6       | Medium     |
+| 6 — Security and NFRs                   | 5       | Medium     |
+| **Total**                               | **31**  |            |
 
 ## Recommended Sprint Sequence
 
-| Sprint | Epics | Goal |
-|--------|-------|------|
-| Sprint 1 | Epic 1 + Epic 2 (2.1–2.4) | Memory server up; lessons queryable; basic save/query/search working |
-| Sprint 2 | Epic 2 (2.5–2.10) | Sessions, BMAD bridge tools, patterns — full MCP surface for both core and BMAD-driven flows |
-| Sprint 3 | Epic 3 + Epic 4 | Propagation + `lore inbox` + CLI init |
-| Sprint 4 | Epic 5 | Full CLI install + update + ecosystem wiring |
-| Sprint 5 | Epic 6 | Hardening, benchmarks, prod-ready |
+| Sprint   | Epics                     | Goal                                                                                         |
+| -------- | ------------------------- | -------------------------------------------------------------------------------------------- |
+| Sprint 1 | Epic 1 + Epic 2 (2.1–2.4) | Memory server up; lessons queryable; basic save/query/search working                         |
+| Sprint 2 | Epic 2 (2.5–2.10)         | Sessions, BMAD bridge tools, patterns — full MCP surface for both core and BMAD-driven flows |
+| Sprint 3 | Epic 3 + Epic 4           | Propagation + `lore inbox` + CLI init                                                        |
+| Sprint 4 | Epic 5                    | Full CLI install + update + ecosystem wiring                                                 |
+| Sprint 5 | Epic 6                    | Hardening, benchmarks, prod-ready                                                            |
 
 **Highest-leverage validation milestone:** end of Sprint 2, when Story
 2.9 (`capture_review_finding`) lands and BMAD's `clickup-code-review`

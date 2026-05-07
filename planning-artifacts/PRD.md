@@ -118,12 +118,14 @@ side (execution) discovered.
 with bmad-mcp-server installed.
 
 **Goals:**
+
 - Get relevant past lessons surfaced automatically when starting a
   tracked task
 - Have AI code reviews automatically capture findings as reusable lessons
 - Avoid repeating bugs the team already solved
 
 **Interaction with Lore:**
+
 - Runs `lore install` once
 - Invokes BMAD skills (`clickup-dev-implement`, `clickup-code-review`);
   Lore is invisibly queried/updated by those skills
@@ -135,10 +137,12 @@ with bmad-mcp-server installed.
 AI-assistance quality.
 
 **Goals:**
+
 - Initialize a new project so all developers benefit from team memory
 - Ensure proven lessons propagate from sister projects on the same stack
 
 **Interaction with Lore:**
+
 - Runs `lore init` to create `lore.yaml`, register the project, and
   obtain an API key
 - Reviews `lore inbox` periodically to accept/reject cross-project
@@ -150,10 +154,12 @@ AI-assistance quality.
 infrastructure.
 
 **Goals:**
+
 - Keep `lore-memory-mcp` running reliably
 - Manage project registration and API keys
 
 **Interaction with Lore:**
+
 - Manages Docker deployment
 - Creates/revokes project API keys via admin REST endpoints
 
@@ -412,15 +418,15 @@ else.
 
 ## 10. Success Metrics
 
-| Metric | Target | Measurement |
-|--------|--------|-------------|
-| Setup time (new developer) | < 2 minutes | CLI timing |
-| Lessons captured per project per month | > 20 | DB count |
-| Captured-via-review ratio | > 70% of new lessons | `provenance.source` breakdown |
-| Repeat bug rate | Decrease 50% over 3 months | `occurrence_count` trend |
-| Cross-project propagation acceptance rate | > 60% | `lesson_propagations` table |
-| MCP tool P95 latency | All under NFR thresholds | Observability logs |
-| New developer time-to-productivity | Decrease 30% | Team survey |
+| Metric                                    | Target                     | Measurement                   |
+| ----------------------------------------- | -------------------------- | ----------------------------- |
+| Setup time (new developer)                | < 2 minutes                | CLI timing                    |
+| Lessons captured per project per month    | > 20                       | DB count                      |
+| Captured-via-review ratio                 | > 70% of new lessons       | `provenance.source` breakdown |
+| Repeat bug rate                           | Decrease 50% over 3 months | `occurrence_count` trend      |
+| Cross-project propagation acceptance rate | > 60%                      | `lesson_propagations` table   |
+| MCP tool P95 latency                      | All under NFR thresholds   | Observability logs            |
+| New developer time-to-productivity        | Decrease 30%               | Team survey                   |
 
 ---
 

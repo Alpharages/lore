@@ -1,11 +1,11 @@
-import { sql } from "drizzle-orm";
-import { DrizzleClient } from "./projects.js";
+import { DrizzleClient } from "../repositories/projects.repository.js";
+import { getPgDatabaseSizeBytes } from "../repositories/disk-usage.repository.js";
 
 let cachedRatio = 0;
 let cachedAt = 0;
 const CACHE_TTL_MS = 60_000;
 
-export async function getDiskUsageRatio(db: DrizzleClient): Promise<number> {
+export const getDiskUsageRatio = async (db: DrizzleClient): Promise<number> => {
   const volumeBytes = Number(process.env.LORE_PG_VOLUME_BYTES || "0");
   if (volumeBytes <= 0) {
     return 0;
@@ -17,9 +17,7 @@ export async function getDiskUsageRatio(db: DrizzleClient): Promise<number> {
   }
 
   try {
-    const result = await db.execute(sql`SELECT pg_database_size(current_database()) AS size`);
-    const row = result.rows[0] as { size: number } | undefined;
-    const dbSize = row?.size ?? 0;
+    const dbSize = await getPgDatabaseSizeBytes(db);
     cachedRatio = dbSize / volumeBytes;
   } catch {
     cachedRatio = 0;
@@ -27,10 +25,10 @@ export async function getDiskUsageRatio(db: DrizzleClient): Promise<number> {
 
   cachedAt = now;
   return cachedRatio;
-}
+};
 
 // For testing: allow resetting cache state
-export function _resetDiskUsageCache() {
+export const _resetDiskUsageCache = () => {
   cachedRatio = 0;
   cachedAt = 0;
-}
+};

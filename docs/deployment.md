@@ -52,23 +52,23 @@ cp /path/to/privkey.pem nginx/certs/
 
 ## Services
 
-| Service | Image | Ports | Purpose |
-|---------|-------|-------|---------|
-| `postgres` | `pgvector/pgvector:pg16` | `127.0.0.1:5432` | Primary database with pgvector extension |
-| `mcp-server` | Built from `Dockerfile` | `3100` | Fastify MCP + REST API |
-| `nginx` | `nginx:alpine` | `80`, `443` | TLS termination + reverse proxy |
+| Service      | Image                    | Ports            | Purpose                                  |
+| ------------ | ------------------------ | ---------------- | ---------------------------------------- |
+| `postgres`   | `pgvector/pgvector:pg16` | `127.0.0.1:5432` | Primary database with pgvector extension |
+| `mcp-server` | Built from `Dockerfile`  | `3100`           | Fastify MCP + REST API                   |
+| `nginx`      | `nginx:alpine`           | `80`, `443`      | TLS termination + reverse proxy          |
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `DATABASE_URL` | Yes | — | Postgres connection string (local dev) |
-| `ADMIN_SECRET` | Yes | — | Bearer token for admin endpoints |
-| `POSTGRES_PASSWORD` | Yes (compose) | — | Postgres password |
-| `OPENAI_API_KEY` | No | — | OpenAI API key for embeddings |
-| `MCP_SERVER_PORT` | No | `3100` | HTTP port |
-| `LORE_PG_VOLUME_BYTES` | No | `0` | Volume capacity for disk-usage metric |
-| `LOG_LEVEL` | No | `info` | Pino log level |
+| Variable               | Required      | Default | Description                            |
+| ---------------------- | ------------- | ------- | -------------------------------------- |
+| `DATABASE_URL`         | Yes           | —       | Postgres connection string (local dev) |
+| `ADMIN_SECRET`         | Yes           | —       | Bearer token for admin endpoints       |
+| `POSTGRES_PASSWORD`    | Yes (compose) | —       | Postgres password                      |
+| `OPENAI_API_KEY`       | No            | —       | OpenAI API key for embeddings          |
+| `MCP_SERVER_PORT`      | No            | `3100`  | HTTP port                              |
+| `LORE_PG_VOLUME_BYTES` | No            | `0`     | Volume capacity for disk-usage metric  |
+| `LOG_LEVEL`            | No            | `info`  | Pino log level                         |
 
 ## Health & Metrics
 

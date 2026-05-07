@@ -1,24 +1,23 @@
 import pino from "pino";
 import type { DestinationStream } from "pino";
 
-function buildTimestamp() {
+const buildTimestamp = () => {
   const iso = new Date().toISOString();
   const truncated = iso.replace(/\.\d{3}Z$/, "Z");
   return `,"timestamp":"${truncated}"`;
-}
+};
 
-function sanitizeLevel(level: string | undefined): string {
+const sanitizeLevel = (level: string | undefined): string => {
   if (!level) return "info";
   const lower = level.toLowerCase();
   if (["debug", "info", "warn", "error"].includes(lower)) return lower;
   return "info";
-}
+};
 
-export function createLogger(destination?: DestinationStream): pino.Logger {
+export const createLogger = (destination?: DestinationStream): pino.Logger => {
   // When a custom destination is provided (e.g. tests), disable pretty-print
   // so output is captured as parseable JSON.
-  const usePretty =
-    !destination && process.env.NODE_ENV !== "production";
+  const usePretty = !destination && process.env.NODE_ENV !== "production";
 
   return pino(
     {
@@ -50,16 +49,16 @@ export function createLogger(destination?: DestinationStream): pino.Logger {
     },
     destination
   );
-}
+};
 
 export const logger = createLogger();
 
-export function maskProjectId(uuid: string): string {
+export const maskProjectId = (uuid: string): string => {
   if (!uuid || uuid === "-") return "-";
   return `${uuid.slice(0, 8)}-…-${uuid.slice(-4)}`;
-}
+};
 
-export function maskIp(ip: string): string {
+export const maskIp = (ip: string): string => {
   if (!ip) return "-";
   // IPv4: zero last octet
   if (ip.includes(".")) {
@@ -76,4 +75,4 @@ export function maskIp(ip: string): string {
     return firstThree.length > 0 ? `${firstThree.join(":")}::` : ip;
   }
   return ip;
-}
+};

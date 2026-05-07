@@ -1,0 +1,80 @@
+---
+description: Lore platform engineering standards — arrow functions, layer boundaries, tooling
+globs: src/**/*.ts
+alwaysApply: true
+---
+
+# Lore Engineering Standards
+
+## Arrow Functions — Mandatory
+
+All functions in `src/` MUST use arrow function syntax. `function` declarations are not allowed.
+
+```typescript
+// ✅ CORRECT
+export const buildApp = (deps: BuildAppDeps): FastifyInstance => { ... }
+export const registerProject = async (db: DrizzleClient, input: Input): Promise<Output> => { ... }
+const projectsController = (app: FastifyInstance, opts: Opts, done: DoneFn): void => { ... }
+export default projectsController
+
+// ❌ WRONG — never use these
+export function buildApp(...) { ... }
+export async function registerProject(...) { ... }
+export default function projectsController(...) { ... }
+```
+
+## Layer Boundaries — Strict
+
+The codebase uses a **Route → Controller → Service → Repository** four-layer architecture.
+
+```
+route → controller → service → repository
+```
+
+| Layer | Location | Responsibility | May Import | Must NOT Import |
+|-------|----------|---------------|-----------|----------------|
+| Route | `src/api/routes/` | Fastify plugin, URL, schema, preHandlers | Controllers | Services, Repositories, `drizzle-orm` |
+| Controller | `src/api/controllers/` | Plain handler `(req, reply)`, response shaping | Services | Repositories, `drizzle-orm`, `pg` |
+| Service | `src/services/` | Business logic, orchestration | Repositories | `fastify`, Fastify types |
+| Repository | `src/repositories/` | Drizzle ORM queries only | `db/schema`, `db/client`, `drizzle-orm` | Services, Fastify |
+
+```typescript
+// ✅ Route — Fastify plugin wiring only
+const projectsRoute = (app, opts, done) => {
+  app.post('/register', { schema, preHandler: [requireAdminSecret] }, projectsController.register)
+  done()
+}
+
+// ✅ Controller — plain handler, calls service
+export const register = async (request, reply) => {
+  const result = await projectsService.registerProject(request.body)
+  reply.status(201)
+  return result
+}
+
+// ✅ Service — business logic, calls repository
+export const registerProject = async (input) => { ... }
+
+// ✅ Repository — DB only
+export const insertProject = async (db, data) => { /* drizzle query */ }
+
+// ❌ WRONG — drizzle import in a route or controller
+import { eq } from 'drizzle-orm'  // only allowed in repositories!
+
+// ❌ WRONG — Fastify types in a service or repository
+import { FastifyRequest } from 'fastify'  // only allowed in routes/controllers/middleware!
+```
+
+## File Naming
+
+- Routes: `<resource>.route.ts` in `src/api/routes/`
+- Controllers: `<resource>.controller.ts` in `src/api/controllers/` — export named handler functions
+- Services: `<resource>.service.ts` in `src/services/`
+- Repositories: `<resource>.repository.ts` in `src/repositories/`
+
+## Tooling
+
+- Package manager: **pnpm** only. Never run `npm install` or commit `package-lock.json`.
+- Linter: `pnpm lint` (oxlint)
+- Formatter: `pnpm format` (prettier)
+- All new code must pass `pnpm lint` and `pnpm format:check` before commit.

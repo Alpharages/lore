@@ -2,14 +2,14 @@ import Fastify, { FastifyInstance, FastifyBaseLogger } from "fastify";
 import sensible from "@fastify/sensible";
 import { Pool } from "pg";
 import type { Logger } from "pino";
-import { DrizzleClient } from "../services/projects.js";
+import { DrizzleClient } from "../repositories/projects.repository.js";
 import { setDbPoolUtilization, setPostgresDiskUsageRatio } from "../services/metrics.js";
 import { getDiskUsageRatio } from "../services/disk-usage.js";
 import { logger, maskProjectId } from "../utils/logger.js";
-import projectsRoutes from "./routes/projects.js";
-import mcpRoutes from "./routes/mcp.js";
-import healthRoutes from "./routes/health.js";
-import metricsRoutes from "./routes/metrics.js";
+import projectsRoute from "./routes/projects.route.js";
+import mcpRoute from "./routes/mcp.route.js";
+import healthRoute from "./routes/health.route.js";
+import metricsRoute from "./routes/metrics.route.js";
 
 export interface BuildAppDeps {
   pool: Pool;
@@ -17,7 +17,7 @@ export interface BuildAppDeps {
   logger?: Logger;
 }
 
-export function buildApp(deps: BuildAppDeps) {
+export const buildApp = (deps: BuildAppDeps) => {
   const appLogger = deps.logger ?? logger;
 
   const app = Fastify({
@@ -58,9 +58,7 @@ export function buildApp(deps: BuildAppDeps) {
     const durationMs = Math.round(reply.elapsedTime);
     const statusCode = reply.statusCode;
     const success = statusCode < 400;
-    const projectId = request.project?.id
-      ? maskProjectId(request.project.id)
-      : "-";
+    const projectId = request.project?.id ? maskProjectId(request.project.id) : "-";
 
     const logLine: Record<string, unknown> = {
       tool: logTool,
@@ -99,10 +97,10 @@ export function buildApp(deps: BuildAppDeps) {
     return { error: "internal_error" };
   });
 
-  app.register(projectsRoutes, { prefix: "/api/projects", db: deps.db });
-  app.register(mcpRoutes, { prefix: "/mcp", pool: deps.pool, db: deps.db });
-  app.register(healthRoutes, { prefix: "/", db: deps.db });
-  app.register(metricsRoutes, { prefix: "/" });
+  app.register(projectsRoute, { prefix: "/api/projects", db: deps.db });
+  app.register(mcpRoute, { prefix: "/mcp", pool: deps.pool, db: deps.db });
+  app.register(healthRoute, { prefix: "/", db: deps.db });
+  app.register(metricsRoute, { prefix: "/" });
 
   // Pool utilization + disk usage sampler — updates every 5s
   const poolInterval = setInterval(() => {
@@ -112,7 +110,9 @@ export function buildApp(deps: BuildAppDeps) {
     const used = total - idle;
     const ratio = max > 0 ? used / max : 0;
     setDbPoolUtilization(ratio);
-    getDiskUsageRatio(deps.db).then(setPostgresDiskUsageRatio).catch(() => {});
+    getDiskUsageRatio(deps.db)
+      .then(setPostgresDiskUsageRatio)
+      .catch(() => {});
   }, 5000);
 
   app.addHook("onClose", async () => {
@@ -120,4 +120,4 @@ export function buildApp(deps: BuildAppDeps) {
   });
 
   return app;
-}
+};

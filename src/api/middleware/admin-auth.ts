@@ -4,10 +4,10 @@ import { adminUnauthorized, rateLimited } from "../../utils/errors.js";
 import { isRateLimited, recordFailure, getFailureCount } from "./rate-limit.js";
 import { maskIp } from "../../utils/logger.js";
 
-export async function requireAdminSecret(
+export const requireAdminSecret = async (
   request: FastifyRequest,
   reply: FastifyReply
-): Promise<void> {
+): Promise<void> => {
   const ip = request.ip;
   const log = request.log;
 
@@ -51,4 +51,4 @@ export async function requireAdminSecret(
     });
     throw adminUnauthorized();
   }
-}
+};

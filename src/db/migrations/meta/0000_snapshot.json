@@ -54,12 +54,8 @@
           "name": "lesson_propagations_source_lesson_id_lessons_id_fk",
           "tableFrom": "lesson_propagations",
           "tableTo": "lessons",
-          "columnsFrom": [
-            "source_lesson_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["source_lesson_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -67,12 +63,8 @@
           "name": "lesson_propagations_target_project_id_projects_id_fk",
           "tableFrom": "lesson_propagations",
           "tableTo": "projects",
-          "columnsFrom": [
-            "target_project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["target_project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -82,10 +74,7 @@
         "lesson_propagations_source_target_unique": {
           "name": "lesson_propagations_source_target_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "source_lesson_id",
-            "target_project_id"
-          ]
+          "columns": ["source_lesson_id", "target_project_id"]
         }
       },
       "policies": {},
@@ -268,12 +257,8 @@
           "name": "lessons_project_id_projects_id_fk",
           "tableFrom": "lessons",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -281,12 +266,8 @@
           "name": "lessons_repo_id_repositories_id_fk",
           "tableFrom": "lessons",
           "tableTo": "repositories",
-          "columnsFrom": [
-            "repo_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["repo_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -294,12 +275,8 @@
           "name": "lessons_session_id_sessions_id_fk",
           "tableFrom": "lessons",
           "tableTo": "sessions",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         },
@@ -307,12 +284,8 @@
           "name": "lessons_propagated_from_lessons_id_fk",
           "tableFrom": "lessons",
           "tableTo": "lessons",
-          "columnsFrom": [
-            "propagated_from"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["propagated_from"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -442,12 +415,8 @@
           "name": "patterns_project_id_projects_id_fk",
           "tableFrom": "patterns",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -455,12 +424,8 @@
           "name": "patterns_repo_id_repositories_id_fk",
           "tableFrom": "patterns",
           "tableTo": "repositories",
-          "columnsFrom": [
-            "repo_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["repo_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }
@@ -541,9 +506,7 @@
         "projects_slug_unique": {
           "name": "projects_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "slug"
-          ]
+          "columns": ["slug"]
         }
       },
       "policies": {},
@@ -607,12 +570,8 @@
           "name": "repositories_project_id_projects_id_fk",
           "tableFrom": "repositories",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -622,10 +581,7 @@
         "repositories_project_id_slug_unique": {
           "name": "repositories_project_id_slug_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "project_id",
-            "slug"
-          ]
+          "columns": ["project_id", "slug"]
         }
       },
       "policies": {},
@@ -751,12 +707,8 @@
           "name": "sessions_project_id_projects_id_fk",
           "tableFrom": "sessions",
           "tableTo": "projects",
-          "columnsFrom": [
-            "project_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["project_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -764,12 +716,8 @@
           "name": "sessions_repo_id_repositories_id_fk",
           "tableFrom": "sessions",
           "tableTo": "repositories",
-          "columnsFrom": [
-            "repo_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["repo_id"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"
         }

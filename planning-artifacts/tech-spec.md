@@ -10,10 +10,10 @@ Date: 2026-05-06
 
 Lore Platform consists of two independently deployable components:
 
-| Component | Type | Language | Deployment |
-|-----------|------|----------|------------|
-| `@lore/cli` | npm package | TypeScript / Node.js | Developer machine (global) |
-| `lore-memory-mcp` | HTTP server | TypeScript / Node.js | Docker, self-hosted |
+| Component         | Type        | Language             | Deployment                 |
+| ----------------- | ----------- | -------------------- | -------------------------- |
+| `@lore/cli`       | npm package | TypeScript / Node.js | Developer machine (global) |
+| `lore-memory-mcp` | HTTP server | TypeScript / Node.js | Docker, self-hosted        |
 
 ---
 
@@ -97,7 +97,7 @@ Actions:
    a. Display changelog (image release notes).
    b. Verify backward-compatible schema migrations exist.
    c. On confirmation: pull new image, run `db:migrate`, restart
-      `lore-memory-mcp`.
+   `lore-memory-mcp`.
    d. Update `lore.version` field in `lore.yaml`.
 
 #### `lore inbox`
@@ -199,7 +199,7 @@ omitted when `methodology:` is not declared.
 
 ```yaml
 lore:
-  version: "1.0.0"          # lore-memory-mcp compatibility range
+  version: "1.0.0" # lore-memory-mcp compatibility range
 
 project:
   name: "My Project"
@@ -222,7 +222,7 @@ methodology:
 
 # Required when methodology is declared
 tracker:
-  type: clickup           # clickup | jira | asana
+  type: clickup # clickup | jira | asana
   space_id: "12345"
   backlog_list_id: "67890"
   active_sprint_list_id: "abcdef"
@@ -247,6 +247,7 @@ repos:
 ```
 
 **Validation rules:**
+
 - `methodology` is optional. When present, `tracker` is required.
 - `lore.version` is checked by `@lore/cli` against the running
   `lore-memory-mcp` version on `lore install`.
@@ -257,18 +258,18 @@ repos:
 
 ### 3.1 Technology Stack
 
-| Layer | Technology | Version |
-|-------|-----------|---------|
-| Runtime | Node.js | 20 LTS |
-| Language | TypeScript | 5.x |
-| HTTP Framework | Fastify | 4.x |
-| MCP SDK | @modelcontextprotocol/sdk | latest |
-| ORM | Drizzle ORM | latest |
-| Database | PostgreSQL | 16 |
-| Vector extension | pgvector | 0.7.x |
-| Embeddings | OpenAI API | text-embedding-3-small |
-| Containerization | Docker + Docker Compose | latest |
-| Schema migration | Drizzle Kit | latest |
+| Layer            | Technology                | Version                |
+| ---------------- | ------------------------- | ---------------------- |
+| Runtime          | Node.js                   | 20 LTS                 |
+| Language         | TypeScript                | 5.x                    |
+| HTTP Framework   | Fastify                   | 4.x                    |
+| MCP SDK          | @modelcontextprotocol/sdk | latest                 |
+| ORM              | Drizzle ORM               | latest                 |
+| Database         | PostgreSQL                | 16                     |
+| Vector extension | pgvector                  | 0.7.x                  |
+| Embeddings       | OpenAI API                | text-embedding-3-small |
+| Containerization | Docker + Docker Compose   | latest                 |
+| Schema migration | Drizzle Kit               | latest                 |
 
 ### 3.2 Environment Variables
 
@@ -603,19 +604,20 @@ Output: { pattern_id: string }
 #### `get_pending_propagations`
 
 ```typescript
-Input: {}   // project identified by API key
+Input: {
+} // project identified by API key
 
 Output: {
   suggestions: Array<{
-    propagation_id: string
-    lesson_title: string
-    lesson_problem: string
-    lesson_prevention_rule: string
-    lesson_severity: string
-    source_stack_tags: string[]
-    suggested_at: string
-  }>
-  count: number
+    propagation_id: string;
+    lesson_title: string;
+    lesson_problem: string;
+    lesson_prevention_rule: string;
+    lesson_severity: string;
+    source_stack_tags: string[];
+    suggested_at: string;
+  }>;
+  count: number;
 }
 ```
 
@@ -640,9 +642,13 @@ Output: {
 #### `reject_propagation`
 
 ```typescript
-Input: { propagation_id: string }
+Input: {
+  propagation_id: string;
+}
 
-Output: { action: "rejected" }
+Output: {
+  action: "rejected";
+}
 ```
 
 ### 3.4 REST API Endpoints (Non-MCP)
@@ -683,14 +689,16 @@ function scoreLesson(lesson: Lesson, context: QueryContext): number {
 
   // Stack overlap: fraction of lesson's tags present in context
   const overlap = intersection(lesson.stack_tags, context.stack_tags);
-  const stackMatch = lesson.stack_tags.length > 0
-    ? overlap.length / lesson.stack_tags.length
-    : 0;
+  const stackMatch = lesson.stack_tags.length > 0 ? overlap.length / lesson.stack_tags.length : 0;
 
   // Severity weights
-  const severityWeight = {
-    critical: 1.0, high: 0.8, medium: 0.5, low: 0.2
-  }[lesson.severity] ?? 0.5;
+  const severityWeight =
+    {
+      critical: 1.0,
+      high: 0.8,
+      medium: 0.5,
+      low: 0.2,
+    }[lesson.severity] ?? 0.5;
 
   // Semantic similarity (from pgvector query, 0–1)
   const semantic = context.semanticScore ?? 0.5;
@@ -700,12 +708,9 @@ function scoreLesson(lesson: Lesson, context: QueryContext): number {
   const trustWeight = 1.0;
 
   return (
-    severityWeight * 0.30 +
-    recency        * 0.25 +
-    semantic       * 0.25 +
-    frequency      * 0.10 +
-    stackMatch     * 0.10
-  ) * trustWeight;
+    (severityWeight * 0.3 + recency * 0.25 + semantic * 0.25 + frequency * 0.1 + stackMatch * 0.1) *
+    trustWeight
+  );
 }
 ```
 
@@ -726,7 +731,8 @@ async function runPropagation(db: Database): Promise<void> {
   for (const lesson of provenLessons) {
     // Find other projects with overlapping stack (at least 1 common tag).
     // Tracker type is irrelevant — propagation is tracker-agnostic.
-    const candidates = await db.query(`
+    const candidates = await db.query(
+      `
       SELECT p.id
       FROM projects p
       WHERE p.id != $1
@@ -735,16 +741,21 @@ async function runPropagation(db: Database): Promise<void> {
           SELECT target_project_id FROM lesson_propagations
           WHERE source_lesson_id = $3
         )
-    `, [lesson.project_id, lesson.stack_tags, lesson.id]);
+    `,
+      [lesson.project_id, lesson.stack_tags, lesson.id]
+    );
 
     if (candidates.length === 0) continue;
 
-    await db.query(`
+    await db.query(
+      `
       INSERT INTO lesson_propagations
         (source_lesson_id, target_project_id, status)
       SELECT $1, unnest($2::uuid[]), 'suggested'
       ON CONFLICT (source_lesson_id, target_project_id) DO NOTHING
-    `, [lesson.id, candidates.map((c: { id: string }) => c.id)]);
+    `,
+      [lesson.id, candidates.map((c: { id: string }) => c.id)]
+    );
   }
 }
 ```
@@ -793,10 +804,10 @@ CREATE POLICY project_isolation ON {table}
 
 ### 5.1 What Gets Embedded
 
-| Record Type | Embedded Text |
-|-------------|---------------|
-| Lesson | title + " " + problem + " " + fix + " " + prevention_rule |
-| Pattern | title + " " + description + " " + (code_example ?? "") |
+| Record Type | Embedded Text                                             |
+| ----------- | --------------------------------------------------------- |
+| Lesson      | title + " " + problem + " " + fix + " " + prevention_rule |
+| Pattern     | title + " " + description + " " + (code_example ?? "")    |
 
 ### 5.2 Embedding Model
 
@@ -809,15 +820,12 @@ CREATE POLICY project_isolation ON {table}
 
 ```typescript
 async function embedLesson(lesson: LessonInput): Promise<number[]> {
-  const text = [
-    lesson.title,
-    lesson.problem,
-    lesson.fix,
-    lesson.prevention_rule
-  ].filter(Boolean).join(' ');
+  const text = [lesson.title, lesson.problem, lesson.fix, lesson.prevention_rule]
+    .filter(Boolean)
+    .join(" ");
 
   const response = await openai.embeddings.create({
-    model: 'text-embedding-3-small',
+    model: "text-embedding-3-small",
     input: text.slice(0, 8000),
   });
 
@@ -865,12 +873,12 @@ If embedding generation fails:
 
 ### 7.1 Shared vs. Private Data
 
-| Data | Shared (team) | Private (individual) |
-|------|---------------|----------------------|
-| Lessons learned | Yes | — |
-| Code patterns | Yes | — |
-| Prevention rules | Yes | — |
-| Sessions | Yes (queryable by all team members) | Originator recorded in `user_handle` |
+| Data             | Shared (team)                       | Private (individual)                 |
+| ---------------- | ----------------------------------- | ------------------------------------ |
+| Lessons learned  | Yes                                 | —                                    |
+| Code patterns    | Yes                                 | —                                    |
+| Prevention rules | Yes                                 | —                                    |
+| Sessions         | Yes (queryable by all team members) | Originator recorded in `user_handle` |
 
 There is no per-developer memory pool in v1.0. Memory is team-shared,
 project-isolated.

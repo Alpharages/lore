@@ -139,4 +139,7 @@ dist
 .pnp.*
 .bmadmcp/
 
+# Personal agent settings (not project files)
+.claude/
 
+.gitnexus

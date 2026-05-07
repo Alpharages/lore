@@ -16,9 +16,7 @@ describe("maskProjectId", () => {
   });
 
   it("masks the zero UUID", () => {
-    expect(maskProjectId("00000000-0000-0000-0000-000000000000")).toBe(
-      "00000000-…-0000"
-    );
+    expect(maskProjectId("00000000-0000-0000-0000-000000000000")).toBe("00000000-…-0000");
   });
 });
 
@@ -32,9 +30,7 @@ describe("maskIp", () => {
   });
 
   it("masks an IPv6 address to the first 3 groups", () => {
-    expect(maskIp("2001:0db8:85a3:0000:0000:8a2e:0370:7334")).toBe(
-      "2001:0db8:85a3::"
-    );
+    expect(maskIp("2001:0db8:85a3:0000:0000:8a2e:0370:7334")).toBe("2001:0db8:85a3::");
   });
 
   it("handles compressed IPv6 notation", () => {

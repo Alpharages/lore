@@ -1,12 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { Pool } from "pg";
 import bcrypt from "bcrypt";
-import {
-  createTestPool,
-  createTestDb,
-  buildTestApp,
-  resetDatabase,
-} from "./helper.js";
+import { createTestPool, createTestDb, buildTestApp, resetDatabase } from "./helper.js";
 
 const ADMIN_SECRET = "test_admin_secret_do_not_ship";
 
@@ -159,10 +154,9 @@ describe("Project Registration & Admin Routes", () => {
       const { project_id, api_key } = JSON.parse(createRes.payload);
 
       // Seed a session and a lesson directly via DB (admin bypass)
-      await pool.query(
-        `INSERT INTO sessions (project_id, task_summary) VALUES ($1, 'test')`,
-        [project_id]
-      );
+      await pool.query(`INSERT INTO sessions (project_id, task_summary) VALUES ($1, 'test')`, [
+        project_id,
+      ]);
       await pool.query(
         `INSERT INTO lessons (project_id, title, problem, fix, prevention_rule)
          VALUES ($1, 'L', 'p', 'f', 'r')`,

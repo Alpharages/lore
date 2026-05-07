@@ -9,7 +9,7 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-async function runMigrations() {
+const runMigrations = async () => {
   const pool = new Pool({ connectionString: databaseUrl });
   const db = drizzle(pool);
 
@@ -31,6 +31,6 @@ async function runMigrations() {
   await pool.end();
   console.log("✅ Migration complete — pool closed");
   process.exit(0);
-}
+};
 
 runMigrations();

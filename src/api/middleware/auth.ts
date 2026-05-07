@@ -1,6 +1,6 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { Pool } from "pg";
-import { DrizzleClient, findProjectBySlug } from "../../services/projects.js";
+import { DrizzleClient, findProjectBySlug } from "../../repositories/projects.repository.js";
 import { compareApiKey } from "../../services/api-key.js";
 import { unauthorized, rateLimited } from "../../utils/errors.js";
 import { isRateLimited, recordFailure, getFailureCount } from "./rate-limit.js";
@@ -19,11 +19,8 @@ declare module "fastify" {
   }
 }
 
-export function createRequireProjectAuth(pool: Pool, db: DrizzleClient) {
-  return async function requireProjectAuth(
-    request: FastifyRequest,
-    reply: FastifyReply
-  ): Promise<void> {
+export const createRequireProjectAuth = (pool: Pool, db: DrizzleClient) => {
+  return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const ip = request.ip;
     const log = request.log;
 
@@ -63,9 +60,7 @@ export function createRequireProjectAuth(pool: Pool, db: DrizzleClient) {
         success: false,
         reason: "malformed_token",
         ip: maskIp(ip),
-        token_prefix: token.startsWith("lore_")
-          ? `lore_${token.split("_")[1] ?? ""}_***`
-          : "***",
+        token_prefix: token.startsWith("lore_") ? `lore_${token.split("_")[1] ?? ""}_***` : "***",
       });
       throw unauthorized();
     }
@@ -131,10 +126,7 @@ export function createRequireProjectAuth(pool: Pool, db: DrizzleClient) {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
-      await client.query(
-        "SELECT set_config('app.current_project_id', $1, true)",
-        [project.id]
-      );
+      await client.query("SELECT set_config('app.current_project_id', $1, true)", [project.id]);
     } catch (err) {
       client.release();
       throw err;
@@ -143,4 +135,4 @@ export function createRequireProjectAuth(pool: Pool, db: DrizzleClient) {
     request.project = { id: project.id, slug: project.slug };
     request.tx = client;
   };
-}
+};

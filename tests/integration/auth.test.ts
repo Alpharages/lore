@@ -6,6 +6,8 @@ import {
   createTestDb,
   buildTestApp,
   resetDatabase,
+  forceRowLevelSecurity,
+  createAppRole,
 } from "./helper.js";
 import { clearFailures } from "../../src/api/middleware/rate-limit.js";
 import { createRequireProjectAuth } from "../../src/api/middleware/auth.js";
@@ -15,15 +17,20 @@ process.env.ADMIN_SECRET = ADMIN_SECRET;
 
 describe("Auth Middleware & Rate Limiting", () => {
   let pool: Pool;
+  let appPool: Pool;
   let db: ReturnType<typeof createTestDb>;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     pool = createTestPool();
     db = createTestDb(pool);
+    await forceRowLevelSecurity(pool);
+    const appUrl = await createAppRole(pool);
+    appPool = new Pool({ connectionString: appUrl });
   });
 
   afterAll(async () => {
     await pool.end();
+    await appPool.end();
   });
 
   beforeEach(async () => {
@@ -62,7 +69,7 @@ describe("Auth Middleware & Rate Limiting", () => {
     });
 
     it("enforces RLS so a project sees only its own rows", async () => {
-      const app = buildTestApp(pool, db);
+      const app = buildTestApp(appPool, db);
       const projectA = await registerProject(app, "project-a");
       const projectB = await registerProject(app, "project-b");
 

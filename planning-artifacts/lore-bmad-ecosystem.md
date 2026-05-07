@@ -37,11 +37,11 @@ workflows.
 
 ## 2. The Three-System Picture
 
-| System | Owns | Does Not Own |
-|--------|------|--------------|
-| **bmad-mcp-server** | Methodology, agents, workflows, custom-skills, tracker integrations (ClickUp/Jira/Asana) | Cross-session memory, semantic recall, cross-project lesson propagation |
+| System                                     | Owns                                                                                                                                                                                                                         | Does Not Own                                                                       |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| **bmad-mcp-server**                        | Methodology, agents, workflows, custom-skills, tracker integrations (ClickUp/Jira/Asana)                                                                                                                                     | Cross-session memory, semantic recall, cross-project lesson propagation            |
 | **Lore** (`@lore/cli` + `lore-memory-mcp`) | Persistent memory (lessons/patterns/sessions), Postgres + pgvector, propagation engine, project isolation (RLS), API keys, ecosystem CLI (`lore install` / `lore init` / `lore inbox`), `lore.yaml` as ratification document | Tasks, epics, stories, sprints, agents, methodology workflows, **behavior skills** |
-| **GitNexus** | Code knowledge graph, blast-radius, call-chain analysis | Memory or methodology |
+| **GitNexus**                               | Code knowledge graph, blast-radius, call-chain analysis                                                                                                                                                                      | Memory or methodology                                                              |
 
 Each system is independently deployable and useful, but the strongest value
 emerges when all three are wired through `lore.yaml` and run together.
@@ -50,31 +50,31 @@ emerges when all three are wired through `lore.yaml` and run together.
 
 ## 3. Identity Shift — Before vs After
 
-| Aspect | Lore PRD v1.0.0 | Lore PRD v2.0.0 (proposed) |
-|--------|-----------------|---------------------------|
-| §1 framing | "Multi-project AI governance and memory system" with three layers (skills + memory + CLI) | "Institutional memory layer for BMAD-driven development" — memory + ecosystem glue |
-| Architecture | 3 components: `@lore/cli` + `lore-platform` + `lore-memory-mcp` | **2 components: `@lore/cli` + `lore-memory-mcp`.** `lore-platform` removed entirely — see §9.3. |
-| Skills layer | Full skill platform shipping bootstrap, judge, pr, lesson, memory, status, plus stack-specific skills | **Removed entirely.** Behavior skills owned by bmad-mcp-server. Lore exposes MCP tools only; BMAD custom-skills call them by convention. |
-| Bootstrap skill | Top-level entry point for every session | **Removed entirely** — see §9.1. Replaced by per-BMAD-skill JIT memory queries and `CLAUDE.md` auto-load. |
-| Auto-capture | Heuristic: same error 2× in a session triggers `save_lesson` | **Heuristic removed.** Two paths: review-driven (`capture_review_finding` from `clickup-code-review`) and manual (agent invokes `save_lesson` directly). |
-| Governance scope | Behavior + data governance | **Data governance only.** Behavior governance is *declared* in `lore.yaml` and *enforced* by bmad-mcp-server. |
-| Cross-project propagation | Stack-tag-based, single-tracker assumption | Stack-tag-based, **tracker-agnostic** + new `lore inbox` CLI command for surfacing pending suggestions |
-| Session model | Free-text `task_summary` | First-class `external_task_id` + tracker type. Session lifecycle anchored to BMAD skill invocation. |
+| Aspect                    | Lore PRD v1.0.0                                                                                       | Lore PRD v2.0.0 (proposed)                                                                                                                               |
+| ------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| §1 framing                | "Multi-project AI governance and memory system" with three layers (skills + memory + CLI)             | "Institutional memory layer for BMAD-driven development" — memory + ecosystem glue                                                                       |
+| Architecture              | 3 components: `@lore/cli` + `lore-platform` + `lore-memory-mcp`                                       | **2 components: `@lore/cli` + `lore-memory-mcp`.** `lore-platform` removed entirely — see §9.3.                                                          |
+| Skills layer              | Full skill platform shipping bootstrap, judge, pr, lesson, memory, status, plus stack-specific skills | **Removed entirely.** Behavior skills owned by bmad-mcp-server. Lore exposes MCP tools only; BMAD custom-skills call them by convention.                 |
+| Bootstrap skill           | Top-level entry point for every session                                                               | **Removed entirely** — see §9.1. Replaced by per-BMAD-skill JIT memory queries and `CLAUDE.md` auto-load.                                                |
+| Auto-capture              | Heuristic: same error 2× in a session triggers `save_lesson`                                          | **Heuristic removed.** Two paths: review-driven (`capture_review_finding` from `clickup-code-review`) and manual (agent invokes `save_lesson` directly). |
+| Governance scope          | Behavior + data governance                                                                            | **Data governance only.** Behavior governance is _declared_ in `lore.yaml` and _enforced_ by bmad-mcp-server.                                            |
+| Cross-project propagation | Stack-tag-based, single-tracker assumption                                                            | Stack-tag-based, **tracker-agnostic** + new `lore inbox` CLI command for surfacing pending suggestions                                                   |
+| Session model             | Free-text `task_summary`                                                                              | First-class `external_task_id` + tracker type. Session lifecycle anchored to BMAD skill invocation.                                                      |
 
 ---
 
 ## 4. Governance Split
 
-| Governance domain | Where declared | Where enforced |
-|-------------------|----------------|----------------|
-| Project isolation, API keys, RLS | DB schema + Lore auth middleware | Lore (database-enforced) |
-| Lesson provenance + trust tier | `lessons.provenance` JSONB | Lore relevance scoring weights |
-| Audit log of MCP calls | Structured logs (NFR-09) | Lore |
-| Methodology version (BMAD release) | `lore.yaml` `methodology.version` | bmad-mcp-server (loads that version) |
-| Tracker type + workspace/space ID | `lore.yaml` `tracker.*` | bmad-mcp-server custom-skills |
-| Allowed agents/workflows | `lore.yaml` `methodology.allowed_workflows` | bmad-mcp-server `customize.toml` routing |
-| Lore skill pack version | `lore.yaml` `skills.version` | Lore CLI |
-| Project constitution / repo identity | `constitution.md`, `REPO_IDENTITY.md` (generated by `lore init`) | Read by every AI agent at session start |
+| Governance domain                    | Where declared                                                   | Where enforced                           |
+| ------------------------------------ | ---------------------------------------------------------------- | ---------------------------------------- |
+| Project isolation, API keys, RLS     | DB schema + Lore auth middleware                                 | Lore (database-enforced)                 |
+| Lesson provenance + trust tier       | `lessons.provenance` JSONB                                       | Lore relevance scoring weights           |
+| Audit log of MCP calls               | Structured logs (NFR-09)                                         | Lore                                     |
+| Methodology version (BMAD release)   | `lore.yaml` `methodology.version`                                | bmad-mcp-server (loads that version)     |
+| Tracker type + workspace/space ID    | `lore.yaml` `tracker.*`                                          | bmad-mcp-server custom-skills            |
+| Allowed agents/workflows             | `lore.yaml` `methodology.allowed_workflows`                      | bmad-mcp-server `customize.toml` routing |
+| Lore skill pack version              | `lore.yaml` `skills.version`                                     | Lore CLI                                 |
+| Project constitution / repo identity | `constitution.md`, `REPO_IDENTITY.md` (generated by `lore init`) | Read by every AI agent at session start  |
 
 Lore = constitution + registrar. bmad-mcp-server = executive branch.
 GitNexus = surveyor.
@@ -173,7 +173,7 @@ methodology:
 
 # NEW: tracker declaration (required when methodology is set)
 tracker:
-  type: clickup           # clickup | jira | asana
+  type: clickup # clickup | jira | asana
   space_id: "12345"
   backlog_list_id: "67890"
   active_sprint_list_id: "abcdef"
@@ -318,21 +318,21 @@ trust-tier algorithm (lessons frequently applied → boosted relevance score).
 
 ### 8.1 Concrete wiring per custom-skill
 
-| BMAD custom-skill | Step | Lore call | Purpose |
-|-------------------|------|-----------|---------|
-| `clickup-dev-implement` | step-01 (task ID parsed) | `start_session_from_task` | Open Lore session anchored to task |
-| `clickup-dev-implement` | step-02 (task fetch) | `query_lessons_for_task` | Surface relevant lessons before code is written |
-| `clickup-dev-implement` | step-04 (impl loop) | `link_lessons_to_task(applied=[...])` | Record which lessons were actually used |
-| `clickup-dev-implement` | step-06 (status transition) | `end_session` | Close Lore session with files-touched, decisions |
-| `clickup-code-review` | step-02 (task fetch) | `query_lessons_for_task` | Show reviewer relevant lessons for changed files |
-| `clickup-code-review` | step-04 (review execution) | `query_lessons` filtered by file paths | Auto-flag previously-captured anti-patterns in diff |
-| `clickup-code-review` | step-05 (post comment) | `capture_review_finding` per high+ finding | Turn review into lessons automatically |
-| `clickup-create-bug` | step-05 (create task) | (deferred — bug becomes lesson only after fix lands) | n/a v1 |
-| `clickup-create-story` | step-04 (description composer) | `get_patterns` | Inject proven patterns into story description |
+| BMAD custom-skill       | Step                           | Lore call                                            | Purpose                                             |
+| ----------------------- | ------------------------------ | ---------------------------------------------------- | --------------------------------------------------- |
+| `clickup-dev-implement` | step-01 (task ID parsed)       | `start_session_from_task`                            | Open Lore session anchored to task                  |
+| `clickup-dev-implement` | step-02 (task fetch)           | `query_lessons_for_task`                             | Surface relevant lessons before code is written     |
+| `clickup-dev-implement` | step-04 (impl loop)            | `link_lessons_to_task(applied=[...])`                | Record which lessons were actually used             |
+| `clickup-dev-implement` | step-06 (status transition)    | `end_session`                                        | Close Lore session with files-touched, decisions    |
+| `clickup-code-review`   | step-02 (task fetch)           | `query_lessons_for_task`                             | Show reviewer relevant lessons for changed files    |
+| `clickup-code-review`   | step-04 (review execution)     | `query_lessons` filtered by file paths               | Auto-flag previously-captured anti-patterns in diff |
+| `clickup-code-review`   | step-05 (post comment)         | `capture_review_finding` per high+ finding           | Turn review into lessons automatically              |
+| `clickup-create-bug`    | step-05 (create task)          | (deferred — bug becomes lesson only after fix lands) | n/a v1                                              |
+| `clickup-create-story`  | step-04 (description composer) | `get_patterns`                                       | Inject proven patterns into story description       |
 
 ### 8.2 Reverse-loop seam: BMAD planning reads Lore
 
-The Architect/Analyst agents in `bmad` query Lore *before* producing PRDs and
+The Architect/Analyst agents in `bmad` query Lore _before_ producing PRDs and
 architecture documents:
 
 ```
@@ -366,24 +366,24 @@ the refocused scope. The fourth is a reclassification.
 **Status: removed entirely.**
 
 Bootstrap made sense in buildclear/claude-config because that system loaded
-a *file-based* memory layer (markdown lessons, JSON knowledge base) that
+a _file-based_ memory layer (markdown lessons, JSON knowledge base) that
 needed cache warming + freshness checks. Lore is server-backed Postgres —
 there is no cache to warm, and memory is always fresh because every dev
 queries the same shared database.
 
 What replaces each of bootstrap's old responsibilities:
 
-| Was | Now |
-|---|---|
-| Pre-load lessons / patterns / handoff | Each BMAD skill calls `query_lessons_for_task` / `start_session_from_task` on entry. JIT, not pre-loaded. |
-| Constitution + repo identity | `CLAUDE.md` include (auto-loaded by Cursor/Claude on every session). Generated once by `lore init`, never re-read by Lore code. |
-| Session handoff / continuity | `start_session_from_task` auto-resumes when the same task ID is re-opened. Friday's session context surfaces in Monday's BMAD invocation. |
-| Cross-project propagation surfacing | New CLI command: `lore inbox` (prints pending propagations). Optional `get_pending_propagations` MCP tool the agent can call when relevant. |
-| Git sync / branch safety / "new task or existing work?" | **Dev's job.** Out of scope for Lore. |
-| AWS secrets / .env.local loading | **Dev's job / project setup.** Out of scope. |
-| Knowledge freshness watchdog | Not applicable — server-backed memory is always current. |
-| Pattern-based checklist routing | Dev picks the right BMAD skill directly (`clickup-create-epic`, `clickup-dev-implement`, etc.). |
-| Proactive tracking arming | See §9.2 — the silent observers go away with the heuristic. |
+| Was                                                     | Now                                                                                                                                         |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pre-load lessons / patterns / handoff                   | Each BMAD skill calls `query_lessons_for_task` / `start_session_from_task` on entry. JIT, not pre-loaded.                                   |
+| Constitution + repo identity                            | `CLAUDE.md` include (auto-loaded by Cursor/Claude on every session). Generated once by `lore init`, never re-read by Lore code.             |
+| Session handoff / continuity                            | `start_session_from_task` auto-resumes when the same task ID is re-opened. Friday's session context surfaces in Monday's BMAD invocation.   |
+| Cross-project propagation surfacing                     | New CLI command: `lore inbox` (prints pending propagations). Optional `get_pending_propagations` MCP tool the agent can call when relevant. |
+| Git sync / branch safety / "new task or existing work?" | **Dev's job.** Out of scope for Lore.                                                                                                       |
+| AWS secrets / .env.local loading                        | **Dev's job / project setup.** Out of scope.                                                                                                |
+| Knowledge freshness watchdog                            | Not applicable — server-backed memory is always current.                                                                                    |
+| Pattern-based checklist routing                         | Dev picks the right BMAD skill directly (`clickup-create-epic`, `clickup-dev-implement`, etc.).                                             |
+| Proactive tracking arming                               | See §9.2 — the silent observers go away with the heuristic.                                                                                 |
 
 ### 9.2 Heuristic auto-capture (PRD §7.9, FR-40–FR-43)
 
@@ -414,10 +414,10 @@ has no skills left to ship. The component collapses entirely.
 
 **v2 architecture is 2 components:**
 
-| Component | Type | Role |
-|---|---|---|
-| **`@lore/cli`** | npm global package | Project init, MCP config writing for all three servers (lore-memory + bmad + gitnexus), `lore inbox` for propagations, version-compatibility checks |
-| **`lore-memory-mcp`** | Docker self-hosted | Postgres + pgvector + MCP tools + propagation engine |
+| Component             | Type               | Role                                                                                                                                                |
+| --------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **`@lore/cli`**       | npm global package | Project init, MCP config writing for all three servers (lore-memory + bmad + gitnexus), `lore inbox` for propagations, version-compatibility checks |
+| **`lore-memory-mcp`** | Docker self-hosted | Postgres + pgvector + MCP tools + propagation engine                                                                                                |
 
 **What this removes:**
 
@@ -562,26 +562,26 @@ No existing v1 data is touched. v1 lessons get `provenance = '{}'` and
 v1 Lore epics 1–7 mostly survive with story-level edits. New Epic 8 (BMAD
 Integration Bridge) is additive:
 
-| Epic | v1 status | v2 change |
-|------|-----------|-----------|
-| 1 — Memory Server Foundation | Keep | Story 1.1 schema includes new columns + indexes |
-| 2 — Lessons & Sessions | Keep | New stories: `capture_review_finding`, `query_lessons_for_task`, `start_session_from_task`, `link_lessons_to_task` |
-| 3 — Cross-Project Propagation | Keep | Mostly unchanged — propagation engine is already tracker-agnostic in design. Add `lore inbox` CLI surfacing. |
-| 4 — CLI Init | Keep | Story 4.2 adds methodology + tracker prompts; drops skill version prompt |
-| 5 — CLI Install & Update | Keep | Story 5.1 (skill download) **deleted**. Story 5.2 adds bmad-mcp-server config writing. Story 5.6 (`lore update`) reframed: updates `lore-memory-mcp` Docker image, not skills. |
-| 6 — Skills | **REMOVED entirely** | No skills layer in v2 — see §9.3 |
-| 7 — Security & NFRs | Keep | Add NFR for new columns + provenance integrity |
-| **8 — BMAD Integration Bridge** | **NEW** | 4 stories covering the seams in §8.1 |
+| Epic                            | v1 status            | v2 change                                                                                                                                                                      |
+| ------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1 — Memory Server Foundation    | Keep                 | Story 1.1 schema includes new columns + indexes                                                                                                                                |
+| 2 — Lessons & Sessions          | Keep                 | New stories: `capture_review_finding`, `query_lessons_for_task`, `start_session_from_task`, `link_lessons_to_task`                                                             |
+| 3 — Cross-Project Propagation   | Keep                 | Mostly unchanged — propagation engine is already tracker-agnostic in design. Add `lore inbox` CLI surfacing.                                                                   |
+| 4 — CLI Init                    | Keep                 | Story 4.2 adds methodology + tracker prompts; drops skill version prompt                                                                                                       |
+| 5 — CLI Install & Update        | Keep                 | Story 5.1 (skill download) **deleted**. Story 5.2 adds bmad-mcp-server config writing. Story 5.6 (`lore update`) reframed: updates `lore-memory-mcp` Docker image, not skills. |
+| 6 — Skills                      | **REMOVED entirely** | No skills layer in v2 — see §9.3                                                                                                                                               |
+| 7 — Security & NFRs             | Keep                 | Add NFR for new columns + provenance integrity                                                                                                                                 |
+| **8 — BMAD Integration Bridge** | **NEW**              | 4 stories covering the seams in §8.1                                                                                                                                           |
 
 Sprint sequence revision:
 
-| Sprint | Original v1 | Proposed v2 |
-|--------|-------------|-------------|
-| 1 | Epic 1 + Epic 2 (2.1–2.4) | Same |
-| 2 | Epic 2 (2.5–2.8) + Epic 3 | Same |
-| 3 | Epic 4 + Epic 5 (5.1–5.3 minus 5.1) | Same minus skill download |
-| 4 | Epic 5 (5.4–5.6) + Epic 6 | Epic 5 (5.4–5.6, 5.6 reframed) + **Epic 8** (BMAD bridge) |
-| 5 | Epic 7 | Epic 7 |
+| Sprint | Original v1                         | Proposed v2                                               |
+| ------ | ----------------------------------- | --------------------------------------------------------- |
+| 1      | Epic 1 + Epic 2 (2.1–2.4)           | Same                                                      |
+| 2      | Epic 2 (2.5–2.8) + Epic 3           | Same                                                      |
+| 3      | Epic 4 + Epic 5 (5.1–5.3 minus 5.1) | Same minus skill download                                 |
+| 4      | Epic 5 (5.4–5.6) + Epic 6           | Epic 5 (5.4–5.6, 5.6 reframed) + **Epic 8** (BMAD bridge) |
+| 5      | Epic 7                              | Epic 7                                                    |
 
 Net story count change: roughly even — 3 stories removed (Epic 6 entirely, Epic 5
 Story 5.1) plus 4 stories added (Epic 8). Total v2 epic count: 7 (was 7 in v1).
@@ -594,30 +594,30 @@ These need user decisions before Phase 2 begins.
 
 1. **Tracker abstraction layer.** Should `query_lessons_for_task` accept
    `task_context` pre-fetched by the caller (current proposal) or should
-   Lore call the tracker directly? *Recommendation:* caller pre-fetches.
+   Lore call the tracker directly? _Recommendation:_ caller pre-fetches.
    Reason: keeps Lore tracker-agnostic and avoids Lore needing tracker
    credentials. bmad-mcp-server already has the tracker client.
 
 2. **Provenance trust tiers.** With heuristic capture removed, the tier
    set simplifies: `high` (BMAD review) and `manual` (agent-initiated
    `save_lesson`). Should relevance scoring weight by trust tier?
-   *Recommendation:* store the tier in v2.0 but don't weight by it yet —
+   _Recommendation:_ store the tier in v2.0 but don't weight by it yet —
    tune in v2.1 once enough data exists to compare review-captured vs
    manual quality.
 
 3. **External-task-ID uniqueness.** Should `(external_task_id,
-   external_tracker_type)` be unique within a project for sessions?
-   (One canonical session per task.) *Recommendation:* yes —
+external_tracker_type)` be unique within a project for sessions?
+   (One canonical session per task.) _Recommendation:_ yes —
    `start_session_from_task` resumes rather than duplicates.
 
 4. **`lore.yaml` v2 backwards compatibility.** Should v1 `lore.yaml` files
    (without methodology/tracker blocks) keep working unchanged?
-   *Recommendation:* yes. Methodology is opt-in. Without it, Lore is
+   _Recommendation:_ yes. Methodology is opt-in. Without it, Lore is
    pure memory + manual `save_lesson`.
 
 5. **`lore inbox` CLI vs MCP tool.** Should pending propagations surface
    only via the CLI command (dev runs it on demand), only via an MCP tool
-   the agent can call, or both? *Recommendation:* both. CLI for the dev's
+   the agent can call, or both? _Recommendation:_ both. CLI for the dev's
    own awareness; MCP tool for an agent to surface them when it judges
    them relevant (e.g., when starting work in a stack with active
    propagation suggestions).
@@ -626,7 +626,7 @@ These need user decisions before Phase 2 begins.
    a project that uses Lore but not BMAD has only: server-side memory,
    `query_lessons` / `search_similar` / `save_lesson` MCP tools, and the
    CLI. Is that a viable standalone experience worth supporting, or is
-   Lore now BMAD-or-bust? *Recommendation:* keep standalone viable —
+   Lore now BMAD-or-bust? _Recommendation:_ keep standalone viable —
    the MCP tools are useful on their own; the cost of supporting it is
    nearly zero since BMAD integration is purely caller-side convention.
 

@@ -2,12 +2,7 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { Pool } from "pg";
 import { Writable } from "stream";
 import type { Logger } from "pino";
-import {
-  createTestPool,
-  createTestDb,
-  buildTestApp,
-  resetDatabase,
-} from "./helper.js";
+import { createTestPool, createTestDb, buildTestApp, resetDatabase } from "./helper.js";
 import { createLogger, maskProjectId } from "../../src/utils/logger.js";
 import { clearFailures } from "../../src/api/middleware/rate-limit.js";
 import { createRequireProjectAuth } from "../../src/api/middleware/auth.js";
@@ -16,7 +11,10 @@ import { withMcpRouteLogging } from "../../src/mcp/server.js";
 const ADMIN_SECRET = "test_admin_secret_do_not_ship";
 process.env.ADMIN_SECRET = ADMIN_SECRET;
 
-function makeCapturedLogger(logLevel?: string): { logger: Logger; lines: () => Array<Record<string, unknown>> } {
+function makeCapturedLogger(logLevel?: string): {
+  logger: Logger;
+  lines: () => Array<Record<string, unknown>>;
+} {
   const rawLines: string[] = [];
   const destination = new Writable({
     write(chunk, _encoding, callback) {
@@ -296,9 +294,7 @@ describe("Structured Logging (AC-1 — AC-8)", () => {
       });
       expect(res.statusCode).toBe(201);
 
-      const restLine = lines().find(
-        (l) => l.tool === "rest:POST:/api/projects/register"
-      );
+      const restLine = lines().find((l) => l.tool === "rest:POST:/api/projects/register");
       expect(restLine).toBeDefined();
       expect(restLine!.project_id).toBe("-");
       expect(restLine!.success).toBe(true);

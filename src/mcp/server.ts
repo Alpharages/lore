@@ -13,7 +13,7 @@ const listTools = new Set<string>([
   "get_patterns",
 ]);
 
-function extractResultCount(toolName: string, output: unknown): number | undefined {
+const extractResultCount = (toolName: string, output: unknown): number | undefined => {
   if (!listTools.has(toolName)) return undefined;
   if (output && typeof output === "object") {
     const obj = output as Record<string, unknown>;
@@ -24,9 +24,9 @@ function extractResultCount(toolName: string, output: unknown): number | undefin
   }
   if (Array.isArray(output)) return output.length;
   return undefined;
-}
+};
 
-function classifyError(err: any): { code: string; retryable: boolean } {
+const classifyError = (err: any): { code: string; retryable: boolean } => {
   const retryableCodes = ["EMBEDDING_FAILED"];
   if (err && typeof err.code === "string") {
     return {
@@ -35,16 +35,16 @@ function classifyError(err: any): { code: string; retryable: boolean } {
     };
   }
   return { code: "UNEXPECTED", retryable: false };
-}
+};
 
 /**
  * Generic tool wrapper for future Epic 2 MCP tool handlers.
  * Use `withMcpRouteLogging` for Fastify route handlers today.
  */
-export function withToolLogging<TInput, TOutput>(
+export const withToolLogging = <TInput, TOutput>(
   toolName: string,
   handler: (input: TInput, ctx: unknown) => Promise<TOutput>
-): (input: TInput, ctx: unknown) => Promise<TOutput> {
+): ((input: TInput, ctx: unknown) => Promise<TOutput>) => {
   return async (input, ctx) => {
     const t0 = performance.now();
     const projectId =
@@ -103,21 +103,19 @@ export function withToolLogging<TInput, TOutput>(
       throw err;
     }
   };
-}
+};
 
 /**
  * Fastify-route adapter for the §8.1 structured log envelope.
  * Apply this to every MCP tool route handler in src/api/routes/mcp.ts.
  */
-export function withMcpRouteLogging<T = unknown>(
+export const withMcpRouteLogging = <T = unknown>(
   toolName: string,
   handler: (request: FastifyRequest, reply: FastifyReply) => Promise<T>
-): (request: FastifyRequest, reply: FastifyReply) => Promise<T> {
+): ((request: FastifyRequest, reply: FastifyReply) => Promise<T>) => {
   return async (request, reply) => {
     const t0 = performance.now();
-    const projectId = request.project?.id
-      ? maskProjectId(request.project.id)
-      : "-";
+    const projectId = request.project?.id ? maskProjectId(request.project.id) : "-";
     const log = request.log;
 
     try {
@@ -170,4 +168,4 @@ export function withMcpRouteLogging<T = unknown>(
       throw err;
     }
   };
-}
+};

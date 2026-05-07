@@ -62,26 +62,26 @@ export const postgresDiskUsageRatio = new Gauge({
 });
 
 // Typed wrappers for use by other epics/stories
-export function recordToolDuration(tool: string, ms: number) {
+export const recordToolDuration = (tool: string, ms: number) => {
   mcpToolDurationMs.observe({ tool }, ms);
-}
+};
 
-export function incrementEmbeddingTotal() {
+export const incrementEmbeddingTotal = () => {
   embeddingsTotal.inc();
-}
+};
 
-export function incrementEmbeddingFailure() {
+export const incrementEmbeddingFailure = () => {
   embeddingFailuresTotal.inc();
-}
+};
 
-export function setPropagationLastRun(timestampSeconds: number) {
+export const setPropagationLastRun = (timestampSeconds: number) => {
   propagationLastRunTimestampSeconds.set(timestampSeconds);
-}
+};
 
-export function setPostgresDiskUsageRatio(ratio: number) {
+export const setPostgresDiskUsageRatio = (ratio: number) => {
   postgresDiskUsageRatio.set(ratio);
-}
+};
 
-export function setDbPoolUtilization(ratio: number) {
+export const setDbPoolUtilization = (ratio: number) => {
   dbPoolUtilization.set(ratio);
-}
+};

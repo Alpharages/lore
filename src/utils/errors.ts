@@ -10,27 +10,24 @@ export class AppError extends Error {
   }
 }
 
-export function unauthorized(): AppError {
+export const unauthorized = (): AppError => {
   return new AppError(401, "unauthorized", "Unauthorized");
-}
+};
 
-export function adminUnauthorized(): AppError {
+export const adminUnauthorized = (): AppError => {
   return new AppError(401, "admin_auth_required", "Admin auth required");
-}
+};
 
-export function rateLimited(retryAfter: number): AppError {
-  return new AppError(
-    429,
-    "rate_limited",
-    "Too many requests",
-    { "Retry-After": String(retryAfter) }
-  );
-}
+export const rateLimited = (retryAfter: number): AppError => {
+  return new AppError(429, "rate_limited", "Too many requests", {
+    "Retry-After": String(retryAfter),
+  });
+};
 
-export function validationError(message: string): AppError {
+export const validationError = (message: string): AppError => {
   return new AppError(400, "validation_error", message);
-}
+};
 
-export function conflictError(message: string): AppError {
+export const conflictError = (message: string): AppError => {
   return new AppError(409, "conflict", message);
-}
+};

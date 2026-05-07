@@ -93,9 +93,9 @@ Rate-limit trips:
 
 ## Configuration
 
-| Env var | Default | Allowed values |
-|---------|---------|----------------|
-| `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` (case-insensitive) |
+| Env var     | Default | Allowed values                                      |
+| ----------- | ------- | --------------------------------------------------- |
+| `LOG_LEVEL` | `info`  | `debug`, `info`, `warn`, `error` (case-insensitive) |
 
 Invalid values cause the process to exit non-zero at boot with a fatal validation message.
 

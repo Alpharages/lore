@@ -82,7 +82,9 @@ describe("GET /health", () => {
 
   it("returns degraded when DB is disconnected", async () => {
     // Create an app with a broken pool
-    const brokenPool = new Pool({ connectionString: "postgres://invalid:invalid@localhost:1/lore_memory" });
+    const brokenPool = new Pool({
+      connectionString: "postgres://invalid:invalid@localhost:1/lore_memory",
+    });
     const brokenDb = createTestDb(brokenPool);
     const brokenApp = buildTestApp(brokenPool, brokenDb);
 

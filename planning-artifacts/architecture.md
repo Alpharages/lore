@@ -97,6 +97,7 @@ exclusively through the MCP protocol using project-scoped API keys.
 ```
 
 **Important arrows:**
+
 - BMAD agents call Lore directly via the MCP client.
 - Lore never calls BMAD or trackers.
 - The tracker arrow originates from bmad-mcp-server only.
@@ -636,13 +637,14 @@ server {
 
 ### 6.3 Server Sizing Guide
 
-| Scale | Projects | Daily Sessions | Recommended Spec |
-|-------|----------|---------------|-----------------|
-| Small | 1–5 | < 50 | 2 vCPU, 4GB RAM, 50GB SSD |
-| Medium | 5–20 | < 500 | 4 vCPU, 8GB RAM, 100GB SSD |
-| Large | 20–50 | < 2000 | 8 vCPU, 16GB RAM, 500GB SSD |
+| Scale  | Projects | Daily Sessions | Recommended Spec            |
+| ------ | -------- | -------------- | --------------------------- |
+| Small  | 1–5      | < 50           | 2 vCPU, 4GB RAM, 50GB SSD   |
+| Medium | 5–20     | < 500          | 4 vCPU, 8GB RAM, 100GB SSD  |
+| Large  | 20–50    | < 2000         | 8 vCPU, 16GB RAM, 500GB SSD |
 
 **Memory estimation for vectors:**
+
 - 100k lessons × 1536 dimensions × 4 bytes ≈ 600MB RAM
 - IVFFlat index overhead: ~20% additional
 
@@ -652,15 +654,15 @@ server {
 
 ### 7.1 Threat Model
 
-| Threat | Mitigation |
-|--------|-----------|
-| Project A reads Project B's data | RLS at DB level, not application level |
-| API key theft | Hashed storage (bcrypt cost 12), rotate via admin API |
-| SQL injection | Parameterized queries only (Drizzle ORM) |
-| Code leakage to OpenAI | Only natural language metadata embedded; never source code |
-| MCP server compromise | Minimal DB user permissions |
-| Brute force on API keys | bcrypt hashing, rate limiting on auth |
-| Falsified `provenance` data | `provenance` is server-stamped (not caller-supplied) for all `capture_review_finding` calls; manual `save_lesson` provenance is `{ source: "manual", captured_by: <user_handle> }` |
+| Threat                           | Mitigation                                                                                                                                                                         |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Project A reads Project B's data | RLS at DB level, not application level                                                                                                                                             |
+| API key theft                    | Hashed storage (bcrypt cost 12), rotate via admin API                                                                                                                              |
+| SQL injection                    | Parameterized queries only (Drizzle ORM)                                                                                                                                           |
+| Code leakage to OpenAI           | Only natural language metadata embedded; never source code                                                                                                                         |
+| MCP server compromise            | Minimal DB user permissions                                                                                                                                                        |
+| Brute force on API keys          | bcrypt hashing, rate limiting on auth                                                                                                                                              |
+| Falsified `provenance` data      | `provenance` is server-stamped (not caller-supplied) for all `capture_review_finding` calls; manual `save_lesson` provenance is `{ source: "manual", captured_by: <user_handle> }` |
 
 ### 7.2 DB User Permissions
 
@@ -716,14 +718,14 @@ GET /health
 
 ### 8.3 Monitoring Thresholds
 
-| Metric | Alert Threshold |
-|--------|----------------|
-| DB connection pool utilization | > 80% |
-| Embedding generation failure rate | > 5% |
-| MCP tool response time P95 | > 1000ms |
-| `query_lessons_for_task` P95 | > 800ms |
-| Propagation job last run | > 2 hours ago |
-| Postgres disk usage | > 80% of volume |
+| Metric                            | Alert Threshold |
+| --------------------------------- | --------------- |
+| DB connection pool utilization    | > 80%           |
+| Embedding generation failure rate | > 5%            |
+| MCP tool response time P95        | > 1000ms        |
+| `query_lessons_for_task` P95      | > 800ms         |
+| Propagation job last run          | > 2 hours ago   |
+| Postgres disk usage               | > 80% of volume |
 
 ---
 
@@ -749,7 +751,86 @@ npm publish --access public
 
 ---
 
-## 10. Two-Component Summary
+## 10. Project Structure & Conventions
+
+### 10.1 Package Manager
+
+`lore-memory-mcp` uses **pnpm ≥ 11** (`packageManager` field in `package.json`). The lockfile is `pnpm-lock.yaml`. Never commit `package-lock.json` or `yarn.lock`.
+
+```bash
+pnpm install          # install deps
+pnpm run build        # tsc compile
+pnpm run dev          # tsx watch
+pnpm run test         # vitest run
+pnpm run lint         # oxlint src
+pnpm run format       # prettier --write .
+```
+
+### 10.2 Linting & Formatting
+
+- **Linter:** [OXC (`oxlint`)](https://oxc.rs/) — TypeScript-aware, 50–100× faster than ESLint
+- **Formatter:** Prettier (`printWidth: 100`, `trailingComma: "es5"`, double quotes, semicolons)
+- Both run in CI. PRs must pass `pnpm lint` and `pnpm format:check` before merge.
+
+### 10.3 Function Style
+
+All application code **must use arrow functions** assigned to `const`. `function` declarations are not used.
+
+```ts
+// ✅ Correct
+export const buildApp = (deps: BuildAppDeps): FastifyInstance => { ... }
+export const registerProject = async (db: DrizzleClient, input: Input) => { ... }
+
+// ❌ Not allowed
+export function buildApp(...) { ... }
+```
+
+### 10.4 Source Layer Architecture (`lore-memory-mcp`)
+
+The server uses a strict **Route → Controller → Service → Repository** four-layer pattern.
+
+```
+route → controller → service → repository
+```
+
+```
+src/
+├── api/
+│   ├── routes/          Fastify plugins — URL paths, JSON schema, preHandlers
+│   ├── controllers/     Plain handler fns (request, reply) — no Fastify plugin boilerplate
+│   ├── middleware/      Auth, rate-limit, admin-auth hooks
+│   └── app.ts           Fastify instance factory — registers routes/ + hooks
+├── services/            Business logic, orchestration, rules
+├── repositories/        Drizzle ORM queries — the only layer that touches the DB
+├── db/                  Schema definitions, migrations, client factory
+├── mcp/                 MCP server wiring — calls services/repositories
+└── utils/               Logger, error helpers
+```
+
+**Layer boundary rules (strictly enforced):**
+
+| Layer      | May Import                              | May NOT Import                              |
+| ---------- | --------------------------------------- | ------------------------------------------- |
+| Route      | Controllers, Middleware                 | Services, Repositories, `drizzle-orm`, `pg` |
+| Controller | Services                                | Repositories, `drizzle-orm`, `pg`           |
+| Service    | Repositories                            | Fastify types, `drizzle-orm`, `pg`          |
+| Repository | `db/schema`, `db/client`, `drizzle-orm` | Services, Fastify, controllers              |
+
+Violations of these boundaries are lint/review failures.
+
+### 10.5 Naming Conventions
+
+| Artifact        | Pattern                    | Example                    |
+| --------------- | -------------------------- | -------------------------- |
+| Route file      | `<resource>.route.ts`      | `projects.route.ts`        |
+| Controller file | `<resource>.controller.ts` | `projects.controller.ts`   |
+| Service file    | `<resource>.service.ts`    | `projects.service.ts`      |
+| Repository file | `<resource>.repository.ts` | `projects.repository.ts`   |
+| Middleware file | `<concern>.ts`             | `auth.ts`, `rate-limit.ts` |
+
+---
+
+## 11. Two-Component Summary
 
 ```
 @lore/cli (npm global package)

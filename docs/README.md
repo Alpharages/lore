@@ -10,11 +10,11 @@ that complements the canonical planning artifacts but is not read by agents.
 
 ## Documents
 
-| File | Document | Description |
-|------|----------|-------------|
-| [../planning-artifacts/PRD.md](../planning-artifacts/PRD.md) | Product Requirements Document | Goals, user stories, feature requirements, success metrics |
-| [../planning-artifacts/tech-spec.md](../planning-artifacts/tech-spec.md) | Technical Specification | API contracts, tool schemas, algorithms, data models |
-| [../planning-artifacts/architecture.md](../planning-artifacts/architecture.md) | Architecture Document | System diagrams, component structure, DB DDL, deployment |
+| File                                                                           | Document                      | Description                                                |
+| ------------------------------------------------------------------------------ | ----------------------------- | ---------------------------------------------------------- |
+| [../planning-artifacts/PRD.md](../planning-artifacts/PRD.md)                   | Product Requirements Document | Goals, user stories, feature requirements, success metrics |
+| [../planning-artifacts/tech-spec.md](../planning-artifacts/tech-spec.md)       | Technical Specification       | API contracts, tool schemas, algorithms, data models       |
+| [../planning-artifacts/architecture.md](../planning-artifacts/architecture.md) | Architecture Document         | System diagrams, component structure, DB DDL, deployment   |
 
 ## What Is Lore Platform?
 

@@ -2,7 +2,7 @@ let cachedStatus: "reachable" | "unreachable" | "unknown" = "unknown";
 let cachedAt = 0;
 const CACHE_TTL_MS = 60_000;
 
-export async function getOpenAIStatus(): Promise<"reachable" | "unreachable" | "unknown"> {
+export const getOpenAIStatus = async (): Promise<"reachable" | "unreachable" | "unknown"> => {
   const now = Date.now();
   if (now - cachedAt < CACHE_TTL_MS) {
     return cachedStatus;
@@ -32,10 +32,10 @@ export async function getOpenAIStatus(): Promise<"reachable" | "unreachable" | "
 
   cachedAt = now;
   return cachedStatus;
-}
+};
 
 // For testing: allow resetting cache state
-export function _resetOpenAIStatusCache() {
+export const _resetOpenAIStatusCache = () => {
   cachedStatus = "unknown";
   cachedAt = 0;
-}
+};
