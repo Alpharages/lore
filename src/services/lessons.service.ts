@@ -4,7 +4,9 @@ import {
   findSessionById,
   incrementOccurrence as repoIncrementOccurrence,
   acquireSaveLessonLock,
+  queryLessons as repoQueryLessons,
   type LessonsTx,
+  type LessonRow,
 } from "../repositories/lessons.repository.js";
 import { generateEmbeddingText, generateEmbedding } from "./embedding.js";
 import { findDuplicate } from "./deduplication.js";
@@ -160,4 +162,102 @@ export const incrementOccurrence = async (
   userHandle: string | null
 ): Promise<{ lessonId: string; newCount: number }> => {
   return repoIncrementOccurrence(db, lessonId, projectId, userHandle);
+};
+
+export interface QueryLessonsInput {
+  stackTags?: string[];
+  category?: string;
+  severity?: "critical" | "high" | "medium" | "low";
+  lastNDays?: number;
+  repoSlug?: string;
+  limit?: number;
+}
+
+export interface QueryLessonResult {
+  id: string;
+  title: string;
+  problem: string;
+  root_cause: string | null;
+  fix: string;
+  prevention_rule: string;
+  stack_tags: string[];
+  category: string | null;
+  severity: string | null;
+  occurrence_count: number;
+  last_seen_at: string | null;
+  relevance_score: number;
+}
+
+export interface QueryLessonsOutput {
+  lessons: QueryLessonResult[];
+  total: number;
+}
+
+const SEVERITY_WEIGHT: Record<string, number> = {
+  critical: 1,
+  high: 0.75,
+  medium: 0.5,
+  low: 0.25,
+};
+
+const scoreLesson = (row: LessonRow, inputTags: string[]): number => {
+  const daysSinceSeen = row.lastSeenAt ? (Date.now() - row.lastSeenAt.getTime()) / 86_400_000 : 365;
+  const recency = 1 / (1 + daysSinceSeen);
+  const frequency = Math.log1p(row.occurrenceCount ?? 1) / Math.log1p(100);
+  const severity = SEVERITY_WEIGHT[row.severity ?? "medium"] ?? 0.5;
+  const overlap =
+    inputTags.length > 0
+      ? (row.stackTags ?? []).filter((tag) => inputTags.includes(tag)).length / inputTags.length
+      : 0;
+
+  return recency * 0.35 + frequency * 0.3 + severity * 0.25 + overlap * 0.1;
+};
+
+export const queryLessons = async (
+  db: LessonsTx,
+  input: QueryLessonsInput
+): Promise<QueryLessonsOutput> => {
+  const limit = Math.min(Math.max(input.limit ?? 5, 1), 20);
+
+  let repoId: string | null = null;
+  if (input.repoSlug) {
+    const repo = await findRepositoryBySlug(db, input.repoSlug);
+    if (!repo) {
+      return { lessons: [], total: 0 };
+    }
+    repoId = repo.id;
+  }
+
+  const rows = await repoQueryLessons(db, {
+    stackTags: input.stackTags,
+    category: input.category,
+    severity: input.severity,
+    lastNDays: input.lastNDays,
+    repoId,
+    limit: limit * 4,
+  });
+
+  const inputTags = input.stackTags ?? [];
+  const scored = rows
+    .map((row) => ({ row, score: scoreLesson(row, inputTags) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+
+  return {
+    lessons: scored.map(({ row, score }) => ({
+      id: row.id,
+      title: row.title,
+      problem: row.problem,
+      root_cause: row.rootCause,
+      fix: row.fix,
+      prevention_rule: row.preventionRule,
+      stack_tags: row.stackTags ?? [],
+      category: row.category,
+      severity: row.severity,
+      occurrence_count: row.occurrenceCount ?? 1,
+      last_seen_at: row.lastSeenAt?.toISOString() ?? null,
+      relevance_score: Math.round(score * 1000) / 1000,
+    })),
+    total: scored.length,
+  };
 };

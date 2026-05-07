@@ -20,10 +20,12 @@ export function buildTestApp(pool: Pool, db: ReturnType<typeof createTestDb>, lo
 }
 
 export async function resetDatabase(pool: Pool) {
+  await pool.query("RESET ROLE");
   await pool.query("TRUNCATE projects CASCADE");
 }
 
 export async function forceRowLevelSecurity(pool: Pool) {
+  await pool.query("RESET ROLE");
   await pool.query(`
     ALTER TABLE IF EXISTS lessons FORCE ROW LEVEL SECURITY;
     ALTER TABLE IF EXISTS patterns FORCE ROW LEVEL SECURITY;
@@ -40,9 +42,6 @@ export async function forceRowLevelSecurity(pool: Pool) {
  */
 export async function createAppRole(pool: Pool): Promise<string> {
   const dbUrl = new URL(TEST_DATABASE_URL);
-  const dbHost = dbUrl.hostname;
-  const dbPort = dbUrl.port || "5432";
-  const dbName = dbUrl.pathname.slice(1);
 
   await pool.query(`
     DO $$ BEGIN
@@ -56,6 +55,8 @@ export async function createAppRole(pool: Pool): Promise<string> {
     `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO lore_app;`
   );
   await pool.query(`GRANT SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO lore_app;`);
+  const currentUser = await pool.query<{ current_user: string }>("SELECT current_user");
+  await pool.query(`GRANT lore_app TO "${currentUser.rows[0].current_user.replace(/"/g, '""')}"`);
 
-  return `postgres://lore_app:lore_app@${dbHost}:${dbPort}/${dbName}`;
+  return dbUrl.toString();
 }

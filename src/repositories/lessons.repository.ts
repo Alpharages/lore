@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql, type SQL } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../db/schema.js";
 import { lessonNotFound } from "../utils/errors.js";
@@ -159,4 +159,83 @@ export const incrementOccurrence = async (
   }
 
   return { lessonId: result.id, newCount: result.occurrenceCount ?? 0 };
+};
+
+export interface QueryLessonsParams {
+  stackTags?: string[];
+  category?: string;
+  severity?: "critical" | "high" | "medium" | "low";
+  lastNDays?: number;
+  repoId?: string | null;
+  limit: number;
+}
+
+export interface LessonRow {
+  id: string;
+  title: string;
+  problem: string;
+  rootCause: string | null;
+  fix: string;
+  preventionRule: string;
+  stackTags: string[] | null;
+  category: string | null;
+  severity: string | null;
+  occurrenceCount: number | null;
+  lastSeenAt: Date | null;
+  firstSeenAt: Date | null;
+  projectId: string | null;
+}
+
+export const queryLessons = async (
+  db: LessonsTx,
+  params: QueryLessonsParams
+): Promise<LessonRow[]> => {
+  const conditions: SQL[] = [];
+
+  if (params.stackTags && params.stackTags.length > 0) {
+    const tagsLiteral = sql.raw(
+      `ARRAY[${params.stackTags.map((tag) => `'${tag.replace(/'/g, "''")}'`).join(",")}]::text[]`
+    );
+    conditions.push(sql`${schema.lessons.stackTags} && ${tagsLiteral}`);
+  }
+
+  if (params.category) {
+    conditions.push(eq(schema.lessons.category, params.category));
+  }
+
+  if (params.severity) {
+    conditions.push(eq(schema.lessons.severity, params.severity));
+  }
+
+  if (params.lastNDays) {
+    const cutoff = new Date(Date.now() - params.lastNDays * 86_400_000);
+    conditions.push(gte(schema.lessons.lastSeenAt, cutoff));
+  }
+
+  if (params.repoId) {
+    conditions.push(eq(schema.lessons.repoId, params.repoId));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  return db
+    .select({
+      id: schema.lessons.id,
+      title: schema.lessons.title,
+      problem: schema.lessons.problem,
+      rootCause: schema.lessons.rootCause,
+      fix: schema.lessons.fix,
+      preventionRule: schema.lessons.preventionRule,
+      stackTags: schema.lessons.stackTags,
+      category: schema.lessons.category,
+      severity: schema.lessons.severity,
+      occurrenceCount: schema.lessons.occurrenceCount,
+      lastSeenAt: schema.lessons.lastSeenAt,
+      firstSeenAt: schema.lessons.firstSeenAt,
+      projectId: schema.lessons.projectId,
+    })
+    .from(schema.lessons)
+    .where(whereClause)
+    .orderBy(desc(schema.lessons.lastSeenAt))
+    .limit(params.limit);
 };

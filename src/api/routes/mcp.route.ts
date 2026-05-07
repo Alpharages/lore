@@ -6,6 +6,7 @@ import { withMcpRouteLogging } from "../../mcp/server.js";
 import * as mcpController from "../controllers/mcp.controller.js";
 import * as saveLessonController from "../controllers/save-lesson.controller.js";
 import * as incrementOccurrenceController from "../controllers/increment-occurrence.controller.js";
+import * as queryLessonsController from "../controllers/query-lessons.controller.js";
 
 const saveLessonBodySchema = {
   type: "object",
@@ -40,6 +41,22 @@ const incrementOccurrenceBodySchema = {
   },
 };
 
+const queryLessonsBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    stack_tags: { type: "array", items: { type: "string" }, default: [] },
+    category: { type: "string", minLength: 1 },
+    severity: {
+      type: "string",
+      enum: ["critical", "high", "medium", "low"],
+    },
+    last_n_days: { type: "number", minimum: 1 },
+    repo_slug: { type: "string", minLength: 1 },
+    limit: { type: "number", minimum: 1, maximum: 20, default: 5 },
+  },
+};
+
 const mcpRoute = (
   app: FastifyInstance,
   opts: FastifyPluginOptions & { pool: Pool; db: DrizzleClient },
@@ -69,6 +86,15 @@ const mcpRoute = (
       "increment_occurrence",
       incrementOccurrenceController.incrementOccurrenceHandler
     )
+  );
+
+  app.post(
+    "/tools/query_lessons",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: queryLessonsBodySchema },
+    },
+    withMcpRouteLogging("query_lessons", queryLessonsController.queryLessonsHandler)
   );
 
   if (process.env.NODE_ENV !== "production") {
