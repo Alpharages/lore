@@ -9,6 +9,7 @@ import {
   check,
   unique,
   customType,
+  foreignKey,
 } from "drizzle-orm/pg-core";
 
 /* ------------------------------------------------------------------
@@ -102,7 +103,7 @@ export const lessons = pgTable("lessons", {
   firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).defaultNow(),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow(),
   sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
-  propagatedFrom: uuid("propagated_from").references(() => lessons.id, { onDelete: "set null" }),
+  propagatedFrom: uuid("propagated_from"),
   embedding: vector("embedding", { dimensions: 1536 }),
   embeddingStatus: text("embedding_status").default("pending"),
   externalTaskId: text("external_task_id"),
@@ -114,6 +115,11 @@ export const lessons = pgTable("lessons", {
   check("lessons_severity_check", sql`${table.severity} IN ('critical', 'high', 'medium', 'low')`),
   check("lessons_embedding_status_check", sql`${table.embeddingStatus} IN ('pending', 'complete', 'failed')`),
   check("lessons_external_tracker_type_check", sql`${table.externalTrackerType} IN ('clickup', 'jira', 'asana')`),
+  foreignKey({
+    columns: [table.propagatedFrom],
+    foreignColumns: [table.id],
+    name: "lessons_propagated_from_fk",
+  }).onDelete("set null"),
 ]);
 
 /* ------------------------------------------------------------------
