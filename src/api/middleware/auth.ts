@@ -3,8 +3,8 @@ import { Pool } from "pg";
 import { DrizzleClient, findProjectBySlug } from "../../services/projects.js";
 import { compareApiKey } from "../../services/api-key.js";
 import { unauthorized, rateLimited } from "../../utils/errors.js";
-import { isRateLimited, recordFailure } from "./rate-limit.js";
-import { logger } from "../../utils/logger.js";
+import { isRateLimited, recordFailure, getFailureCount } from "./rate-limit.js";
+import { maskProjectId, maskIp } from "../../utils/logger.js";
 
 export interface AuthenticatedProject {
   id: string;
@@ -25,15 +25,30 @@ export function createRequireProjectAuth(pool: Pool, db: DrizzleClient) {
     reply: FastifyReply
   ): Promise<void> {
     const ip = request.ip;
+    const log = request.log;
 
     if (isRateLimited(ip)) {
+      log.warn({
+        tool: "auth:rate_limit",
+        project_id: "-",
+        success: false,
+        reason: "rate_limit_exceeded",
+        failure_count: getFailureCount(ip),
+        ip: maskIp(ip),
+      });
       throw rateLimited(60);
     }
 
     const authHeader = request.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
       recordFailure(ip);
-      logger.warn({ ip, reason: "missing_or_malformed_bearer" }, "auth failed");
+      log.warn({
+        tool: "auth:bearer",
+        project_id: "-",
+        success: false,
+        reason: "missing_header",
+        ip: maskIp(ip),
+      });
       throw unauthorized();
     }
 
@@ -42,7 +57,16 @@ export function createRequireProjectAuth(pool: Pool, db: DrizzleClient) {
     // Minimum length check: "lore_" + slug + "_" + 24
     if (token.length < "lore__".length + 24) {
       recordFailure(ip);
-      logger.warn({ ip, reason: "token_too_short" }, "auth failed");
+      log.warn({
+        tool: "auth:bearer",
+        project_id: "-",
+        success: false,
+        reason: "malformed_token",
+        ip: maskIp(ip),
+        token_prefix: token.startsWith("lore_")
+          ? `lore_${token.split("_")[1] ?? ""}_***`
+          : "***",
+      });
       throw unauthorized();
     }
 
@@ -50,31 +74,56 @@ export function createRequireProjectAuth(pool: Pool, db: DrizzleClient) {
     const parts = token.split("_");
     if (parts.length < 3 || parts[0] !== "lore") {
       recordFailure(ip);
-      logger.warn({ ip, reason: "invalid_token_format" }, "auth failed");
+      log.warn({
+        tool: "auth:bearer",
+        project_id: "-",
+        success: false,
+        reason: "malformed_token",
+        ip: maskIp(ip),
+        token_prefix: "***",
+      });
       throw unauthorized();
     }
 
     const slug = parts[1];
     if (!slug) {
       recordFailure(ip);
-      logger.warn({ ip, reason: "missing_slug_in_token" }, "auth failed");
+      log.warn({
+        tool: "auth:bearer",
+        project_id: "-",
+        success: false,
+        reason: "malformed_token",
+        ip: maskIp(ip),
+        token_prefix: "lore_***",
+      });
       throw unauthorized();
     }
 
     const project = await findProjectBySlug(db, slug);
     if (!project) {
       recordFailure(ip);
-      logger.warn({ ip, slug, reason: "project_not_found" }, "auth failed");
+      log.warn({
+        tool: "auth:bearer",
+        project_id: "-",
+        success: false,
+        reason: "no_match",
+        ip: maskIp(ip),
+        token_prefix: `lore_${slug}_***`,
+      });
       throw unauthorized();
     }
 
     const match = await compareApiKey(token, project.apiKeyHash);
     if (!match) {
       recordFailure(ip);
-      logger.warn(
-        { ip, slug: project.slug, reason: "hash_mismatch" },
-        "auth failed"
-      );
+      log.warn({
+        tool: "auth:bearer",
+        project_id: maskProjectId(project.id),
+        success: false,
+        reason: "hash_mismatch",
+        ip: maskIp(ip),
+        token_prefix: `lore_${slug}_***`,
+      });
       throw unauthorized();
     }
 

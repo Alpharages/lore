@@ -6,6 +6,15 @@ import { logger } from "./utils/logger.js";
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
 const DATABASE_URL = process.env.DATABASE_URL;
 const PORT = Number(process.env.MCP_SERVER_PORT || "3100");
+const LOG_LEVEL = process.env.LOG_LEVEL;
+
+if (LOG_LEVEL && !/^(debug|info|warn|error)$/i.test(LOG_LEVEL)) {
+  // eslint-disable-next-line no-console
+  console.error(
+    `FATAL: LOG_LEVEL must be one of debug|info|warn|error (case-insensitive). Received: "${LOG_LEVEL}"`
+  );
+  process.exit(1);
+}
 
 if (!DATABASE_URL || DATABASE_URL.trim().length === 0) {
   logger.fatal("DATABASE_URL environment variable is required");

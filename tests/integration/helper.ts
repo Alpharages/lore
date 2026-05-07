@@ -1,5 +1,6 @@
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
+import type { Logger } from "pino";
 import { buildApp } from "../../src/api/app.js";
 import * as schema from "../../src/db/schema.js";
 
@@ -14,8 +15,12 @@ export function createTestDb(pool: Pool) {
   return drizzle(pool, { schema });
 }
 
-export function buildTestApp(pool: Pool, db: ReturnType<typeof createTestDb>) {
-  return buildApp({ pool, db: db as any });
+export function buildTestApp(
+  pool: Pool,
+  db: ReturnType<typeof createTestDb>,
+  logger?: Logger
+) {
+  return buildApp({ pool, db: db as any, logger });
 }
 
 export async function resetDatabase(pool: Pool) {

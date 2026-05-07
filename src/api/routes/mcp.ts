@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import { createRequireProjectAuth } from "../middleware/auth.js";
 import { Pool } from "pg";
 import { DrizzleClient } from "../../services/projects.js";
+import { withMcpRouteLogging } from "../../mcp/server.js";
 
 export default function mcpRoutes(
   app: FastifyInstance,
@@ -13,12 +14,12 @@ export default function mcpRoutes(
   app.get(
     "/whoami",
     { preHandler: [requireProjectAuth] },
-    async (request) => {
+    withMcpRouteLogging("whoami", async (request) => {
       return {
         project_id: request.project!.id,
         slug: request.project!.slug,
       };
-    }
+    })
   );
 
   // Test-only route: returns the count of lessons visible to the authenticated
@@ -28,12 +29,12 @@ export default function mcpRoutes(
     app.get(
       "/_test/lesson-count",
       { preHandler: [requireProjectAuth] },
-      async (request) => {
+      withMcpRouteLogging("_test:lesson_count", async (request) => {
         const result = await request.tx!.query<{ count: string }>(
           "SELECT COUNT(*)::text AS count FROM lessons"
         );
         return { count: parseInt(result.rows[0].count, 10) };
-      }
+      })
     );
   }
 

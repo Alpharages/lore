@@ -4,13 +4,14 @@ import { DrizzleClient } from "../../services/projects.js";
 import { getOpenAIStatus } from "../../services/health-probes.js";
 
 const startedAt = Date.now();
+let lastDbStatus: "connected" | "disconnected" | undefined;
 
 interface HealthDeps {
   db: DrizzleClient;
 }
 
 export default async function healthRoutes(app: FastifyInstance, opts: HealthDeps) {
-  app.get("/health", async (_request, reply) => {
+  app.get("/health", async (request, reply) => {
     let dbStatus: "connected" | "disconnected" = "disconnected";
     let lessonsCount = 0;
     let projectsCount = 0;
@@ -27,6 +28,18 @@ export default async function healthRoutes(app: FastifyInstance, opts: HealthDep
     } catch {
       dbStatus = "disconnected";
     }
+
+    // Emit warn on DB status transition (not on every probe)
+    if (lastDbStatus !== undefined && lastDbStatus !== dbStatus) {
+      request.log.warn({
+        tool: "rest:GET:/health",
+        project_id: "-",
+        success: dbStatus === "connected",
+        db_status: dbStatus,
+        message: `DB transitioned from ${lastDbStatus} to ${dbStatus}`,
+      });
+    }
+    lastDbStatus = dbStatus;
 
     const openaiStatus = await getOpenAIStatus();
     const uptimeSeconds = Math.floor((Date.now() - startedAt) / 1000);

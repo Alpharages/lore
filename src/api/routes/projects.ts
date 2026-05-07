@@ -25,6 +25,7 @@ export default function projectsRoutes(
     "/register",
     {
       preHandler: [requireAdminSecret],
+      config: { logTool: "rest:POST:/api/projects/register" },
       schema: {
         body: {
           type: "object",
@@ -91,7 +92,7 @@ export default function projectsRoutes(
 
   app.get(
     "/",
-    { preHandler: [requireAdminSecret] },
+    { preHandler: [requireAdminSecret], config: { logTool: "rest:GET:/api/projects" } },
     async () => {
       const projects = await listProjects(db);
       return projects.map((p) => ({
@@ -108,7 +109,7 @@ export default function projectsRoutes(
     Params: { slug: string };
   }>(
     "/:slug",
-    { preHandler: [requireAdminSecret] },
+    { preHandler: [requireAdminSecret], config: { logTool: "rest:DELETE:/api/projects/:slug" } },
     async (request, reply) => {
       const deleted = await deleteProjectBySlug(db, request.params.slug);
       if (!deleted) {

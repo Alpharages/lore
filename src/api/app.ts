@@ -1,9 +1,11 @@
-import Fastify, { FastifyInstance } from "fastify";
+import Fastify, { FastifyInstance, FastifyBaseLogger } from "fastify";
 import sensible from "@fastify/sensible";
 import { Pool } from "pg";
+import type { Logger } from "pino";
 import { DrizzleClient } from "../services/projects.js";
 import { setDbPoolUtilization, setPostgresDiskUsageRatio } from "../services/metrics.js";
 import { getDiskUsageRatio } from "../services/disk-usage.js";
+import { logger, maskProjectId } from "../utils/logger.js";
 import projectsRoutes from "./routes/projects.js";
 import mcpRoutes from "./routes/mcp.js";
 import healthRoutes from "./routes/health.js";
@@ -12,12 +14,16 @@ import metricsRoutes from "./routes/metrics.js";
 export interface BuildAppDeps {
   pool: Pool;
   db: DrizzleClient;
+  logger?: Logger;
 }
 
-export function buildApp(deps: BuildAppDeps): FastifyInstance {
+export function buildApp(deps: BuildAppDeps) {
+  const appLogger = deps.logger ?? logger;
+
   const app = Fastify({
-    logger: false,
+    logger: appLogger as any,
     trustProxy: true,
+    disableRequestLogging: true,
   });
 
   app.register(sensible);
@@ -44,6 +50,33 @@ export function buildApp(deps: BuildAppDeps): FastifyInstance {
     request.txShouldRollback = true;
   });
 
+  // Structured REST route logging (AC-7) — only for routes that opt in
+  app.addHook("onResponse", async (request, reply) => {
+    const logTool = (request.routeOptions.config as any)?.logTool;
+    if (!logTool) return;
+
+    const durationMs = Math.round(reply.elapsedTime);
+    const statusCode = reply.statusCode;
+    const success = statusCode < 400;
+    const projectId = request.project?.id
+      ? maskProjectId(request.project.id)
+      : "-";
+
+    const logLine: Record<string, unknown> = {
+      tool: logTool,
+      project_id: projectId,
+      duration_ms: durationMs,
+      success,
+      status_code: statusCode,
+    };
+
+    if (success) {
+      request.log.info(logLine);
+    } else {
+      request.log.warn(logLine);
+    }
+  });
+
   app.setNotFoundHandler(async (request, reply) => {
     reply.status(404);
     return { error: "not_found" };
@@ -61,7 +94,7 @@ export function buildApp(deps: BuildAppDeps): FastifyInstance {
       return { error: appError.code || "error", message: error.message };
     }
 
-    request.log?.error?.(error);
+    request.log.error(error);
     reply.status(500);
     return { error: "internal_error" };
   });
