@@ -1,0 +1,15 @@
+node_modules/
+tests/
+.env*
+logs/
+coverage/
+*.log
+*.md
+!docs/
+.git/
+.gitignore
+.vscode/
+.idea/
+.bmadmcp/
+_bmado/
+dist/

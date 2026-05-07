@@ -81,6 +81,13 @@ web_modules/
 .env.production.local
 .env.local
 
+# TLS certificates
+nginx/certs/*.pem
+nginx/certs/*.key
+
+# Postgres data (bind mount fallback)
+postgres_data/
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache

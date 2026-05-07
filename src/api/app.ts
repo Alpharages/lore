@@ -2,8 +2,11 @@ import Fastify, { FastifyInstance } from "fastify";
 import sensible from "@fastify/sensible";
 import { Pool } from "pg";
 import { DrizzleClient } from "../services/projects.js";
+import { setDbPoolUtilization } from "../services/metrics.js";
 import projectsRoutes from "./routes/projects.js";
 import mcpRoutes from "./routes/mcp.js";
+import healthRoutes from "./routes/health.js";
+import metricsRoutes from "./routes/metrics.js";
 
 export interface BuildAppDeps {
   pool: Pool;
@@ -64,6 +67,22 @@ export function buildApp(deps: BuildAppDeps): FastifyInstance {
 
   app.register(projectsRoutes, { prefix: "/api/projects", db: deps.db });
   app.register(mcpRoutes, { prefix: "/mcp", pool: deps.pool, db: deps.db });
+  app.register(healthRoutes, { prefix: "/", db: deps.db });
+  app.register(metricsRoutes, { prefix: "/" });
+
+  // Pool utilization sampler — updates every 5s
+  const poolInterval = setInterval(() => {
+    const max = (deps.pool as any).options?.max || 10;
+    const total = deps.pool.totalCount;
+    const idle = deps.pool.idleCount;
+    const used = total - idle;
+    const ratio = max > 0 ? used / max : 0;
+    setDbPoolUtilization(ratio);
+  }, 5000);
+
+  app.addHook("onClose", async () => {
+    clearInterval(poolInterval);
+  });
 
   return app;
 }
