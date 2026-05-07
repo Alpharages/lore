@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { Pool } from "pg";
 import { createTestPool, createTestDb, buildTestApp, resetDatabase } from "./helper.js";
-import { register } from "../../src/services/metrics.js";
+import { register, recordToolDuration } from "../../src/services/metrics.js";
 
 describe("GET /metrics", () => {
   let pool: Pool;
@@ -33,6 +33,9 @@ describe("GET /metrics", () => {
   });
 
   it("exposes every metric named in architecture §8.3 with correct types", async () => {
+    // Seed one observation so labeled histograms emit data lines
+    recordToolDuration("test", 50);
+
     const response = await app.inject({
       method: "GET",
       url: "/metrics",

@@ -37,6 +37,7 @@ export const embeddingFailuresTotal = new Counter({
 export const mcpToolDurationMs = new Histogram({
   name: "lore_mcp_tool_duration_ms",
   help: "Duration of MCP tool executions in milliseconds",
+  labelNames: ["tool"],
   buckets: [10, 50, 100, 250, 500, 1000, 2500, 5000],
   registers: [register],
 });
@@ -62,7 +63,7 @@ export const postgresDiskUsageRatio = new Gauge({
 
 // Typed wrappers for use by other epics/stories
 export function recordToolDuration(tool: string, ms: number) {
-  mcpToolDurationMs.observe(ms);
+  mcpToolDurationMs.observe({ tool }, ms);
 }
 
 export function incrementEmbeddingTotal() {

@@ -15,18 +15,19 @@ export async function getOpenAIStatus(): Promise<"reachable" | "unreachable" | "
     return cachedStatus;
   }
 
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2000);
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 2000);
     const response = await fetch("https://api.openai.com/v1/models", {
       method: "HEAD",
       headers: { Authorization: `Bearer ${apiKey}` },
       signal: controller.signal,
     });
-    clearTimeout(timeout);
     cachedStatus = response.ok ? "reachable" : "unreachable";
   } catch {
     cachedStatus = "unreachable";
+  } finally {
+    clearTimeout(timeout);
   }
 
   cachedAt = now;
