@@ -22,6 +22,18 @@ export const vector = customType<{
   dataType(config) {
     return `vector(${config?.dimensions ?? 1536})`;
   },
+  toDriver(val: number[]): string {
+    return `[${val.join(",")}]`;
+  },
+  fromDriver(val: unknown): number[] {
+    if (typeof val === "string") {
+      return val
+        .replace(/^\[|\]$/g, "")
+        .split(",")
+        .map(Number);
+    }
+    return val as number[];
+  },
 });
 
 /* ------------------------------------------------------------------

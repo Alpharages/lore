@@ -78,3 +78,24 @@ import { FastifyRequest } from 'fastify'  // only allowed in routes/controllers/
 - Linter: `pnpm lint` (oxlint)
 - Formatter: `pnpm format` (prettier)
 - All new code must pass `pnpm lint` and `pnpm format:check` before commit.
+
+## Dependency Versions — Always Current Major
+
+**Always use the current version available on npm, pinned with `^` (caret) so minor and patch updates are picked up automatically.** Never install an old major version unless a documented breaking-change reason exists in this file.
+
+```bash
+# ✅ CORRECT — check npm for the current version, then install with ^
+# e.g. openai is at 6.37.0 on npm → install ^6.37.0
+pnpm add openai@latest        # resolves to current version automatically
+pnpm add drizzle-orm@latest
+pnpm add fastify@latest
+
+# ❌ WRONG — pinning to an old major without a documented reason
+pnpm add openai@^4
+pnpm add some-package@2.x
+```
+
+- "Latest" means whatever the current major version is on npm right now (e.g. `^6.x` for openai, not `^4.x`).
+- When a story spec or planning artifact names an older version (e.g. `^4.x`), **ignore it** and install the current npm version instead.
+- If upgrading to the current major introduces a real breaking change that cannot be resolved immediately, document it here with a dated comment before pinning an older version.
+- Run `pnpm outdated` periodically and update packages proactively.

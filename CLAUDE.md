@@ -63,6 +63,24 @@ pnpm run format       # prettier
 
 ---
 
+## 3a. Dependency Versions — Always Current Major
+
+**Always use the current version available on npm, pinned with `^`.** Never install an old major version unless a breaking-change reason is explicitly documented in `.cursor/rules/engineering-standards.mdc`.
+
+```bash
+# ✅ CORRECT — installs current major from npm (e.g. openai 6.37.0 → ^6.37.0)
+pnpm add openai@latest
+
+# ❌ WRONG — pinning to an old major without a documented reason
+pnpm add openai@^4
+```
+
+- "Latest" means the current major version on npm (e.g. `^6.x` for openai, not `^4.x`).
+- When a story spec or planning artifact names an older version (e.g. `^4.x`), **ignore it** and install the current npm version instead.
+- If a breaking change genuinely blocks upgrading to the current major, document it in `engineering-standards.mdc` before pinning.
+
+---
+
 ## 4. Linting & Formatting
 
 Before committing any code:

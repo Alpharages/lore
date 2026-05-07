@@ -60,3 +60,20 @@ export const findProjectBySlug = async (
 
   return rows[0];
 };
+
+export const findRepositoryBySlug = async (
+  db: DrizzleClient,
+  slug: string
+): Promise<{ id: string; slug: string; projectId: string } | undefined> => {
+  const rows = await db
+    .select({
+      id: schema.repositories.id,
+      slug: schema.repositories.slug,
+      projectId: schema.repositories.projectId,
+    })
+    .from(schema.repositories)
+    .where(eq(schema.repositories.slug, slug))
+    .limit(1);
+
+  return rows[0];
+};

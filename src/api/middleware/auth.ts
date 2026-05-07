@@ -1,5 +1,7 @@
 import { FastifyReply, FastifyRequest } from "fastify";
 import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import * as schema from "../../db/schema.js";
 import { DrizzleClient, findProjectBySlug } from "../../repositories/projects.repository.js";
 import { compareApiKey } from "../../services/api-key.js";
 import { unauthorized, rateLimited } from "../../utils/errors.js";
@@ -15,6 +17,8 @@ declare module "fastify" {
   interface FastifyRequest {
     project?: AuthenticatedProject;
     tx?: import("pg").PoolClient;
+    txDb?: DrizzleClient;
+    pool?: Pool;
     txShouldRollback?: boolean;
   }
 }
@@ -134,5 +138,7 @@ export const createRequireProjectAuth = (pool: Pool, db: DrizzleClient) => {
 
     request.project = { id: project.id, slug: project.slug };
     request.tx = client;
+    request.txDb = drizzle(client, { schema });
+    request.pool = pool;
   };
 };

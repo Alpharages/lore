@@ -22,6 +22,9 @@ importers:
       fastify:
         specifier: ^4.29.1
         version: 4.29.1
+      openai:
+        specifier: ^6.37.0
+        version: 6.37.0
       pg:
         specifier: ^8.15.5
         version: 8.20.0
@@ -2356,6 +2359,21 @@ packages:
       }
     engines: { node: ">=18" }
 
+  openai@6.37.0:
+    resolution:
+      {
+        integrity: sha512-0H5dEGFmmLv6KSd0W1w2nyL8WsLkX6yoLeQpU+dZAOuGcany5qkYQMmj35ZrKgb6yiyYqpUzFOpR8mZQkgqeEQ==,
+      }
+    hasBin: true
+    peerDependencies:
+      ws: ^8.18.0
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      ws:
+        optional: true
+      zod:
+        optional: true
+
   oxlint@0.16.12:
     resolution:
       {
@@ -4274,6 +4292,8 @@ snapshots:
   onetime@7.0.0:
     dependencies:
       mimic-function: 5.0.1
+
+  openai@6.37.0: {}
 
   oxlint@0.16.12:
     optionalDependencies:

@@ -4,6 +4,7 @@ import { DrizzleClient } from "../../repositories/projects.repository.js";
 import { createRequireProjectAuth } from "../middleware/auth.js";
 import { withMcpRouteLogging } from "../../mcp/server.js";
 import * as mcpController from "../controllers/mcp.controller.js";
+import * as saveLessonController from "../controllers/save-lesson.controller.js";
 
 const mcpRoute = (
   app: FastifyInstance,
@@ -16,6 +17,12 @@ const mcpRoute = (
     "/whoami",
     { preHandler: [requireProjectAuth] },
     withMcpRouteLogging("whoami", mcpController.whoami)
+  );
+
+  app.post(
+    "/tools/save_lesson",
+    { preHandler: [requireProjectAuth] },
+    withMcpRouteLogging("save_lesson", saveLessonController.saveLessonHandler)
   );
 
   if (process.env.NODE_ENV !== "production") {

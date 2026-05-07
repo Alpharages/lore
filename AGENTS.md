@@ -49,6 +49,16 @@ Use **pnpm** only. Never `npm install`. Never commit `package-lock.json`.
 
 ---
 
+## Dependency Versions — Always Current Major
+
+**Always use the current version available on npm, pinned with `^`.** Never install an old major version unless a breaking-change reason is explicitly documented in `.cursor/rules/engineering-standards.mdc`.
+
+- "Latest" = whatever major version is current on npm right now (e.g. `openai@^6.x`, not `^4.x`).
+- When a story spec or planning artifact names an older version, **ignore it** and install the current npm version.
+- `pnpm add <pkg>@latest` is the default command. Pinning an old major (e.g. `@^4`) requires a written justification in `engineering-standards.mdc`.
+
+---
+
 ## Before Every Commit
 
 ```bash
