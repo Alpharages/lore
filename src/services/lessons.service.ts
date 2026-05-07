@@ -1,11 +1,13 @@
-import { Pool } from "pg";
 import { findRepositoryBySlug } from "../repositories/projects.repository.js";
 import {
   insertLesson,
   findSessionById,
+  incrementOccurrence as repoIncrementOccurrence,
+  acquireSaveLessonLock,
   type LessonsTx,
 } from "../repositories/lessons.repository.js";
-import { generateAndStoreEmbedding } from "./embedding.js";
+import { generateEmbeddingText, generateEmbedding } from "./embedding.js";
+import { findDuplicate } from "./deduplication.js";
 import { validationError } from "../utils/errors.js";
 
 export interface SaveLessonInput {
@@ -25,13 +27,31 @@ export interface SaveLessonInput {
 
 export interface SaveLessonOutput {
   lessonId: string;
-  embeddingStatus: "pending";
-  action: "created";
+  embeddingStatus: "pending" | "complete";
+  action: "created" | "incremented";
 }
 
+// Architectural note (resolves D1, D2, D3 from the M2 code review):
+//
+// D1 — Embedding is intentionally SYNCHRONOUS in the request path. PRD FR-26
+//   mandates pre-insert semantic dedup (cosine ≥ 0.90) and dedup needs the
+//   embedding before the INSERT can decide between create vs increment. The
+//   original Story 2.1 ACs ("async, returns embedding_status: pending") are
+//   superseded by FR-26. Trade-off: P95 now blocks on OpenAI (~100–500ms).
+//   When the OpenAI call fails (`generateEmbedding` returns null) we fall back
+//   to inserting with embedding_status='pending' and SKIP dedup — accepted
+//   v1 behaviour, deferred reconciliation may revisit.
+//
+// D2 — Story 2.1 + 2.2 work is intentionally bundled here: dedup, the
+//   `action: "incremented"` return path, and the `increment_occurrence` tool
+//   ship together. Splitting them late would have churned the same files
+//   twice.
+//
+// D3 — `increment_occurrence` is exposed as a public MCP tool so downstream
+//   skills (e.g. `capture_review_finding`) can bump occurrence counts without
+//   re-running the embedding/dedup pipeline. RLS scoping keeps it safe.
 export const saveLesson = async (
   db: LessonsTx,
-  pool: Pool,
   input: SaveLessonInput
 ): Promise<SaveLessonOutput> => {
   const provenance = {
@@ -60,6 +80,59 @@ export const saveLesson = async (
     }
   }
 
+  const embedText = generateEmbeddingText({
+    title: input.title,
+    problem: input.problem,
+    fix: input.fix,
+    preventionRule: input.preventionRule,
+  });
+
+  const embedding = await generateEmbedding(embedText);
+
+  if (embedding) {
+    // Serialise concurrent saves within the same project so the dedup-check
+    // and the subsequent INSERT/UPDATE form an atomic critical section.
+    // Released automatically when the request transaction commits/rollbacks.
+    await acquireSaveLessonLock(db, input.projectId);
+
+    const duplicate = await findDuplicate(db, embedding, input.projectId);
+
+    if (duplicate) {
+      const result = await repoIncrementOccurrence(
+        db,
+        duplicate.lessonId,
+        input.projectId,
+        input.userHandle ?? null
+      );
+      return {
+        lessonId: result.lessonId,
+        embeddingStatus: "complete",
+        action: "incremented",
+      };
+    }
+
+    const { id: lessonId } = await insertLesson(db, {
+      projectId: input.projectId,
+      repoId,
+      sessionId: resolvedSessionId,
+      title: input.title,
+      problem: input.problem,
+      rootCause: input.rootCause ?? null,
+      fix: input.fix,
+      preventionRule: input.preventionRule,
+      stackTags: input.stackTags,
+      category: input.category ?? null,
+      severity: input.severity,
+      capturedByUser: input.userHandle ?? null,
+      provenance,
+      embedding,
+      embeddingStatus: "complete",
+    });
+
+    return { lessonId, embeddingStatus: "complete", action: "created" };
+  }
+
+  // Embedding generation failed — save without dedup
   const { id: lessonId } = await insertLesson(db, {
     projectId: input.projectId,
     repoId,
@@ -74,12 +147,17 @@ export const saveLesson = async (
     severity: input.severity,
     capturedByUser: input.userHandle ?? null,
     provenance,
-  });
-
-  const embedText = `${input.title} ${input.problem} ${input.fix}`;
-  setImmediate(() => {
-    generateAndStoreEmbedding(pool, lessonId, input.projectId, embedText).catch(() => {});
+    embeddingStatus: "pending",
   });
 
   return { lessonId, embeddingStatus: "pending", action: "created" };
+};
+
+export const incrementOccurrence = async (
+  db: LessonsTx,
+  lessonId: string,
+  projectId: string,
+  userHandle: string | null
+): Promise<{ lessonId: string; newCount: number }> => {
+  return repoIncrementOccurrence(db, lessonId, projectId, userHandle);
 };

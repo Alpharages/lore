@@ -99,3 +99,45 @@ pnpm add some-package@2.x
 - When a story spec or planning artifact names an older version (e.g. `^4.x`), **ignore it** and install the current npm version instead.
 - If upgrading to the current major introduces a real breaking change that cannot be resolved immediately, document it here with a dated comment before pinning an older version.
 - Run `pnpm outdated` periodically and update packages proactively.
+
+## Request Validation — Fastify Schema, Not Manual Guards
+
+All `POST`/`PUT`/`PATCH` routes **MUST** declare a `schema: { body: ... }` JSON Schema in the route options. Controllers must **NOT** contain manual type-checking or presence guards (`if (!field)`, `typeof field !== "string"`, etc.).
+
+```typescript
+// ✅ CORRECT — schema on the route, clean controller
+// src/api/routes/mcp.route.ts
+const myToolBodySchema = {
+  type: "object",
+  required: ["title", "value"],
+  properties: {
+    title: { type: "string", minLength: 1 },
+    value: { type: "number" },
+    tag:   { type: "string", default: "general" }, // Ajv fills in defaults
+  },
+};
+
+app.post("/tools/my_tool", {
+  preHandler: [requireProjectAuth],
+  schema: { body: myToolBodySchema },
+}, handler);
+
+// src/api/controllers/my-tool.controller.ts
+export const myToolHandler = async (request: FastifyRequest, reply: FastifyReply) => {
+  const { title, value, tag } = request.body as MyToolBody; // already validated
+  // ... call service directly, no guards needed
+};
+
+// ❌ WRONG — manual validation in the controller
+export const myToolHandler = async (request, reply) => {
+  const body = request.body as any;
+  if (!body.title || typeof body.title !== "string") {  // ← never do this
+    throw validationError("title is required");
+  }
+};
+```
+
+- Fastify's built-in Ajv validates the body **before** `preHandler` runs, returning `400` automatically.
+- The `setErrorHandler` in `src/api/app.ts` normalises Ajv errors into `{ error: "validation_error" }`.
+- Use `default:` in the schema for optional fields with fallback values (`severity: { ..., default: "medium" }`); Ajv injects them so the controller always receives a fully-typed body.
+- Inline schemas in the route file are preferred while there are ≤ 5 tools. Extract to `src/api/schemas/mcp.schemas.ts` only when schemas grow large or are shared across routes.

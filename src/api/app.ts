@@ -1,4 +1,4 @@
-import Fastify, { FastifyInstance, FastifyBaseLogger } from "fastify";
+import Fastify from "fastify";
 import sensible from "@fastify/sensible";
 import { Pool } from "pg";
 import type { Logger } from "pino";
@@ -24,29 +24,48 @@ export const buildApp = (deps: BuildAppDeps) => {
     logger: appLogger as any,
     trustProxy: true,
     disableRequestLogging: true,
+    // Fastify's default Ajv config strips unknown properties when a schema sets
+    // `additionalProperties: false`. We want explicit rejection instead so that
+    // a caller attempting to forge fields (e.g. `provenance` on save_lesson) gets
+    // a 400 rather than a silent strip — matches architecture §7.1 threat model.
+    ajv: {
+      customOptions: {
+        removeAdditional: false,
+        coerceTypes: false,
+        useDefaults: true,
+      },
+    },
   });
 
   app.register(sensible);
 
-  // Cleanup transaction-scoped connections on response
-  app.addHook("onResponse", async (request, reply) => {
-    if (request.tx) {
-      try {
-        if (reply.statusCode >= 500 || request.txShouldRollback) {
-          await request.tx.query("ROLLBACK");
-        } else {
-          await request.tx.query("COMMIT");
-        }
-      } catch {
-        // ignore cleanup errors
-      } finally {
-        request.tx.release();
+  // Commit or rollback before the response is sent so inject-based tests can
+  // query the DB immediately after the inject promise resolves (onResponse fires
+  // after the response is sent and therefore after inject resolves, making the
+  // commit invisible to tests that query synchronously).
+  app.addHook("onSend", async (request, reply, payload) => {
+    if (!request.tx) return payload;
+    try {
+      if (reply.statusCode >= 500 || request.txShouldRollback) {
+        await request.tx.query("ROLLBACK");
+      } else {
+        await request.tx.query("COMMIT");
       }
+    } catch {
+      // ignore cleanup errors
+    }
+    return payload;
+  });
+
+  // Release the pool connection after the response is fully sent
+  app.addHook("onResponse", async (request) => {
+    if (request.tx) {
+      request.tx.release();
     }
   });
 
   // Track errors for rollback decisions
-  app.addHook("onError", async (request, reply, error) => {
+  app.addHook("onError", async (request) => {
     request.txShouldRollback = true;
   });
 
@@ -82,6 +101,14 @@ export const buildApp = (deps: BuildAppDeps) => {
 
   app.setErrorHandler(async (error, request, reply) => {
     const appError = error as any;
+
+    // Fastify schema validation errors (body, params, querystring, headers).
+    // Normalise to the same { error: "validation_error" } shape used by AppError.
+    if (appError.validation) {
+      reply.status(400);
+      return { error: "validation_error", message: error.message };
+    }
+
     if (appError.statusCode) {
       reply.status(appError.statusCode);
       if (appError.headers) {

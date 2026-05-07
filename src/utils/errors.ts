@@ -31,3 +31,7 @@ export const validationError = (message: string): AppError => {
 export const conflictError = (message: string): AppError => {
   return new AppError(409, "conflict", message);
 };
+
+export const lessonNotFound = (lessonId: string): AppError => {
+  return new AppError(404, "LESSON_NOT_FOUND", `Lesson ${lessonId} not found`);
+};
