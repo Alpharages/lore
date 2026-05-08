@@ -35,3 +35,11 @@ export const conflictError = (message: string): AppError => {
 export const lessonNotFound = (lessonId: string): AppError => {
   return new AppError(404, "LESSON_NOT_FOUND", `Lesson ${lessonId} not found`);
 };
+
+export const repositoryNotFound = (repoSlug: string): AppError => {
+  return new AppError(
+    404,
+    "repository_not_found",
+    `Repository "${repoSlug}" not found for this project`
+  );
+};

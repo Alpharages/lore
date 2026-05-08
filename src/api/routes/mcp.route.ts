@@ -8,6 +8,8 @@ import * as saveLessonController from "../controllers/save-lesson.controller.js"
 import * as incrementOccurrenceController from "../controllers/increment-occurrence.controller.js";
 import * as queryLessonsController from "../controllers/query-lessons.controller.js";
 import * as searchSimilarController from "../controllers/search-similar.controller.js";
+import * as startSessionController from "../controllers/start-session.controller.js";
+import * as endSessionController from "../controllers/end-session.controller.js";
 
 const saveLessonBodySchema = {
   type: "object",
@@ -55,6 +57,50 @@ const queryLessonsBodySchema = {
     last_n_days: { type: "number", minimum: 1 },
     repo_slug: { type: "string", minLength: 1 },
     limit: { type: "number", minimum: 1, maximum: 20, default: 5 },
+  },
+};
+
+const startSessionBodySchema = {
+  type: "object",
+  required: ["repo_slug", "branch"],
+  additionalProperties: false,
+  properties: {
+    repo_slug: { type: "string", minLength: 1 },
+    branch: { type: "string", minLength: 1 },
+    task_summary: { type: "string" },
+    user_handle: { type: "string" },
+  },
+};
+
+const endSessionBodySchema = {
+  type: "object",
+  required: ["session_id"],
+  additionalProperties: false,
+  properties: {
+    session_id: { type: "string", format: "uuid" },
+    decisions: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["what", "why"],
+        properties: {
+          what: { type: "string", minLength: 1 },
+          why: { type: "string", minLength: 1 },
+        },
+      },
+      default: [],
+    },
+    lessons_applied: {
+      type: "array",
+      items: { type: "string", format: "uuid" },
+      default: [],
+    },
+    files_touched: {
+      type: "array",
+      items: { type: "string" },
+      default: [],
+    },
   },
 };
 
@@ -107,6 +153,24 @@ const mcpRoute = (
       schema: { body: queryLessonsBodySchema },
     },
     withMcpRouteLogging("query_lessons", queryLessonsController.queryLessonsHandler)
+  );
+
+  app.post(
+    "/tools/start_session",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: startSessionBodySchema },
+    },
+    withMcpRouteLogging("start_session", startSessionController.startSessionHandler)
+  );
+
+  app.post(
+    "/tools/end_session",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: endSessionBodySchema },
+    },
+    withMcpRouteLogging("end_session", endSessionController.endSessionHandler)
   );
 
   app.post(
