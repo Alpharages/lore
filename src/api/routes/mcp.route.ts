@@ -7,6 +7,7 @@ import * as mcpController from "../controllers/mcp.controller.js";
 import * as saveLessonController from "../controllers/save-lesson.controller.js";
 import * as incrementOccurrenceController from "../controllers/increment-occurrence.controller.js";
 import * as queryLessonsController from "../controllers/query-lessons.controller.js";
+import * as searchSimilarController from "../controllers/search-similar.controller.js";
 
 const saveLessonBodySchema = {
   type: "object",
@@ -57,6 +58,17 @@ const queryLessonsBodySchema = {
   },
 };
 
+const searchSimilarBodySchema = {
+  type: "object",
+  required: ["text"],
+  additionalProperties: false,
+  properties: {
+    text: { type: "string", minLength: 1 },
+    threshold: { type: "number", minimum: 0, maximum: 1, default: 0.7 },
+    limit: { type: "number", minimum: 1, default: 3 },
+  },
+};
+
 const mcpRoute = (
   app: FastifyInstance,
   opts: FastifyPluginOptions & { pool: Pool; db: DrizzleClient },
@@ -95,6 +107,15 @@ const mcpRoute = (
       schema: { body: queryLessonsBodySchema },
     },
     withMcpRouteLogging("query_lessons", queryLessonsController.queryLessonsHandler)
+  );
+
+  app.post(
+    "/tools/search_similar",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: searchSimilarBodySchema },
+    },
+    withMcpRouteLogging("search_similar", searchSimilarController.searchSimilarHandler)
   );
 
   if (process.env.NODE_ENV !== "production") {
