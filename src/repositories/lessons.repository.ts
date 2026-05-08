@@ -291,3 +291,313 @@ export const queryLessons = async (
     .orderBy(desc(schema.lessons.lastSeenAt))
     .limit(params.limit);
 };
+
+/* ------------------------------------------------------------------
+ * query_lessons_for_task — repository layer
+ * ------------------------------------------------------------------ */
+
+export interface RawLessonForTaskRow {
+  id: string;
+  title: string;
+  problem: string;
+  rootCause: string | null;
+  fix: string;
+  preventionRule: string;
+  stackTags: string[] | null;
+  category: string | null;
+  severity: string | null;
+  occurrenceCount: number | null;
+  lastSeenAt: Date | null;
+  similarity: number;
+  matchReason: string;
+}
+
+export interface FindLessonsForTaskParams {
+  projectId: string;
+  /** Lessons whose `external_task_id` matches this tracker task (same work item). */
+  externalTaskId?: string;
+  queryEmbedding?: number[] | null;
+  stackTags?: string[];
+  parentEpicId?: string;
+  limit: number;
+}
+
+/** When cosine similarity ties, prefer richer match explanations for deduplication. */
+const LESSON_FOR_TASK_MATCH_RANK: Record<string, number> = {
+  semantic: 4,
+  task: 3,
+  stack: 2,
+  "epic-sibling": 1,
+};
+
+const pickBetterLessonForTaskRow = (
+  a: RawLessonForTaskRow,
+  b: RawLessonForTaskRow
+): RawLessonForTaskRow => {
+  if (b.similarity > a.similarity) return b;
+  if (b.similarity < a.similarity) return a;
+  const ra = LESSON_FOR_TASK_MATCH_RANK[a.matchReason] ?? 0;
+  const rb = LESSON_FOR_TASK_MATCH_RANK[b.matchReason] ?? 0;
+  return rb > ra ? b : a;
+};
+
+const PATTERN_FOR_TASK_MATCH_RANK: Record<string, number> = {
+  semantic: 2,
+  stack: 1,
+};
+
+const pickBetterPatternForTaskRow = (
+  a: PatternForTaskRow,
+  b: PatternForTaskRow
+): PatternForTaskRow => {
+  if (b.similarity > a.similarity) return b;
+  if (b.similarity < a.similarity) return a;
+  const ra = PATTERN_FOR_TASK_MATCH_RANK[a.matchReason] ?? 0;
+  const rb = PATTERN_FOR_TASK_MATCH_RANK[b.matchReason] ?? 0;
+  return rb > ra ? b : a;
+};
+
+const normalizeLessonForTaskRow = (r: Record<string, unknown>): RawLessonForTaskRow => ({
+  id: String(r.id),
+  title: String(r.title),
+  problem: String(r.problem),
+  rootCause: r.root_cause ? String(r.root_cause) : null,
+  fix: String(r.fix),
+  preventionRule: String(r.prevention_rule),
+  stackTags: Array.isArray(r.stack_tags) ? (r.stack_tags as string[]) : null,
+  category: r.category ? String(r.category) : null,
+  severity: r.severity ? String(r.severity) : null,
+  occurrenceCount: r.occurrence_count ? Number(r.occurrence_count) : null,
+  lastSeenAt: r.last_seen_at ? new Date(String(r.last_seen_at)) : null,
+  similarity: Number(r.similarity),
+  matchReason: String(r.match_reason),
+});
+
+export const findLessonsForTask = async (
+  db: LessonsTx,
+  params: FindLessonsForTaskParams
+): Promise<RawLessonForTaskRow[]> => {
+  const { projectId, externalTaskId, queryEmbedding, stackTags, parentEpicId, limit } = params;
+  const branches: Promise<RawLessonForTaskRow[]>[] = [];
+
+  if (queryEmbedding) {
+    const vectorParam = `[${queryEmbedding.join(",")}]`;
+    branches.push(
+      (async () => {
+        const result = await db.execute(
+          sql`
+            SELECT id, title, problem, root_cause, fix, prevention_rule,
+                   stack_tags, category, severity, occurrence_count, last_seen_at,
+                   1 - (embedding <=> ${vectorParam}::vector) AS similarity,
+                   'semantic' AS match_reason
+            FROM ${schema.lessons}
+            WHERE (project_id = ${projectId}::uuid OR project_id IS NULL)
+              AND embedding IS NOT NULL
+              AND 1 - (embedding <=> ${vectorParam}::vector) >= 0.65
+            ORDER BY similarity DESC
+            LIMIT ${limit}
+          `
+        );
+        const rows = (result as any).rows ?? (Array.isArray(result) ? result : []);
+        return rows.map((row: Record<string, unknown>) => normalizeLessonForTaskRow(row));
+      })()
+    );
+  }
+
+  if (externalTaskId) {
+    branches.push(
+      (async () => {
+        const result = await db.execute(
+          sql`
+            SELECT id, title, problem, root_cause, fix, prevention_rule,
+                   stack_tags, category, severity, occurrence_count, last_seen_at,
+                   0 AS similarity,
+                   'task' AS match_reason
+            FROM ${schema.lessons}
+            WHERE (project_id = ${projectId}::uuid OR project_id IS NULL)
+              AND external_task_id = ${externalTaskId}
+            ORDER BY occurrence_count DESC NULLS LAST, last_seen_at DESC NULLS LAST
+            LIMIT ${limit}
+          `
+        );
+        const rows = (result as any).rows ?? (Array.isArray(result) ? result : []);
+        return rows.map((row: Record<string, unknown>) => normalizeLessonForTaskRow(row));
+      })()
+    );
+  }
+
+  if (stackTags && stackTags.length > 0) {
+    const tagsLiteral = sql.raw(
+      `ARRAY[${stackTags.map((tag) => `'${tag.replace(/'/g, "''")}'`).join(",")}]::text[]`
+    );
+    branches.push(
+      (async () => {
+        const result = await db.execute(
+          sql`
+            SELECT id, title, problem, root_cause, fix, prevention_rule,
+                   stack_tags, category, severity, occurrence_count, last_seen_at,
+                   0 AS similarity,
+                   'stack' AS match_reason
+            FROM ${schema.lessons}
+            WHERE (project_id = ${projectId}::uuid OR project_id IS NULL)
+              AND stack_tags && ${tagsLiteral}
+            ORDER BY occurrence_count DESC NULLS LAST, last_seen_at DESC NULLS LAST
+            LIMIT ${limit}
+          `
+        );
+        const rows = (result as any).rows ?? (Array.isArray(result) ? result : []);
+        return rows.map((row: Record<string, unknown>) => normalizeLessonForTaskRow(row));
+      })()
+    );
+  }
+
+  if (parentEpicId) {
+    branches.push(
+      (async () => {
+        const result = await db.execute(
+          sql`
+            SELECT id, title, problem, root_cause, fix, prevention_rule,
+                   stack_tags, category, severity, occurrence_count, last_seen_at,
+                   0 AS similarity,
+                   'epic-sibling' AS match_reason
+            FROM ${schema.lessons}
+            WHERE (project_id = ${projectId}::uuid OR project_id IS NULL)
+              AND external_task_id = ${parentEpicId}
+            ORDER BY occurrence_count DESC NULLS LAST, last_seen_at DESC NULLS LAST
+            LIMIT ${limit}
+          `
+        );
+        const rows = (result as any).rows ?? (Array.isArray(result) ? result : []);
+        return rows.map((row: Record<string, unknown>) => normalizeLessonForTaskRow(row));
+      })()
+    );
+  }
+
+  if (branches.length === 0) {
+    return [];
+  }
+
+  const resultArrays = await Promise.all(branches);
+  const results = resultArrays.flat();
+
+  const seen = new Map<string, RawLessonForTaskRow>();
+  for (const row of results) {
+    const existing = seen.get(row.id);
+    if (!existing) {
+      seen.set(row.id, row);
+    } else {
+      seen.set(row.id, pickBetterLessonForTaskRow(existing, row));
+    }
+  }
+
+  return Array.from(seen.values());
+};
+
+export interface PatternForTaskRow {
+  id: string;
+  title: string;
+  description: string;
+  codeExample: string | null;
+  stackTags: string[] | null;
+  category: string | null;
+  usageCount: number | null;
+  lastUsedAt: Date | null;
+  similarity: number;
+  matchReason: string;
+}
+
+export interface FindPatternsForTaskParams {
+  projectId: string;
+  stackTags?: string[];
+  queryEmbedding?: number[] | null;
+  limit: number;
+}
+
+const normalizePatternForTaskRow = (r: Record<string, unknown>): PatternForTaskRow => ({
+  id: String(r.id),
+  title: String(r.title),
+  description: String(r.description),
+  codeExample: r.code_example ? String(r.code_example) : null,
+  stackTags: Array.isArray(r.stack_tags) ? (r.stack_tags as string[]) : null,
+  category: r.category ? String(r.category) : null,
+  usageCount: r.usage_count ? Number(r.usage_count) : null,
+  lastUsedAt: r.last_used_at ? new Date(String(r.last_used_at)) : null,
+  similarity: Number(r.similarity),
+  matchReason: String(r.match_reason),
+});
+
+export const findPatternsForTask = async (
+  db: LessonsTx,
+  params: FindPatternsForTaskParams
+): Promise<PatternForTaskRow[]> => {
+  const { projectId, stackTags, queryEmbedding, limit } = params;
+  const branches: Promise<PatternForTaskRow[]>[] = [];
+
+  if (queryEmbedding) {
+    const vectorParam = `[${queryEmbedding.join(",")}]`;
+    branches.push(
+      (async () => {
+        const result = await db.execute(
+          sql`
+            SELECT id, title, description, code_example, stack_tags, category,
+                   usage_count, last_used_at,
+                   1 - (embedding <=> ${vectorParam}::vector) AS similarity,
+                   'semantic' AS match_reason
+            FROM ${schema.patterns}
+            WHERE (project_id = ${projectId}::uuid OR project_id IS NULL)
+              AND embedding IS NOT NULL
+              AND 1 - (embedding <=> ${vectorParam}::vector) >= 0.65
+            ORDER BY similarity DESC
+            LIMIT ${limit}
+          `
+        );
+        const rows = (result as any).rows ?? (Array.isArray(result) ? result : []);
+        return rows.map((row: Record<string, unknown>) => normalizePatternForTaskRow(row));
+      })()
+    );
+  }
+
+  if (stackTags && stackTags.length > 0) {
+    const tagsLiteral = sql.raw(
+      `ARRAY[${stackTags.map((tag) => `'${tag.replace(/'/g, "''")}'`).join(",")}]::text[]`
+    );
+    branches.push(
+      (async () => {
+        const result = await db.execute(
+          sql`
+            SELECT id, title, description, code_example, stack_tags, category,
+                   usage_count, last_used_at,
+                   0 AS similarity,
+                   'stack' AS match_reason
+            FROM ${schema.patterns}
+            WHERE (project_id = ${projectId}::uuid OR project_id IS NULL)
+              AND stack_tags && ${tagsLiteral}
+            ORDER BY usage_count DESC NULLS LAST, last_used_at DESC NULLS LAST
+            LIMIT ${limit}
+          `
+        );
+        const rows = (result as any).rows ?? (Array.isArray(result) ? result : []);
+        return rows.map((row: Record<string, unknown>) => normalizePatternForTaskRow(row));
+      })()
+    );
+  }
+
+  if (branches.length === 0) {
+    return [];
+  }
+
+  const resultArrays = await Promise.all(branches);
+  const results = resultArrays.flat();
+
+  const seen = new Map<string, PatternForTaskRow>();
+  for (const row of results) {
+    const existing = seen.get(row.id);
+    if (!existing) {
+      seen.set(row.id, row);
+    } else {
+      seen.set(row.id, pickBetterPatternForTaskRow(existing, row));
+    }
+  }
+
+  return Array.from(seen.values());
+};

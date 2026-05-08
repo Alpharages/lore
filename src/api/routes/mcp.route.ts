@@ -11,6 +11,7 @@ import * as searchSimilarController from "../controllers/search-similar.controll
 import * as startSessionController from "../controllers/start-session.controller.js";
 import * as endSessionController from "../controllers/end-session.controller.js";
 import * as startSessionFromTaskController from "../controllers/start-session-from-task.controller.js";
+import * as queryLessonsForTaskController from "../controllers/query-lessons-for-task.controller.js";
 
 const saveLessonBodySchema = {
   type: "object",
@@ -133,6 +134,27 @@ const searchSimilarBodySchema = {
   },
 };
 
+const queryLessonsForTaskBodySchema = {
+  type: "object",
+  required: ["external_task_id"],
+  additionalProperties: false,
+  properties: {
+    external_task_id: { type: "string", minLength: 1 },
+    task_context: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        title: { type: "string" },
+        description: { type: "string" },
+        acceptance_criteria: { type: "string" },
+        parent_epic_id: { type: "string" },
+        stack_tags: { type: "array", items: { type: "string" } },
+      },
+    },
+    limit: { type: "number", minimum: 1, maximum: 20, default: 10 },
+  },
+};
+
 const mcpRoute = (
   app: FastifyInstance,
   opts: FastifyPluginOptions & { pool: Pool; db: DrizzleClient },
@@ -210,6 +232,18 @@ const mcpRoute = (
       schema: { body: searchSimilarBodySchema },
     },
     withMcpRouteLogging("search_similar", searchSimilarController.searchSimilarHandler)
+  );
+
+  app.post(
+    "/tools/query_lessons_for_task",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: queryLessonsForTaskBodySchema },
+    },
+    withMcpRouteLogging(
+      "query_lessons_for_task",
+      queryLessonsForTaskController.queryLessonsForTaskHandler
+    )
   );
 
   if (process.env.NODE_ENV !== "production") {
