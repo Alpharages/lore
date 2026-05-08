@@ -4,6 +4,7 @@ import {
   findSessionById,
   findOpenSessionByTask,
   countLessonsByIds,
+  linkLessonsToOpenSession,
   type SessionsTx,
 } from "../repositories/sessions.repository.js";
 import { findRepositoryBySlug } from "../repositories/projects.repository.js";
@@ -204,4 +205,29 @@ export const endSession = async (
     ended: true,
     durationMinutes: durationSuccess,
   };
+};
+
+export interface LinkLessonsInput {
+  externalTaskId: string;
+  consulted: string[];
+  applied: string[];
+}
+
+export interface LinkLessonsOutput {
+  linked: number;
+}
+
+export const linkLessonsToTask = async (
+  db: SessionsTx,
+  input: LinkLessonsInput
+): Promise<LinkLessonsOutput> => {
+  const linked = new Set([...input.consulted, ...input.applied]).size;
+  if (linked === 0) return { linked: 0 };
+  const { updated } = await linkLessonsToOpenSession(
+    db,
+    input.externalTaskId,
+    input.consulted,
+    input.applied
+  );
+  return { linked: updated ? linked : 0 };
 };

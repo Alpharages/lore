@@ -166,3 +166,33 @@ export const countLessonsByIds = async (db: SessionsTx, ids: string[]): Promise<
     .where(inArray(schema.lessons.id, ids));
   return rows.length;
 };
+
+export const linkLessonsToOpenSession = async (
+  db: SessionsTx,
+  externalTaskId: string,
+  consulted: string[],
+  applied: string[]
+): Promise<{ updated: boolean }> => {
+  const consultedLiteral = sql.raw(
+    `ARRAY[${consulted.map((id) => `'${id.replace(/'/g, "''")}'`).join(",")}]::uuid[]`
+  );
+  const appliedLiteral = sql.raw(
+    `ARRAY[${applied.map((id) => `'${id.replace(/'/g, "''")}'`).join(",")}]::uuid[]`
+  );
+
+  const result = await db.execute(
+    sql`
+      UPDATE sessions SET
+        lessons_consulted = ARRAY(SELECT DISTINCT unnest(COALESCE(lessons_consulted, ARRAY[]::uuid[]) || ${consultedLiteral})),
+        lessons_applied   = ARRAY(SELECT DISTINCT unnest(COALESCE(lessons_applied, ARRAY[]::uuid[]) || ${appliedLiteral}))
+      WHERE id = (
+        SELECT id FROM sessions
+        WHERE external_task_id = ${externalTaskId} AND ended_at IS NULL
+        ORDER BY started_at DESC LIMIT 1
+      )
+      RETURNING id
+    `
+  );
+  const rows = (result as any).rows ?? (Array.isArray(result) ? result : []);
+  return { updated: rows.length > 0 };
+};

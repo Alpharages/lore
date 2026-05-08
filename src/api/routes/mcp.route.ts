@@ -12,6 +12,7 @@ import * as startSessionController from "../controllers/start-session.controller
 import * as endSessionController from "../controllers/end-session.controller.js";
 import * as startSessionFromTaskController from "../controllers/start-session-from-task.controller.js";
 import * as queryLessonsForTaskController from "../controllers/query-lessons-for-task.controller.js";
+import * as linkLessonsToTaskController from "../controllers/link-lessons-to-task.controller.js";
 
 const saveLessonBodySchema = {
   type: "object",
@@ -155,6 +156,17 @@ const queryLessonsForTaskBodySchema = {
   },
 };
 
+const linkLessonsToTaskBodySchema = {
+  type: "object",
+  required: ["external_task_id"],
+  additionalProperties: false,
+  properties: {
+    external_task_id: { type: "string", minLength: 1 },
+    consulted: { type: "array", items: { type: "string", format: "uuid" }, default: [] },
+    applied: { type: "array", items: { type: "string", format: "uuid" }, default: [] },
+  },
+};
+
 const mcpRoute = (
   app: FastifyInstance,
   opts: FastifyPluginOptions & { pool: Pool; db: DrizzleClient },
@@ -243,6 +255,18 @@ const mcpRoute = (
     withMcpRouteLogging(
       "query_lessons_for_task",
       queryLessonsForTaskController.queryLessonsForTaskHandler
+    )
+  );
+
+  app.post(
+    "/tools/link_lessons_to_task",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: linkLessonsToTaskBodySchema },
+    },
+    withMcpRouteLogging(
+      "link_lessons_to_task",
+      linkLessonsToTaskController.linkLessonsToTaskHandler
     )
   );
 
