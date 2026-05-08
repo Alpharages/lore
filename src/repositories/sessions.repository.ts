@@ -1,4 +1,4 @@
-import { eq, and, inArray, isNull } from "drizzle-orm";
+import { eq, and, inArray, isNull, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../db/schema.js";
 
@@ -10,6 +10,11 @@ export interface InsertSessionValues {
   branch?: string | null;
   taskSummary?: string | null;
   userHandle?: string | null;
+  externalTaskId?: string | null;
+  externalTaskRef?: string | null;
+  externalTrackerType?: string | null;
+  bmadSkill?: string | null;
+  bmadWorkflow?: string | null;
 }
 
 export const insertSession = async (
@@ -24,6 +29,11 @@ export const insertSession = async (
       branch: values.branch ?? null,
       taskSummary: values.taskSummary ?? null,
       userHandle: values.userHandle ?? null,
+      externalTaskId: values.externalTaskId ?? null,
+      externalTaskRef: values.externalTaskRef ?? null,
+      externalTrackerType: values.externalTrackerType ?? null,
+      bmadSkill: values.bmadSkill ?? null,
+      bmadWorkflow: values.bmadWorkflow ?? null,
     })
     .returning({
       id: schema.sessions.id,
@@ -96,6 +106,55 @@ export const updateSessionEnd = async (
     .returning({ id: schema.sessions.id });
 
   return result;
+};
+
+export interface OpenSession {
+  id: string;
+  branch: string | null;
+  decisions: unknown[];
+  filesTouched: string[];
+  startedAt: Date | null;
+  endedAt: Date | null;
+}
+
+export const findOpenSessionByTask = async (
+  db: SessionsTx,
+  projectId: string,
+  externalTaskId: string,
+  externalTrackerType: string
+): Promise<OpenSession | undefined> => {
+  const rows = await db
+    .select({
+      id: schema.sessions.id,
+      branch: schema.sessions.branch,
+      decisions: schema.sessions.decisions,
+      filesTouched: schema.sessions.filesTouched,
+      startedAt: schema.sessions.startedAt,
+      endedAt: schema.sessions.endedAt,
+    })
+    .from(schema.sessions)
+    .where(
+      and(
+        eq(schema.sessions.projectId, projectId),
+        eq(schema.sessions.externalTaskId, externalTaskId),
+        eq(schema.sessions.externalTrackerType, externalTrackerType),
+        isNull(schema.sessions.endedAt)
+      )
+    )
+    .orderBy(sql`${schema.sessions.startedAt} DESC`)
+    .limit(1);
+
+  if (rows.length === 0) return undefined;
+
+  const row = rows[0];
+  return {
+    id: row.id,
+    branch: row.branch,
+    decisions: (row.decisions as unknown[]) ?? [],
+    filesTouched: row.filesTouched ?? [],
+    startedAt: row.startedAt,
+    endedAt: row.endedAt,
+  };
 };
 
 /** Count lessons matching ids (caller passes deduplicated ids). */

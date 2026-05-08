@@ -2,6 +2,7 @@ import {
   insertSession,
   updateSessionEnd,
   findSessionById,
+  findOpenSessionByTask,
   countLessonsByIds,
   type SessionsTx,
 } from "../repositories/sessions.repository.js";
@@ -46,6 +47,85 @@ export const startSession = async (
   return {
     sessionId: inserted.id,
     startedAt: (inserted.startedAt ?? new Date()).toISOString(),
+  };
+};
+
+export interface StartSessionFromTaskInput {
+  projectId: string;
+  externalTaskId: string;
+  externalTrackerType: "clickup" | "jira" | "asana";
+  externalTaskRef?: string | null;
+  taskSummary?: string | null;
+  branch?: string | null;
+  userHandle?: string | null;
+  bmadSkill?: string | null;
+  bmadWorkflow?: string | null;
+  repoSlug?: string | null;
+}
+
+export interface StartSessionFromTaskOutput {
+  sessionId: string;
+  resumed: boolean;
+  priorSessionSummary?: {
+    branch: string | null;
+    decisions: unknown[];
+    filesTouched: string[];
+    startedAt: Date | null;
+    endedAt: Date | null;
+  };
+}
+
+export const startSessionFromTask = async (
+  db: SessionsTx,
+  input: StartSessionFromTaskInput
+): Promise<StartSessionFromTaskOutput> => {
+  let repoId: string | null = null;
+
+  if (input.repoSlug) {
+    const repo = await findRepositoryBySlug(db, input.repoSlug);
+    if (!repo) {
+      throw validationError(`Repository "${input.repoSlug}" not found for this project`);
+    }
+    repoId = repo.id;
+  }
+
+  const existing = await findOpenSessionByTask(
+    db,
+    input.projectId,
+    input.externalTaskId,
+    input.externalTrackerType
+  );
+
+  if (existing) {
+    return {
+      sessionId: existing.id,
+      resumed: true,
+      priorSessionSummary: {
+        branch: existing.branch,
+        decisions: existing.decisions,
+        filesTouched: existing.filesTouched,
+        startedAt: existing.startedAt,
+        endedAt: existing.endedAt,
+      },
+    };
+  }
+
+  const inserted = await insertSession(db, {
+    projectId: input.projectId,
+    repoId,
+    branch: input.branch ?? null,
+    taskSummary: input.taskSummary ?? null,
+    userHandle: input.userHandle ?? null,
+    externalTaskId: input.externalTaskId,
+    externalTrackerType: input.externalTrackerType,
+    externalTaskRef: input.externalTaskRef ?? null,
+    bmadSkill: input.bmadSkill ?? null,
+    bmadWorkflow: input.bmadWorkflow ?? null,
+  });
+
+  return {
+    sessionId: inserted.id,
+    resumed: false,
   };
 };
 

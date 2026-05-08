@@ -10,6 +10,7 @@ import * as queryLessonsController from "../controllers/query-lessons.controller
 import * as searchSimilarController from "../controllers/search-similar.controller.js";
 import * as startSessionController from "../controllers/start-session.controller.js";
 import * as endSessionController from "../controllers/end-session.controller.js";
+import * as startSessionFromTaskController from "../controllers/start-session-from-task.controller.js";
 
 const saveLessonBodySchema = {
   type: "object",
@@ -69,6 +70,23 @@ const startSessionBodySchema = {
     branch: { type: "string", minLength: 1 },
     task_summary: { type: "string" },
     user_handle: { type: "string" },
+  },
+};
+
+const startSessionFromTaskBodySchema = {
+  type: "object",
+  required: ["external_task_id", "external_tracker_type"],
+  additionalProperties: false,
+  properties: {
+    external_task_id: { type: "string", minLength: 1 },
+    external_tracker_type: { type: "string", enum: ["clickup", "jira", "asana"] },
+    external_task_ref: { type: "string" },
+    task_summary: { type: "string" },
+    branch: { type: "string" },
+    user_handle: { type: "string" },
+    bmad_skill: { type: "string" },
+    bmad_workflow: { type: "string" },
+    repo_slug: { type: "string", minLength: 1 },
   },
 };
 
@@ -171,6 +189,18 @@ const mcpRoute = (
       schema: { body: endSessionBodySchema },
     },
     withMcpRouteLogging("end_session", endSessionController.endSessionHandler)
+  );
+
+  app.post(
+    "/tools/start_session_from_task",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: startSessionFromTaskBodySchema },
+    },
+    withMcpRouteLogging(
+      "start_session_from_task",
+      startSessionFromTaskController.startSessionFromTaskHandler
+    )
   );
 
   app.post(
