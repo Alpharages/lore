@@ -2,6 +2,9 @@ import {
   findQualifyingLessons,
   findCandidateProjects,
   insertPropagation,
+  getPendingPropagations,
+  PendingPropagation,
+  PropagationTx,
 } from "../repositories/propagation.repository.js";
 import { db } from "../db/client.js";
 import { logger } from "../utils/logger.js";
@@ -70,4 +73,11 @@ export const startPropagationEngine = (): void => {
       });
     }
   }, intervalMs);
+};
+
+export const getPendingPropagationsService = async (
+  dbClient: PropagationTx,
+  projectId: string
+): Promise<PendingPropagation[]> => {
+  return getPendingPropagations(dbClient, projectId);
 };

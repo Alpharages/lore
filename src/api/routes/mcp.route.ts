@@ -13,6 +13,7 @@ import * as endSessionController from "../controllers/end-session.controller.js"
 import * as startSessionFromTaskController from "../controllers/start-session-from-task.controller.js";
 import * as queryLessonsForTaskController from "../controllers/query-lessons-for-task.controller.js";
 import * as linkLessonsToTaskController from "../controllers/link-lessons-to-task.controller.js";
+import * as getPendingPropagationsController from "../controllers/get-pending-propagations.controller.js";
 
 const saveLessonBodySchema = {
   type: "object",
@@ -167,6 +168,12 @@ const linkLessonsToTaskBodySchema = {
   },
 };
 
+const getPendingPropagationsBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {},
+};
+
 const mcpRoute = (
   app: FastifyInstance,
   opts: FastifyPluginOptions & { pool: Pool; db: DrizzleClient },
@@ -267,6 +274,18 @@ const mcpRoute = (
     withMcpRouteLogging(
       "link_lessons_to_task",
       linkLessonsToTaskController.linkLessonsToTaskHandler
+    )
+  );
+
+  app.post(
+    "/tools/get_pending_propagations",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: getPendingPropagationsBodySchema },
+    },
+    withMcpRouteLogging(
+      "get_pending_propagations",
+      getPendingPropagationsController.getPendingPropagationsHandler
     )
   );
 

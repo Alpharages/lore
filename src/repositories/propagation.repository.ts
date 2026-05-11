@@ -1,4 +1,4 @@
-import { and, gte, inArray, sql } from "drizzle-orm";
+import { and, gte, inArray, sql, eq } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../db/schema.js";
 
@@ -67,4 +67,36 @@ export const insertPropagation = async (
     })
     .onConflictDoNothing()
     .returning({ id: schema.lessonPropagations.id });
+};
+
+export interface PendingPropagation {
+  id: string;
+  title: string;
+  problem: string;
+  severity: string | null;
+  stackTags: string[] | null;
+  occurrenceCount: number | null;
+}
+
+export const getPendingPropagations = async (
+  db: PropagationTx,
+  targetProjectId: string
+): Promise<PendingPropagation[]> => {
+  return db
+    .select({
+      id: schema.lessonPropagations.id,
+      title: schema.lessons.title,
+      problem: schema.lessons.problem,
+      severity: schema.lessons.severity,
+      stackTags: schema.lessons.stackTags,
+      occurrenceCount: schema.lessons.occurrenceCount,
+    })
+    .from(schema.lessonPropagations)
+    .innerJoin(schema.lessons, eq(schema.lessonPropagations.sourceLessonId, schema.lessons.id))
+    .where(
+      and(
+        eq(schema.lessonPropagations.targetProjectId, targetProjectId),
+        eq(schema.lessonPropagations.status, "suggested")
+      )
+    );
 };
