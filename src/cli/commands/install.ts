@@ -3,6 +3,7 @@ import * as path from "path";
 import * as os from "os";
 import { findLoreYaml } from "../core/config-finder.js";
 import { parseLoreConfig, LoreConfig } from "../core/config-parser.js";
+import { checkVersionCompatibility } from "../core/version-check.js";
 import { writeCursorConfig, readCursorConfig } from "../core/cursor-config.js";
 import { appendClaudeMdInclude } from "../core/claude-config.js";
 
@@ -13,6 +14,13 @@ export const installCommand = async (): Promise<void> => {
   try {
     loreYamlPath = findLoreYaml();
     config = parseLoreConfig(loreYamlPath);
+  } catch (err: any) {
+    console.error(`Error: ${err.message}`);
+    process.exit(1);
+  }
+
+  try {
+    await checkVersionCompatibility(config);
   } catch (err: any) {
     console.error(`Error: ${err.message}`);
     process.exit(1);

@@ -40,6 +40,9 @@ importers:
       prom-client:
         specifier: ^15.1.3
         version: 15.1.3
+      semver:
+        specifier: ^7.8.0
+        version: 7.8.0
       yaml:
         specifier: ^2.8.4
         version: 2.8.4
@@ -53,6 +56,9 @@ importers:
       "@types/pg":
         specifier: ^8.11.14
         version: 8.20.0
+      "@types/semver":
+        specifier: ^7.7.1
+        version: 7.7.1
       "@types/supertest":
         specifier: ^7.2.0
         version: 7.2.0
@@ -1155,6 +1161,12 @@ packages:
     resolution:
       {
         integrity: sha512-bEPFOaMAHTEP1EzpvHTbmwR8UsFyHSKsRisLIHVMXnpNefSbGA1bD6CVy+qKjGSqmZqNqBDV2azOBo8TgkcVow==,
+      }
+
+  "@types/semver@7.7.1":
+    resolution:
+      {
+        integrity: sha512-FmgJfu+MOcQ370SD0ev7EI8TlCAfKYU+B4m5T3yXc1CiRN94g/SZPtsCkk506aUDtlMnFZvasDwHHUcZUEaYuA==,
       }
 
   "@types/superagent@8.1.9":
@@ -2739,6 +2751,14 @@ packages:
     engines: { node: ">=10" }
     hasBin: true
 
+  semver@7.8.0:
+    resolution:
+      {
+        integrity: sha512-AcM7dV/5ul4EekoQ29Agm5vri8JNqRyj39o0qpX6vDF2GZrtutZl5RwgD1XnZjiTAfncsJhMI48QQH3sN87YNA==,
+      }
+    engines: { node: ">=10" }
+    hasBin: true
+
   set-blocking@2.0.0:
     resolution:
       {
@@ -3656,6 +3676,8 @@ snapshots:
       pg-protocol: 1.13.0
       pg-types: 2.2.0
 
+  "@types/semver@7.7.1": {}
+
   "@types/superagent@8.1.9":
     dependencies:
       "@types/cookiejar": 2.1.5
@@ -4566,6 +4588,8 @@ snapshots:
   semver@6.3.1: {}
 
   semver@7.7.4: {}
+
+  semver@7.8.0: {}
 
   set-blocking@2.0.0: {}
 

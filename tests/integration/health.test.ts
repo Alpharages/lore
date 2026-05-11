@@ -34,18 +34,28 @@ describe("GET /health", () => {
 
     const body = JSON.parse(response.payload);
     expect(body).toHaveProperty("status");
+    expect(body).toHaveProperty("version");
     expect(body).toHaveProperty("db");
     expect(body).toHaveProperty("db_lessons_count");
     expect(body).toHaveProperty("db_projects_count");
     expect(body).toHaveProperty("openai");
     expect(body).toHaveProperty("uptime_seconds");
     expect(Object.keys(body).sort()).toEqual(
-      ["status", "db", "db_lessons_count", "db_projects_count", "openai", "uptime_seconds"].sort()
+      [
+        "status",
+        "version",
+        "db",
+        "db_lessons_count",
+        "db_projects_count",
+        "openai",
+        "uptime_seconds",
+      ].sort()
     );
 
     expect(body.status).toBe("healthy");
     expect(body.db).toBe("connected");
     expect(body.openai).toBe("unknown");
+    expect(typeof body.version).toBe("string");
     expect(typeof body.db_lessons_count).toBe("number");
     expect(typeof body.db_projects_count).toBe("number");
     expect(typeof body.uptime_seconds).toBe("number");

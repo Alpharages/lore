@@ -1,7 +1,11 @@
+import { createRequire } from "module";
 import { FastifyRequest, FastifyReply } from "fastify";
 import { DrizzleClient } from "../../repositories/projects.repository.js";
 import { probeDatabase } from "../../services/health.service.js";
 import { getOpenAIStatus } from "../../services/health-probes.js";
+
+const require = createRequire(import.meta.url);
+const { version } = require("../../../package.json") as { version: string };
 
 interface RouteConfig {
   db: DrizzleClient;
@@ -34,6 +38,7 @@ export const health = async (request: FastifyRequest, reply: FastifyReply) => {
   reply.header("Content-Type", "application/json");
   return {
     status: isDegraded ? "degraded" : "healthy",
+    version,
     db: dbStatus,
     db_lessons_count: lessonsCount,
     db_projects_count: projectsCount,
