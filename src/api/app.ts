@@ -10,6 +10,7 @@ import projectsRoute from "./routes/projects.route.js";
 import mcpRoute from "./routes/mcp.route.js";
 import healthRoute from "./routes/health.route.js";
 import metricsRoute from "./routes/metrics.route.js";
+import inboxRoute from "./routes/inbox.route.js";
 
 export interface BuildAppDeps {
   pool: Pool;
@@ -125,6 +126,7 @@ export const buildApp = (deps: BuildAppDeps) => {
   });
 
   app.register(projectsRoute, { prefix: "/api/projects", db: deps.db });
+  app.register(inboxRoute, { prefix: "/api", pool: deps.pool, db: deps.db });
   app.register(mcpRoute, { prefix: "/mcp", pool: deps.pool, db: deps.db });
   app.register(healthRoute, { prefix: "/", db: deps.db });
   app.register(metricsRoute, { prefix: "/" });
