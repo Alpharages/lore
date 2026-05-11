@@ -2,6 +2,7 @@ import "dotenv/config";
 import { pool, db } from "./db/client.js";
 import { buildApp } from "./api/app.js";
 import { logger } from "./utils/logger.js";
+import { startPropagationEngine } from "./services/propagation.js";
 
 const ADMIN_SECRET = process.env.ADMIN_SECRET;
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -34,4 +35,7 @@ app.listen({ port: PORT, host: "0.0.0.0" }, (err) => {
     process.exit(1);
   }
   logger.info(`Server listening on http://0.0.0.0:${PORT}`);
+
+  // Start background jobs after server starts
+  startPropagationEngine();
 });
