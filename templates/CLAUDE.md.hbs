@@ -1,0 +1,42 @@
+#
+{{project.name}}
+— Agent Context This file is read by AI coding agents on every session. Keep it concise and
+actionable. ## Project Identity - **Name:**
+{{project.name}}
+- **Slug:**
+{{project.slug}}
+- **Lore Server:**
+{{mcp.server}}
+
+## Repositories
+
+{{#each repos}}
+  ###
+  {{name}}
+  ({{slug}}) - **Path:**
+  {{path}}
+  - **Stack:**
+  {{#each stack}}{{this}}{{#unless @last}}, {{/unless}}{{/each}}
+
+{{/each}}
+
+## Agent Standards - All code must follow the project's established conventions. - Arrow functions
+only (`const fn = () => {}`). - Run `pnpm lint`, `pnpm format:check`, `pnpm build`, and `pnpm test`
+before every commit. ## Methodology
+
+{{#if methodology}}
+  - **Type:**
+  {{methodology.type}}
+  - **Version:**
+  {{methodology.version}}
+  {{#if methodology.default_dev_skill}}
+    - **Default Dev Skill:**
+    {{methodology.default_dev_skill}}
+  {{/if}}
+  {{#if methodology.default_review_skill}}
+    - **Default Review Skill:**
+    {{methodology.default_review_skill}}
+  {{/if}}
+{{else}}
+  No methodology layer configured.
+{{/if}}
