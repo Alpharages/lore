@@ -1,51 +1,19 @@
-import * as fs from "fs";
-import * as path from "path";
-import { parse as parseYaml } from "yaml";
+import { findLoreYaml } from "../core/config-finder.js";
+import { parseLoreConfig, LoreConfig } from "../core/config-parser.js";
 import { LoreClient } from "../api/client.js";
 import { formatSuggestion, promptAction, createReadline } from "../utils/inbox-prompts.js";
 
-interface LoreYaml {
-  project?: { slug?: string };
-  mcp?: { server?: string };
-}
-
-const findLoreYaml = (): string => {
-  let dir = process.cwd();
-  while (true) {
-    const candidate = path.join(dir, "lore.yaml");
-    if (fs.existsSync(candidate)) return candidate;
-    const parent = path.dirname(dir);
-    if (parent === dir) throw new Error("lore.yaml not found in current directory or any parent.");
-    dir = parent;
-  }
-};
-
-const readLoreYaml = (): LoreYaml => {
-  const filePath = findLoreYaml();
-  const content = fs.readFileSync(filePath, "utf-8");
-  return parseYaml(content) as LoreYaml;
-};
-
 export const inboxCommand = async (): Promise<void> => {
-  let config: LoreYaml;
+  let config: LoreConfig;
   try {
-    config = readLoreYaml();
+    config = parseLoreConfig(findLoreYaml());
   } catch (err: any) {
     console.error(`Error: ${err.message}`);
     process.exit(1);
   }
 
-  const slug = config.project?.slug;
-  if (!slug) {
-    console.error("Error: project.slug is missing from lore.yaml.");
-    process.exit(1);
-  }
-
-  const serverUrl = config.mcp?.server;
-  if (!serverUrl) {
-    console.error("Error: mcp.server is missing from lore.yaml.");
-    process.exit(1);
-  }
+  const slug = config.project.slug;
+  const serverUrl = config.mcp.server;
 
   const apiKey = process.env.LORE_API_KEY;
   if (!apiKey) {
