@@ -11,15 +11,19 @@ vi.mock("fs", () => ({
   readFileSync: vi.fn(),
   writeFileSync: vi.fn(),
   mkdirSync: vi.fn(),
+  renameSync: vi.fn(),
+  unlinkSync: vi.fn(),
 }));
 
-import { readInstallState, writeInstallState } from "./state.js";
+import { readInstallState, writeInstallState, clearInstallState } from "./state.js";
 
 const mockedHomedir = vi.mocked(os.homedir);
 const mockedExistsSync = vi.mocked(fs.existsSync);
 const mockedReadFileSync = vi.mocked(fs.readFileSync);
 const mockedWriteFileSync = vi.mocked(fs.writeFileSync);
 const mockedMkdirSync = vi.mocked(fs.mkdirSync);
+const mockedRenameSync = vi.mocked(fs.renameSync);
+const mockedUnlinkSync = vi.mocked(fs.unlinkSync);
 
 describe("readInstallState", () => {
   beforeEach(() => {
@@ -39,9 +43,9 @@ describe("readInstallState", () => {
   it("returns parsed state when file exists", () => {
     mockedExistsSync.mockReturnValue(true);
     mockedReadFileSync.mockReturnValue(
-      JSON.stringify({ lastInstallAt: "2026-01-01T00:00:00.000Z" })
+      JSON.stringify({ last_install_at: "2026-01-01T00:00:00.000Z" })
     );
-    expect(readInstallState()).toEqual({ lastInstallAt: "2026-01-01T00:00:00.000Z" });
+    expect(readInstallState()).toEqual({ last_install_at: "2026-01-01T00:00:00.000Z" });
   });
 
   it("returns empty object when file contains invalid JSON", () => {
@@ -62,29 +66,33 @@ describe("writeInstallState", () => {
     vi.restoreAllMocks();
   });
 
-  it("creates ~/.lore directory and writes state", () => {
-    writeInstallState({ lastInstallAt: "2026-01-01T00:00:00.000Z" });
+  it("creates ~/.lore directory and writes state atomically", () => {
+    writeInstallState({ last_install_at: "2026-01-01T00:00:00.000Z" });
 
     expect(mockedMkdirSync).toHaveBeenCalledWith("/home/user/.lore", { recursive: true });
     expect(mockedWriteFileSync).toHaveBeenCalledWith(
-      "/home/user/.lore/install-state.json",
-      JSON.stringify({ lastInstallAt: "2026-01-01T00:00:00.000Z" }, null, 2),
+      "/home/user/.lore/install-state.json.tmp",
+      JSON.stringify({ last_install_at: "2026-01-01T00:00:00.000Z" }, null, 2),
       "utf-8"
+    );
+    expect(mockedRenameSync).toHaveBeenCalledWith(
+      "/home/user/.lore/install-state.json.tmp",
+      "/home/user/.lore/install-state.json"
     );
   });
 
   it("merges new keys with existing state", () => {
     mockedExistsSync.mockReturnValue(true);
     mockedReadFileSync.mockReturnValue(
-      JSON.stringify({ lastInstallAt: "2026-01-01T00:00:00.000Z" })
+      JSON.stringify({ last_install_at: "2026-01-01T00:00:00.000Z" })
     );
 
-    writeInstallState({ serverVersionVerified: "1.0.0" });
+    writeInstallState({ lore_server_version: "1.0.0" });
 
     expect(mockedWriteFileSync).toHaveBeenCalledWith(
-      "/home/user/.lore/install-state.json",
+      "/home/user/.lore/install-state.json.tmp",
       JSON.stringify(
-        { lastInstallAt: "2026-01-01T00:00:00.000Z", serverVersionVerified: "1.0.0" },
+        { last_install_at: "2026-01-01T00:00:00.000Z", lore_server_version: "1.0.0" },
         null,
         2
       ),
@@ -92,29 +100,29 @@ describe("writeInstallState", () => {
     );
   });
 
-  it("merges gitnexusAnalyzedAt records without overwriting existing ones", () => {
+  it("merges repos_analyzed records without overwriting existing ones", () => {
     mockedExistsSync.mockReturnValue(true);
     mockedReadFileSync.mockReturnValue(
       JSON.stringify({
-        gitnexusAnalyzedAt: {
-          "/path/repo-a": "2026-01-01T00:00:00.000Z",
+        repos_analyzed: {
+          "repo-a": "2026-01-01T00:00:00.000Z",
         },
       })
     );
 
     writeInstallState({
-      gitnexusAnalyzedAt: {
-        "/path/repo-b": "2026-02-01T00:00:00.000Z",
+      repos_analyzed: {
+        "repo-b": "2026-02-01T00:00:00.000Z",
       },
     });
 
     expect(mockedWriteFileSync).toHaveBeenCalledWith(
-      "/home/user/.lore/install-state.json",
+      "/home/user/.lore/install-state.json.tmp",
       JSON.stringify(
         {
-          gitnexusAnalyzedAt: {
-            "/path/repo-a": "2026-01-01T00:00:00.000Z",
-            "/path/repo-b": "2026-02-01T00:00:00.000Z",
+          repos_analyzed: {
+            "repo-a": "2026-01-01T00:00:00.000Z",
+            "repo-b": "2026-02-01T00:00:00.000Z",
           },
         },
         null,
@@ -124,29 +132,29 @@ describe("writeInstallState", () => {
     );
   });
 
-  it("merges hooksInstalledAt records without overwriting existing ones", () => {
+  it("merges hooks_installed records without overwriting existing ones", () => {
     mockedExistsSync.mockReturnValue(true);
     mockedReadFileSync.mockReturnValue(
       JSON.stringify({
-        hooksInstalledAt: {
-          "/path/repo-a": "2026-01-01T00:00:00.000Z",
+        hooks_installed: {
+          "repo-a": { post_commit: true, post_merge: true },
         },
       })
     );
 
     writeInstallState({
-      hooksInstalledAt: {
-        "/path/repo-b": "2026-02-01T00:00:00.000Z",
+      hooks_installed: {
+        "repo-b": { post_commit: true, post_merge: false },
       },
     });
 
     expect(mockedWriteFileSync).toHaveBeenCalledWith(
-      "/home/user/.lore/install-state.json",
+      "/home/user/.lore/install-state.json.tmp",
       JSON.stringify(
         {
-          hooksInstalledAt: {
-            "/path/repo-a": "2026-01-01T00:00:00.000Z",
-            "/path/repo-b": "2026-02-01T00:00:00.000Z",
+          hooks_installed: {
+            "repo-a": { post_commit: true, post_merge: true },
+            "repo-b": { post_commit: true, post_merge: false },
           },
         },
         null,
@@ -160,24 +168,24 @@ describe("writeInstallState", () => {
     mockedExistsSync.mockReturnValue(true);
     mockedReadFileSync.mockReturnValue(
       JSON.stringify({
-        gitnexusAnalyzedAt: {
-          "/path/repo-a": "2026-01-01T00:00:00.000Z",
+        repos_analyzed: {
+          "repo-a": "2026-01-01T00:00:00.000Z",
         },
       })
     );
 
     writeInstallState({
-      gitnexusAnalyzedAt: {
-        "/path/repo-a": "2026-03-01T00:00:00.000Z",
+      repos_analyzed: {
+        "repo-a": "2026-03-01T00:00:00.000Z",
       },
     });
 
     expect(mockedWriteFileSync).toHaveBeenCalledWith(
-      "/home/user/.lore/install-state.json",
+      "/home/user/.lore/install-state.json.tmp",
       JSON.stringify(
         {
-          gitnexusAnalyzedAt: {
-            "/path/repo-a": "2026-03-01T00:00:00.000Z",
+          repos_analyzed: {
+            "repo-a": "2026-03-01T00:00:00.000Z",
           },
         },
         null,
@@ -185,5 +193,24 @@ describe("writeInstallState", () => {
       ),
       "utf-8"
     );
+  });
+});
+
+describe("clearInstallState", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockedHomedir.mockReturnValue("/home/user");
+  });
+
+  it("deletes the state file when it exists", () => {
+    mockedExistsSync.mockReturnValue(true);
+    clearInstallState();
+    expect(mockedUnlinkSync).toHaveBeenCalledWith("/home/user/.lore/install-state.json");
+  });
+
+  it("does nothing when the state file does not exist", () => {
+    mockedExistsSync.mockReturnValue(false);
+    clearInstallState();
+    expect(mockedUnlinkSync).not.toHaveBeenCalled();
   });
 });

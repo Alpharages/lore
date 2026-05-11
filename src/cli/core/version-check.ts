@@ -6,7 +6,7 @@ export interface HealthResponse {
   version: string;
 }
 
-export const checkVersionCompatibility = async (config: LoreConfig): Promise<void> => {
+export const checkVersionCompatibility = async (config: LoreConfig): Promise<string> => {
   const range = config.lore.version;
   const serverUrl = config.mcp.server;
 
@@ -71,4 +71,6 @@ export const checkVersionCompatibility = async (config: LoreConfig): Promise<voi
       `Version incompatibility: server version ${serverVersion} does not satisfy range "${range}".\n${suggestion}`
     );
   }
+
+  return serverVersion;
 };

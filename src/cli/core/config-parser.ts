@@ -2,6 +2,8 @@ import * as fs from "fs";
 import { parse as parseYaml } from "yaml";
 
 export interface LoreRepo {
+  slug?: string;
+  name?: string;
   path: string;
   stack_tags?: string[];
 }

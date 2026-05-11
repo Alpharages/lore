@@ -2,15 +2,23 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import { findLoreYaml } from "../core/config-finder.js";
-import { parseLoreConfig, LoreConfig } from "../core/config-parser.js";
+import { parseLoreConfig, LoreConfig, LoreRepo } from "../core/config-parser.js";
 import { checkVersionCompatibility } from "../core/version-check.js";
 import { writeCursorConfig, readCursorConfig } from "../core/cursor-config.js";
 import { appendClaudeMdInclude } from "../core/claude-config.js";
 import { installGitHooks } from "../core/git-hooks.js";
 import { analyzeAllRepos } from "../core/gitnexus.js";
-import { writeInstallState } from "../core/state.js";
+import { readInstallState, writeInstallState, clearInstallState } from "../core/state.js";
 
-export const installCommand = async (): Promise<void> => {
+const getRepoSlug = (repo: LoreRepo, repoPath: string): string =>
+  repo.slug || path.basename(repoPath);
+
+export const installCommand = async (options: { force?: boolean } = {}): Promise<void> => {
+  if (options.force) {
+    clearInstallState();
+  }
+
+  const state = readInstallState();
   let config: LoreConfig;
   let loreYamlPath: string;
 
@@ -22,8 +30,9 @@ export const installCommand = async (): Promise<void> => {
     process.exit(1);
   }
 
+  let serverVersion: string;
   try {
-    await checkVersionCompatibility(config);
+    serverVersion = await checkVersionCompatibility(config);
   } catch (err: any) {
     console.error(`Error: ${err.message}`);
     process.exit(1);
@@ -83,68 +92,150 @@ export const installCommand = async (): Promise<void> => {
   }
 
   const loreYamlDir = path.dirname(loreYamlPath);
-  const repoPaths = config.repos.map((r) => path.resolve(loreYamlDir, r.path));
-  console.log("");
-  console.log(`Installing git hooks for ${repoPaths.length} repo(s)…`);
+  const reposWithPaths = config.repos.map((repo) => {
+    const repoPath = path.resolve(loreYamlDir, repo.path);
+    return {
+      repo,
+      repoPath,
+      slug: getRepoSlug(repo, repoPath),
+    };
+  });
 
-  const hookResults = installGitHooks(repoPaths);
-
-  for (const p of hookResults.installed) console.log(`  ✓ Installed hook: ${p}`);
-  for (const p of hookResults.skipped) console.log(`  ↩ Already installed: ${p}`);
-  for (const e of hookResults.errors) console.warn(`  ⚠ ${e}`);
-
-  if (hookResults.errors.length > 0) {
-    console.warn(
-      "\n⚠️  Some hooks could not be installed (see above). Install completed with warnings."
-    );
-  } else {
-    console.log("\n✓ Git hooks installed successfully.");
-  }
-
-  console.log("");
-  console.log(`Running GitNexus analysis for ${repoPaths.length} repo(s)…`);
-
-  const analysisResults = await analyzeAllRepos(repoPaths);
-  const gitnexusAnalyzedAt: Record<string, string> = {};
-
-  for (const result of analysisResults) {
-    if (result.success && result.analyzedAt) {
-      gitnexusAnalyzedAt[result.repoPath] = result.analyzedAt;
+  // --- Git Hooks ---
+  const reposNeedingHooks = reposWithPaths.filter(({ slug }) => {
+    const hooksState = state.hooks_installed?.[slug];
+    if (!options.force && hooksState?.post_commit && hooksState?.post_merge) {
+      return false;
     }
+    return true;
+  });
+
+  const repoPathsForHooks = reposNeedingHooks.map(({ repoPath }) => repoPath);
+
+  console.log("");
+  console.log(`Checking git hooks for ${reposWithPaths.length} repo(s)…`);
+
+  let hookResults: ReturnType<typeof installGitHooks>;
+  if (repoPathsForHooks.length > 0) {
+    hookResults = installGitHooks(repoPathsForHooks);
+
+    for (const { slug, repoPath } of reposWithPaths) {
+      if (!repoPathsForHooks.includes(repoPath)) {
+        console.log(`  ↩ hooks already installed for ${slug}, skipping`);
+      }
+    }
+
+    for (const p of hookResults.installed) console.log(`  ✓ Installed hook: ${p}`);
+    for (const p of hookResults.skipped) console.log(`  ↩ Already installed: ${p}`);
+    for (const e of hookResults.errors) console.warn(`  ⚠ ${e}`);
+
+    if (hookResults.errors.length > 0) {
+      console.warn(
+        "\n⚠️  Some hooks could not be installed (see above). Install completed with warnings."
+      );
+    } else {
+      console.log("\n✓ Git hooks installed successfully.");
+    }
+  } else {
+    hookResults = { installed: [], skipped: [], errors: [] };
+    for (const { slug } of reposWithPaths) {
+      console.log(`  ↩ hooks already installed for ${slug}, skipping`);
+    }
+    console.log("\n✓ Git hooks already up to date.");
   }
 
-  if (analysisResults.some((r) => !r.success)) {
-    console.warn(
-      "\n⚠️  Some repos could not be analyzed (see above). Install completed with warnings."
-    );
-  } else {
-    console.log("\n✓ GitNexus analysis complete.");
-  }
+  // Build hooks_installed state
+  const hooksInstalled: Record<string, { post_commit: boolean; post_merge: boolean }> = {
+    ...state.hooks_installed,
+  };
 
   const getRepoPathFromHookPath = (hookPath: string): string => {
     // hookPath = <repo>/.git/hooks/<hook-name>
     return path.dirname(path.dirname(path.dirname(hookPath)));
   };
 
-  const hooksInstalledAt: Record<string, string> = {};
-  const processedRepoPaths = new Set<string>();
+  const repoHookStatus = new Map<string, { post_commit: boolean; post_merge: boolean }>();
 
-  // Include both installed and skipped: timestamp means "hooks confirmed present", not "written this run".
-  // Story 5.5 idempotency relies on presence, not on whether the hook was written in this session.
   for (const hookPath of hookResults.installed) {
-    processedRepoPaths.add(getRepoPathFromHookPath(hookPath));
-  }
-  for (const hookPath of hookResults.skipped) {
-    processedRepoPaths.add(getRepoPathFromHookPath(hookPath));
+    const repoPath = getRepoPathFromHookPath(hookPath);
+    const current = repoHookStatus.get(repoPath) || { post_commit: false, post_merge: false };
+    if (path.basename(hookPath) === "post-commit") current.post_commit = true;
+    if (path.basename(hookPath) === "post-merge") current.post_merge = true;
+    repoHookStatus.set(repoPath, current);
   }
 
-  for (const repoPath of processedRepoPaths) {
-    hooksInstalledAt[repoPath] = new Date().toISOString();
+  for (const hookPath of hookResults.skipped) {
+    const repoPath = getRepoPathFromHookPath(hookPath);
+    const current = repoHookStatus.get(repoPath) || { post_commit: false, post_merge: false };
+    if (path.basename(hookPath) === "post-commit") current.post_commit = true;
+    if (path.basename(hookPath) === "post-merge") current.post_merge = true;
+    repoHookStatus.set(repoPath, current);
+  }
+
+  for (const { slug, repoPath } of reposWithPaths) {
+    const status = repoHookStatus.get(repoPath);
+    if (status) {
+      hooksInstalled[slug] = status;
+    }
+  }
+
+  // --- GitNexus Analysis ---
+  const reposNeedingAnalysis = reposWithPaths.filter(({ slug }) => {
+    const alreadyAnalyzed = state.repos_analyzed?.[slug];
+    if (!options.force && alreadyAnalyzed) {
+      return false;
+    }
+    return true;
+  });
+
+  const repoPathsForAnalysis = reposNeedingAnalysis.map(({ repoPath }) => repoPath);
+
+  console.log("");
+  console.log(`Checking GitNexus analysis for ${reposWithPaths.length} repo(s)…`);
+
+  let analysisResults: Awaited<ReturnType<typeof analyzeAllRepos>> = [];
+  const reposAnalyzed: Record<string, string> = { ...state.repos_analyzed };
+
+  if (repoPathsForAnalysis.length > 0) {
+    analysisResults = await analyzeAllRepos(repoPathsForAnalysis);
+
+    for (const { slug, repoPath } of reposWithPaths) {
+      if (!repoPathsForAnalysis.includes(repoPath)) {
+        const ts = state.repos_analyzed?.[slug];
+        console.log(`  ↩ ${slug} already analyzed at ${ts}, skipping`);
+      }
+    }
+
+    for (const result of analysisResults) {
+      if (result.success && result.analyzedAt) {
+        const matched = reposWithPaths.find(({ repoPath }) => repoPath === result.repoPath);
+        if (matched) {
+          reposAnalyzed[matched.slug] = result.analyzedAt;
+        }
+      }
+    }
+
+    if (analysisResults.some((r) => !r.success)) {
+      console.warn(
+        "\n⚠️  Some repos could not be analyzed (see above). Install completed with warnings."
+      );
+    } else {
+      console.log("\n✓ GitNexus analysis complete.");
+    }
+  } else {
+    for (const { slug } of reposWithPaths) {
+      const ts = state.repos_analyzed?.[slug];
+      console.log(`  ↩ ${slug} already analyzed at ${ts}, skipping`);
+    }
+    console.log("\n✓ GitNexus analysis already up to date.");
   }
 
   writeInstallState({
-    lastInstallAt: new Date().toISOString(),
-    hooksInstalledAt,
-    gitnexusAnalyzedAt,
+    last_install_at: new Date().toISOString(),
+    lore_server_version: serverVersion,
+    hooks_installed: hooksInstalled,
+    repos_analyzed: reposAnalyzed,
   });
+
+  console.log("✅ lore install complete");
 };

@@ -19,7 +19,8 @@ program
 program
   .command("install")
   .description("Configure MCP tools and AI assistant integration for this project")
-  .action(installCommand);
+  .option("--force", "bypass state check and reinstall everything")
+  .action((opts) => installCommand({ force: opts.force }));
 
 program
   .command("inbox")

@@ -43,14 +43,16 @@ describe("checkVersionCompatibility", () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("passes when version is exactly at the lower boundary", async () => {
+  it("returns server version when version is exactly at the lower boundary", async () => {
     mockResponse({ status: "healthy", version: "0.1.0" });
-    await expect(checkVersionCompatibility(baseConfig)).resolves.toBeUndefined();
+    const result = await checkVersionCompatibility(baseConfig);
+    expect(result).toBe("0.1.0");
   });
 
-  it("passes when version is inside the range", async () => {
+  it("returns server version when version is inside the range", async () => {
     mockResponse({ status: "healthy", version: "0.5.0" });
-    await expect(checkVersionCompatibility(baseConfig)).resolves.toBeUndefined();
+    const result = await checkVersionCompatibility(baseConfig);
+    expect(result).toBe("0.5.0");
   });
 
   it("aborts with clear error when version is outside declared range (newer)", async () => {

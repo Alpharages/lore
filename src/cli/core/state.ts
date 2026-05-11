@@ -3,10 +3,16 @@ import * as path from "path";
 import * as os from "os";
 
 export interface InstallState {
-  lastInstallAt?: string;
-  serverVersionVerified?: string;
-  hooksInstalledAt?: Record<string, string>;
-  gitnexusAnalyzedAt?: Record<string, string>;
+  last_install_at?: string;
+  lore_server_version?: string;
+  repos_analyzed?: Record<string, string>;
+  hooks_installed?: Record<
+    string,
+    {
+      post_commit: boolean;
+      post_merge: boolean;
+    }
+  >;
 }
 
 const stateDir = (): string => path.join(os.homedir(), ".lore");
@@ -37,19 +43,28 @@ export const writeInstallState = (patch: Partial<InstallState>): void => {
     ...patch,
   };
 
-  if (patch.hooksInstalledAt) {
-    merged.hooksInstalledAt = {
-      ...existing.hooksInstalledAt,
-      ...patch.hooksInstalledAt,
+  if (patch.hooks_installed) {
+    merged.hooks_installed = {
+      ...existing.hooks_installed,
+      ...patch.hooks_installed,
     };
   }
 
-  if (patch.gitnexusAnalyzedAt) {
-    merged.gitnexusAnalyzedAt = {
-      ...existing.gitnexusAnalyzedAt,
-      ...patch.gitnexusAnalyzedAt,
+  if (patch.repos_analyzed) {
+    merged.repos_analyzed = {
+      ...existing.repos_analyzed,
+      ...patch.repos_analyzed,
     };
   }
 
-  fs.writeFileSync(statePath(), JSON.stringify(merged, null, 2), "utf-8");
+  const tmpPath = `${statePath()}.tmp`;
+  fs.writeFileSync(tmpPath, JSON.stringify(merged, null, 2), "utf-8");
+  fs.renameSync(tmpPath, statePath());
+};
+
+export const clearInstallState = (): void => {
+  const filePath = statePath();
+  if (fs.existsSync(filePath)) {
+    fs.unlinkSync(filePath);
+  }
 };

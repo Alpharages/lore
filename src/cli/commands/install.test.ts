@@ -26,7 +26,9 @@ vi.mock("../core/gitnexus.js", () => ({
 }));
 
 vi.mock("../core/state.js", () => ({
+  readInstallState: vi.fn(),
   writeInstallState: vi.fn(),
+  clearInstallState: vi.fn(),
 }));
 
 vi.mock("../core/version-check.js", () => ({
@@ -49,7 +51,7 @@ import { readCursorConfig, writeCursorConfig } from "../core/cursor-config.js";
 import { appendClaudeMdInclude } from "../core/claude-config.js";
 import { installGitHooks } from "../core/git-hooks.js";
 import { analyzeAllRepos } from "../core/gitnexus.js";
-import { writeInstallState } from "../core/state.js";
+import { readInstallState, writeInstallState, clearInstallState } from "../core/state.js";
 import { checkVersionCompatibility } from "../core/version-check.js";
 import * as os from "os";
 import * as fs from "fs";
@@ -62,6 +64,8 @@ const mockedAppendClaudeMdInclude = vi.mocked(appendClaudeMdInclude);
 const mockedInstallGitHooks = vi.mocked(installGitHooks);
 const mockedAnalyzeAllRepos = vi.mocked(analyzeAllRepos);
 const mockedWriteInstallState = vi.mocked(writeInstallState);
+const mockedReadInstallState = vi.mocked(readInstallState);
+const mockedClearInstallState = vi.mocked(clearInstallState);
 const mockedCheckVersionCompatibility = vi.mocked(checkVersionCompatibility);
 const mockedHomedir = vi.mocked(os.homedir);
 const mockedExistsSync = vi.mocked(fs.existsSync);
@@ -95,7 +99,8 @@ describe("installCommand", () => {
     mockedAppendClaudeMdInclude.mockImplementation(() => {});
     mockedInstallGitHooks.mockReturnValue({ installed: [], skipped: [], errors: [] });
     mockedAnalyzeAllRepos.mockResolvedValue([]);
-    mockedCheckVersionCompatibility.mockResolvedValue(undefined);
+    mockedCheckVersionCompatibility.mockResolvedValue("1.0.0");
+    mockedReadInstallState.mockReturnValue({});
   });
 
   afterEach(() => {
@@ -161,7 +166,7 @@ describe("installCommand", () => {
     expect(mockedInstallGitHooks).toHaveBeenCalledWith(["/projects/myapp"]);
 
     const logs = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
-    expect(logs).toContain("Installing git hooks for 1 repo(s)");
+    expect(logs).toContain("Checking git hooks for 1 repo(s)");
     expect(logs).toContain("✓ Installed hook: /projects/myapp/.git/hooks/post-commit");
     expect(logs).toContain("✓ Git hooks installed successfully.");
   });
@@ -354,16 +359,17 @@ describe("installCommand", () => {
     expect(mockedWriteInstallState).toHaveBeenCalled();
 
     const stateCall = mockedWriteInstallState.mock.calls[0][0];
-    expect(stateCall.gitnexusAnalyzedAt).toEqual({
-      "/projects/myapp": "2026-05-11T12:00:00.000Z",
+    expect(stateCall.repos_analyzed).toEqual({
+      myapp: "2026-05-11T12:00:00.000Z",
     });
-    expect(stateCall.hooksInstalledAt).toEqual({
-      "/projects/myapp": expect.any(String),
+    expect(stateCall.hooks_installed).toEqual({
+      myapp: { post_commit: true, post_merge: true },
     });
-    expect(stateCall.lastInstallAt).toBeDefined();
+    expect(stateCall.last_install_at).toBeDefined();
+    expect(stateCall.lore_server_version).toBe("1.0.0");
 
     const logs = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
-    expect(logs).toContain("Running GitNexus analysis for 1 repo(s)");
+    expect(logs).toContain("Checking GitNexus analysis for 1 repo(s)");
     expect(logs).toContain("✓ GitNexus analysis complete.");
   });
 
@@ -392,13 +398,13 @@ describe("installCommand", () => {
 
     expect(mockedWriteInstallState).toHaveBeenCalled();
     const stateCall = mockedWriteInstallState.mock.calls[0][0];
-    expect(stateCall.gitnexusAnalyzedAt).toEqual({});
+    expect(stateCall.repos_analyzed).toEqual({});
 
     const warnLogs = consoleWarnSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(warnLogs).toContain("Some repos could not be analyzed");
   });
 
-  it("does not record failed repo in gitnexusAnalyzedAt", async () => {
+  it("does not record failed repo in repos_analyzed", async () => {
     mockedExistsSync.mockImplementation((p) => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
@@ -420,13 +426,166 @@ describe("installCommand", () => {
       { repoPath: "/projects/b", success: false, error: "npx not found" },
       { repoPath: "/projects/c", success: true, analyzedAt: "2026-05-11T12:01:00.000Z" },
     ]);
+    mockedParseLoreConfig.mockReturnValue({
+      ...baseConfig,
+      repos: [{ path: "/projects/a" }, { path: "/projects/b" }, { path: "/projects/c" }],
+    });
 
     await installCommand();
 
     const stateCall = mockedWriteInstallState.mock.calls[0][0];
-    expect(stateCall.gitnexusAnalyzedAt).toEqual({
-      "/projects/a": "2026-05-11T12:00:00.000Z",
-      "/projects/c": "2026-05-11T12:01:00.000Z",
+    expect(stateCall.repos_analyzed).toEqual({
+      a: "2026-05-11T12:00:00.000Z",
+      c: "2026-05-11T12:01:00.000Z",
+    });
+  });
+
+  it("skips hooks and analysis for repos already in state", async () => {
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadCursorConfig.mockReturnValue({
+      mcpServers: {
+        "lore-memory": { url: "https://lore.test/mcp" },
+        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
+      },
+    });
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedReadInstallState.mockReturnValue({
+      hooks_installed: {
+        myapp: { post_commit: true, post_merge: true },
+      },
+      repos_analyzed: {
+        myapp: "2026-05-10T10:00:00.000Z",
+      },
+    });
+
+    await installCommand();
+
+    expect(mockedInstallGitHooks).not.toHaveBeenCalled();
+    expect(mockedAnalyzeAllRepos).not.toHaveBeenCalled();
+
+    const logs = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
+    expect(logs).toContain("hooks already installed for myapp, skipping");
+    expect(logs).toContain("myapp already analyzed at 2026-05-10T10:00:00.000Z, skipping");
+
+    const stateCall = mockedWriteInstallState.mock.calls[0][0];
+    expect(stateCall.hooks_installed).toEqual({
+      myapp: { post_commit: true, post_merge: true },
+    });
+    expect(stateCall.repos_analyzed).toEqual({
+      myapp: "2026-05-10T10:00:00.000Z",
+    });
+  });
+
+  it("clears state and reinstalls everything when force is true", async () => {
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadCursorConfig.mockReturnValue({
+      mcpServers: {
+        "lore-memory": { url: "https://lore.test/mcp" },
+        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
+      },
+    });
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedInstallGitHooks.mockReturnValue({
+      installed: [
+        "/projects/myapp/.git/hooks/post-commit",
+        "/projects/myapp/.git/hooks/post-merge",
+      ],
+      skipped: [],
+      errors: [],
+    });
+    mockedAnalyzeAllRepos.mockResolvedValue([
+      { repoPath: "/projects/myapp", success: true, analyzedAt: "2026-05-11T12:00:00.000Z" },
+    ]);
+    mockedReadInstallState.mockReturnValue({
+      hooks_installed: {
+        myapp: { post_commit: true, post_merge: true },
+      },
+      repos_analyzed: {
+        myapp: "2026-05-10T10:00:00.000Z",
+      },
+    });
+
+    await installCommand({ force: true });
+
+    expect(mockedClearInstallState).toHaveBeenCalled();
+    expect(mockedInstallGitHooks).toHaveBeenCalledWith(["/projects/myapp"]);
+    expect(mockedAnalyzeAllRepos).toHaveBeenCalledWith(["/projects/myapp"]);
+
+    const stateCall = mockedWriteInstallState.mock.calls[0][0];
+    expect(stateCall.hooks_installed).toEqual({
+      myapp: { post_commit: true, post_merge: true },
+    });
+    expect(stateCall.repos_analyzed).toEqual({
+      myapp: "2026-05-11T12:00:00.000Z",
+    });
+  });
+
+  it("installs only new repos when state exists for others", async () => {
+    mockedParseLoreConfig.mockReturnValue({
+      ...baseConfig,
+      repos: [
+        { slug: "backend", path: "../backend" },
+        { slug: "frontend", path: "./frontend" },
+      ],
+    });
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadCursorConfig.mockReturnValue({
+      mcpServers: {
+        "lore-memory": { url: "https://lore.test/mcp" },
+        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
+      },
+    });
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedReadInstallState.mockReturnValue({
+      hooks_installed: {
+        backend: { post_commit: true, post_merge: true },
+      },
+      repos_analyzed: {
+        backend: "2026-05-10T10:00:00.000Z",
+      },
+    });
+    mockedInstallGitHooks.mockReturnValue({
+      installed: [
+        "/projects/myapp/frontend/.git/hooks/post-commit",
+        "/projects/myapp/frontend/.git/hooks/post-merge",
+      ],
+      skipped: [],
+      errors: [],
+    });
+    mockedAnalyzeAllRepos.mockResolvedValue([
+      {
+        repoPath: "/projects/myapp/frontend",
+        success: true,
+        analyzedAt: "2026-05-11T12:00:00.000Z",
+      },
+    ]);
+
+    await installCommand();
+
+    expect(mockedInstallGitHooks).toHaveBeenCalledWith(["/projects/myapp/frontend"]);
+    expect(mockedAnalyzeAllRepos).toHaveBeenCalledWith(["/projects/myapp/frontend"]);
+
+    const logs = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
+    expect(logs).toContain("hooks already installed for backend, skipping");
+    expect(logs).toContain("backend already analyzed at 2026-05-10T10:00:00.000Z, skipping");
+
+    const stateCall = mockedWriteInstallState.mock.calls[0][0];
+    expect(stateCall.hooks_installed).toEqual({
+      backend: { post_commit: true, post_merge: true },
+      frontend: { post_commit: true, post_merge: true },
+    });
+    expect(stateCall.repos_analyzed).toEqual({
+      backend: "2026-05-10T10:00:00.000Z",
+      frontend: "2026-05-11T12:00:00.000Z",
     });
   });
 });
