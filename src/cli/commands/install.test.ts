@@ -17,6 +17,14 @@ vi.mock("../core/claude-config.js", () => ({
   appendClaudeMdInclude: vi.fn(),
 }));
 
+vi.mock("../core/git-hooks.js", () => ({
+  installGitHooks: vi.fn(),
+}));
+
+vi.mock("../core/version-check.js", () => ({
+  checkVersionCompatibility: vi.fn(),
+}));
+
 vi.mock("os", () => ({
   homedir: vi.fn(),
 }));
@@ -31,6 +39,8 @@ import { findLoreYaml } from "../core/config-finder.js";
 import { parseLoreConfig, LoreConfig } from "../core/config-parser.js";
 import { readCursorConfig, writeCursorConfig } from "../core/cursor-config.js";
 import { appendClaudeMdInclude } from "../core/claude-config.js";
+import { installGitHooks } from "../core/git-hooks.js";
+import { checkVersionCompatibility } from "../core/version-check.js";
 import * as os from "os";
 import * as fs from "fs";
 
@@ -39,6 +49,8 @@ const mockedParseLoreConfig = vi.mocked(parseLoreConfig);
 const mockedReadCursorConfig = vi.mocked(readCursorConfig);
 const mockedWriteCursorConfig = vi.mocked(writeCursorConfig);
 const mockedAppendClaudeMdInclude = vi.mocked(appendClaudeMdInclude);
+const mockedInstallGitHooks = vi.mocked(installGitHooks);
+const mockedCheckVersionCompatibility = vi.mocked(checkVersionCompatibility);
 const mockedHomedir = vi.mocked(os.homedir);
 const mockedExistsSync = vi.mocked(fs.existsSync);
 const mockedReadFileSync = vi.mocked(fs.readFileSync);
@@ -53,12 +65,14 @@ describe("installCommand", () => {
 
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
   let exitSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     vi.clearAllMocks();
     consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {});
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
     exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
       throw new Error("process.exit");
     });
@@ -67,11 +81,14 @@ describe("installCommand", () => {
     mockedParseLoreConfig.mockReturnValue(baseConfig);
     mockedWriteCursorConfig.mockImplementation(() => {});
     mockedAppendClaudeMdInclude.mockImplementation(() => {});
+    mockedInstallGitHooks.mockReturnValue({ installed: [], skipped: [], errors: [] });
+    mockedCheckVersionCompatibility.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
     consoleLogSpy.mockRestore();
     consoleErrorSpy.mockRestore();
+    consoleWarnSpy.mockRestore();
     exitSpy.mockRestore();
   });
 
@@ -103,6 +120,90 @@ describe("installCommand", () => {
     expect(logs).toContain("Updated ~/.claude/CLAUDE.md");
     expect(logs).toContain("lore-memory");
     expect(logs).toContain("gitnexus");
+  });
+
+  it("installs git hooks for declared repos", async () => {
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadCursorConfig.mockReturnValue({
+      mcpServers: {
+        "lore-memory": { url: "https://lore.test/mcp" },
+        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
+      },
+    });
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedInstallGitHooks.mockReturnValue({
+      installed: [
+        "/projects/myapp/.git/hooks/post-commit",
+        "/projects/myapp/.git/hooks/post-merge",
+      ],
+      skipped: [],
+      errors: [],
+    });
+
+    await installCommand();
+
+    expect(mockedInstallGitHooks).toHaveBeenCalledWith(["/projects/myapp"]);
+
+    const logs = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
+    expect(logs).toContain("Installing git hooks for 1 repo(s)");
+    expect(logs).toContain("✓ Installed hook: /projects/myapp/.git/hooks/post-commit");
+    expect(logs).toContain("✓ Git hooks installed successfully.");
+  });
+
+  it("resolves relative repo paths against lore.yaml directory", async () => {
+    mockedParseLoreConfig.mockReturnValue({
+      ...baseConfig,
+      repos: [{ path: "../backend" }, { path: "./frontend" }],
+    });
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadCursorConfig.mockReturnValue({
+      mcpServers: {
+        "lore-memory": { url: "https://lore.test/mcp" },
+        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
+      },
+    });
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+
+    await installCommand();
+
+    expect(mockedInstallGitHooks).toHaveBeenCalledWith([
+      "/projects/backend",
+      "/projects/myapp/frontend",
+    ]);
+  });
+
+  it("warns but does not exit when some hooks fail", async () => {
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadCursorConfig.mockReturnValue({
+      mcpServers: {
+        "lore-memory": { url: "https://lore.test/mcp" },
+        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
+      },
+    });
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedInstallGitHooks.mockReturnValue({
+      installed: ["/projects/myapp/.git/hooks/post-commit"],
+      skipped: [],
+      errors: ["/projects/myapp/.git/hooks/post-merge: not a git repository"],
+    });
+
+    await installCommand();
+
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      "  ⚠ /projects/myapp/.git/hooks/post-merge: not a git repository"
+    );
+
+    const warnLogs = consoleWarnSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
+    expect(warnLogs).toContain("Some hooks could not be installed");
   });
 
   it("prints 'no changes needed' when both configs are already up to date", async () => {

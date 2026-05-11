@@ -6,6 +6,7 @@ import { parseLoreConfig, LoreConfig } from "../core/config-parser.js";
 import { checkVersionCompatibility } from "../core/version-check.js";
 import { writeCursorConfig, readCursorConfig } from "../core/cursor-config.js";
 import { appendClaudeMdInclude } from "../core/claude-config.js";
+import { installGitHooks } from "../core/git-hooks.js";
 
 export const installCommand = async (): Promise<void> => {
   let config: LoreConfig;
@@ -77,5 +78,24 @@ export const installCommand = async (): Promise<void> => {
     console.log(`    • Include → @${path.join(path.dirname(loreYamlPath), "CLAUDE.md")}`);
   } else {
     console.log("  ~/.claude/CLAUDE.md — no changes needed (already up to date)");
+  }
+
+  const loreYamlDir = path.dirname(loreYamlPath);
+  const repoPaths = config.repos.map((r) => path.resolve(loreYamlDir, r.path));
+  console.log("");
+  console.log(`Installing git hooks for ${repoPaths.length} repo(s)…`);
+
+  const hookResults = installGitHooks(repoPaths);
+
+  for (const p of hookResults.installed) console.log(`  ✓ Installed hook: ${p}`);
+  for (const p of hookResults.skipped) console.log(`  ↩ Already installed: ${p}`);
+  for (const e of hookResults.errors) console.warn(`  ⚠ ${e}`);
+
+  if (hookResults.errors.length > 0) {
+    console.warn(
+      "\n⚠️  Some hooks could not be installed (see above). Install completed with warnings."
+    );
+  } else {
+    console.log("\n✓ Git hooks installed successfully.");
   }
 };
