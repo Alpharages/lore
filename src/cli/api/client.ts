@@ -33,6 +33,7 @@ export class LoreClient {
     const res = await fetch(`${this.baseUrl}/api/projects/${slug}/inbox`, {
       method: "GET",
       headers: this.authHeaders,
+      signal: AbortSignal.timeout(30_000),
     });
     if (!res.ok) {
       const body = await res.text();
@@ -45,6 +46,7 @@ export class LoreClient {
     const res = await fetch(`${this.baseUrl}/api/propagations/${propagationId}/accept`, {
       method: "POST",
       headers: this.authHeaders,
+      signal: AbortSignal.timeout(30_000),
     });
     if (!res.ok) {
       const body = await res.text();
@@ -57,6 +59,7 @@ export class LoreClient {
     const res = await fetch(`${this.baseUrl}/api/propagations/${propagationId}/reject`, {
       method: "POST",
       headers: this.authHeaders,
+      signal: AbortSignal.timeout(30_000),
     });
     if (!res.ok) {
       const body = await res.text();

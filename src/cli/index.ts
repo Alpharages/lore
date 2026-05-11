@@ -14,4 +14,9 @@ program
   .description("Triage pending lesson-propagation suggestions from sister projects")
   .action(inboxCommand);
 
-program.parseAsync(process.argv);
+(async () => {
+  await program.parseAsync(process.argv);
+})().catch((err) => {
+  console.error(err.message);
+  process.exit(1);
+});

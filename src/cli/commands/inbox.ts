@@ -97,6 +97,8 @@ export const inboxCommand = async (): Promise<void> => {
       }
     } catch (err: any) {
       console.error(`  Error processing action: ${err.message}`);
+      rl.close();
+      process.exit(1);
     }
   }
 
