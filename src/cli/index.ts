@@ -2,6 +2,7 @@
 import { Command } from "commander";
 import { inboxCommand } from "./commands/inbox.js";
 import { initCommand } from "./commands/init.js";
+import { installCommand } from "./commands/install.js";
 
 const program = new Command();
 
@@ -14,6 +15,11 @@ program
   .command("init")
   .description("Initialize a new Lore project configuration interactively")
   .action(initCommand);
+
+program
+  .command("install")
+  .description("Configure MCP tools and AI assistant integration for this project")
+  .action(installCommand);
 
 program
   .command("inbox")
