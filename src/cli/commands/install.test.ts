@@ -21,6 +21,14 @@ vi.mock("../core/git-hooks.js", () => ({
   installGitHooks: vi.fn(),
 }));
 
+vi.mock("../core/gitnexus.js", () => ({
+  analyzeAllRepos: vi.fn(),
+}));
+
+vi.mock("../core/state.js", () => ({
+  writeInstallState: vi.fn(),
+}));
+
 vi.mock("../core/version-check.js", () => ({
   checkVersionCompatibility: vi.fn(),
 }));
@@ -40,6 +48,8 @@ import { parseLoreConfig, LoreConfig } from "../core/config-parser.js";
 import { readCursorConfig, writeCursorConfig } from "../core/cursor-config.js";
 import { appendClaudeMdInclude } from "../core/claude-config.js";
 import { installGitHooks } from "../core/git-hooks.js";
+import { analyzeAllRepos } from "../core/gitnexus.js";
+import { writeInstallState } from "../core/state.js";
 import { checkVersionCompatibility } from "../core/version-check.js";
 import * as os from "os";
 import * as fs from "fs";
@@ -50,6 +60,8 @@ const mockedReadCursorConfig = vi.mocked(readCursorConfig);
 const mockedWriteCursorConfig = vi.mocked(writeCursorConfig);
 const mockedAppendClaudeMdInclude = vi.mocked(appendClaudeMdInclude);
 const mockedInstallGitHooks = vi.mocked(installGitHooks);
+const mockedAnalyzeAllRepos = vi.mocked(analyzeAllRepos);
+const mockedWriteInstallState = vi.mocked(writeInstallState);
 const mockedCheckVersionCompatibility = vi.mocked(checkVersionCompatibility);
 const mockedHomedir = vi.mocked(os.homedir);
 const mockedExistsSync = vi.mocked(fs.existsSync);
@@ -82,6 +94,7 @@ describe("installCommand", () => {
     mockedWriteCursorConfig.mockImplementation(() => {});
     mockedAppendClaudeMdInclude.mockImplementation(() => {});
     mockedInstallGitHooks.mockReturnValue({ installed: [], skipped: [], errors: [] });
+    mockedAnalyzeAllRepos.mockResolvedValue([]);
     mockedCheckVersionCompatibility.mockResolvedValue(undefined);
   });
 
@@ -309,5 +322,111 @@ describe("installCommand", () => {
 
     await expect(installCommand()).rejects.toThrow("process.exit");
     expect(consoleErrorSpy).toHaveBeenCalledWith("Error: Disk full");
+  });
+
+  it("runs gitnexus analysis for all repos and records state", async () => {
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadCursorConfig.mockReturnValue({
+      mcpServers: {
+        "lore-memory": { url: "https://lore.test/mcp" },
+        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
+      },
+    });
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedInstallGitHooks.mockReturnValue({
+      installed: [
+        "/projects/myapp/.git/hooks/post-commit",
+        "/projects/myapp/.git/hooks/post-merge",
+      ],
+      skipped: [],
+      errors: [],
+    });
+    mockedAnalyzeAllRepos.mockResolvedValue([
+      { repoPath: "/projects/myapp", success: true, analyzedAt: "2026-05-11T12:00:00.000Z" },
+    ]);
+
+    await installCommand();
+
+    expect(mockedAnalyzeAllRepos).toHaveBeenCalledWith(["/projects/myapp"]);
+    expect(mockedWriteInstallState).toHaveBeenCalled();
+
+    const stateCall = mockedWriteInstallState.mock.calls[0][0];
+    expect(stateCall.gitnexusAnalyzedAt).toEqual({
+      "/projects/myapp": "2026-05-11T12:00:00.000Z",
+    });
+    expect(stateCall.hooksInstalledAt).toEqual({
+      "/projects/myapp": expect.any(String),
+    });
+    expect(stateCall.lastInstallAt).toBeDefined();
+
+    const logs = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
+    expect(logs).toContain("Running GitNexus analysis for 1 repo(s)");
+    expect(logs).toContain("✓ GitNexus analysis complete.");
+  });
+
+  it("warns but completes when gitnexus analysis fails for a repo", async () => {
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadCursorConfig.mockReturnValue({
+      mcpServers: {
+        "lore-memory": { url: "https://lore.test/mcp" },
+        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
+      },
+    });
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedInstallGitHooks.mockReturnValue({
+      installed: ["/projects/myapp/.git/hooks/post-commit"],
+      skipped: [],
+      errors: [],
+    });
+    mockedAnalyzeAllRepos.mockResolvedValue([
+      { repoPath: "/projects/myapp", success: false, error: "gitnexus not found" },
+    ]);
+
+    await installCommand();
+
+    expect(mockedWriteInstallState).toHaveBeenCalled();
+    const stateCall = mockedWriteInstallState.mock.calls[0][0];
+    expect(stateCall.gitnexusAnalyzedAt).toEqual({});
+
+    const warnLogs = consoleWarnSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
+    expect(warnLogs).toContain("Some repos could not be analyzed");
+  });
+
+  it("does not record failed repo in gitnexusAnalyzedAt", async () => {
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadCursorConfig.mockReturnValue({
+      mcpServers: {
+        "lore-memory": { url: "https://lore.test/mcp" },
+        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
+      },
+    });
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedInstallGitHooks.mockReturnValue({
+      installed: [],
+      skipped: [],
+      errors: [],
+    });
+    mockedAnalyzeAllRepos.mockResolvedValue([
+      { repoPath: "/projects/a", success: true, analyzedAt: "2026-05-11T12:00:00.000Z" },
+      { repoPath: "/projects/b", success: false, error: "npx not found" },
+      { repoPath: "/projects/c", success: true, analyzedAt: "2026-05-11T12:01:00.000Z" },
+    ]);
+
+    await installCommand();
+
+    const stateCall = mockedWriteInstallState.mock.calls[0][0];
+    expect(stateCall.gitnexusAnalyzedAt).toEqual({
+      "/projects/a": "2026-05-11T12:00:00.000Z",
+      "/projects/c": "2026-05-11T12:01:00.000Z",
+    });
   });
 });

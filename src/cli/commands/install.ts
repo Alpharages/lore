@@ -7,6 +7,8 @@ import { checkVersionCompatibility } from "../core/version-check.js";
 import { writeCursorConfig, readCursorConfig } from "../core/cursor-config.js";
 import { appendClaudeMdInclude } from "../core/claude-config.js";
 import { installGitHooks } from "../core/git-hooks.js";
+import { analyzeAllRepos } from "../core/gitnexus.js";
+import { writeInstallState } from "../core/state.js";
 
 export const installCommand = async (): Promise<void> => {
   let config: LoreConfig;
@@ -98,4 +100,51 @@ export const installCommand = async (): Promise<void> => {
   } else {
     console.log("\n✓ Git hooks installed successfully.");
   }
+
+  console.log("");
+  console.log(`Running GitNexus analysis for ${repoPaths.length} repo(s)…`);
+
+  const analysisResults = await analyzeAllRepos(repoPaths);
+  const gitnexusAnalyzedAt: Record<string, string> = {};
+
+  for (const result of analysisResults) {
+    if (result.success && result.analyzedAt) {
+      gitnexusAnalyzedAt[result.repoPath] = result.analyzedAt;
+    }
+  }
+
+  if (analysisResults.some((r) => !r.success)) {
+    console.warn(
+      "\n⚠️  Some repos could not be analyzed (see above). Install completed with warnings."
+    );
+  } else {
+    console.log("\n✓ GitNexus analysis complete.");
+  }
+
+  const getRepoPathFromHookPath = (hookPath: string): string => {
+    // hookPath = <repo>/.git/hooks/<hook-name>
+    return path.dirname(path.dirname(path.dirname(hookPath)));
+  };
+
+  const hooksInstalledAt: Record<string, string> = {};
+  const processedRepoPaths = new Set<string>();
+
+  // Include both installed and skipped: timestamp means "hooks confirmed present", not "written this run".
+  // Story 5.5 idempotency relies on presence, not on whether the hook was written in this session.
+  for (const hookPath of hookResults.installed) {
+    processedRepoPaths.add(getRepoPathFromHookPath(hookPath));
+  }
+  for (const hookPath of hookResults.skipped) {
+    processedRepoPaths.add(getRepoPathFromHookPath(hookPath));
+  }
+
+  for (const repoPath of processedRepoPaths) {
+    hooksInstalledAt[repoPath] = new Date().toISOString();
+  }
+
+  writeInstallState({
+    lastInstallAt: new Date().toISOString(),
+    hooksInstalledAt,
+    gitnexusAnalyzedAt,
+  });
 };
