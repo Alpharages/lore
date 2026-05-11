@@ -21,6 +21,8 @@ export interface InsertLessonValues {
   provenance: Record<string, unknown>;
   embedding?: number[] | null;
   embeddingStatus?: "pending" | "complete" | "failed" | null;
+  propagatedFrom?: string | null;
+  occurrenceCount?: number;
 }
 
 export const insertLesson = async (
@@ -45,6 +47,8 @@ export const insertLesson = async (
       provenance: values.provenance,
       embedding: values.embedding ?? undefined,
       embeddingStatus: values.embeddingStatus ?? undefined,
+      propagatedFrom: values.propagatedFrom ?? undefined,
+      occurrenceCount: values.occurrenceCount ?? undefined,
     })
     .returning({ id: schema.lessons.id });
   return lesson;
@@ -87,6 +91,47 @@ export const findLessonById = async (
     .limit(1);
 
   return rows[0];
+};
+
+export interface FullLessonRow {
+  id: string;
+  projectId: string | null;
+  repoId: string | null;
+  stackTags: string[] | null;
+  category: string | null;
+  severity: string | null;
+  title: string;
+  problem: string;
+  rootCause: string | null;
+  fix: string;
+  preventionRule: string;
+  provenance: unknown;
+}
+
+export const findFullLessonById = async (
+  db: LessonsTx,
+  id: string
+): Promise<FullLessonRow | undefined> => {
+  const rows = await db
+    .select({
+      id: schema.lessons.id,
+      projectId: schema.lessons.projectId,
+      repoId: schema.lessons.repoId,
+      stackTags: schema.lessons.stackTags,
+      category: schema.lessons.category,
+      severity: schema.lessons.severity,
+      title: schema.lessons.title,
+      problem: schema.lessons.problem,
+      rootCause: schema.lessons.rootCause,
+      fix: schema.lessons.fix,
+      preventionRule: schema.lessons.preventionRule,
+      provenance: schema.lessons.provenance,
+    })
+    .from(schema.lessons)
+    .where(eq(schema.lessons.id, id))
+    .limit(1);
+
+  return rows[0] as FullLessonRow | undefined;
 };
 
 export const findSimilarLesson = async (
@@ -600,4 +645,30 @@ export const findPatternsForTask = async (
   }
 
   return Array.from(seen.values());
+};
+
+export const updateLessonEmbedding = async (
+  db: LessonsTx,
+  lessonId: string,
+  projectId: string,
+  embedding: number[]
+): Promise<void> => {
+  await db
+    .update(schema.lessons)
+    .set({
+      embedding,
+      embeddingStatus: "complete",
+    })
+    .where(and(eq(schema.lessons.id, lessonId), eq(schema.lessons.projectId, projectId)));
+};
+
+export const markLessonEmbeddingFailed = async (
+  db: LessonsTx,
+  lessonId: string,
+  projectId: string
+): Promise<void> => {
+  await db
+    .update(schema.lessons)
+    .set({ embeddingStatus: "failed" })
+    .where(and(eq(schema.lessons.id, lessonId), eq(schema.lessons.projectId, projectId)));
 };

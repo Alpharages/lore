@@ -100,3 +100,47 @@ export const getPendingPropagations = async (
       )
     );
 };
+
+export interface PropagationRow {
+  id: string;
+  sourceLessonId: string;
+  targetProjectId: string;
+  status: string | null;
+  suggestedAt: Date | null;
+  reviewedAt: Date | null;
+}
+
+export const getPropagationById = async (
+  db: PropagationTx,
+  id: string
+): Promise<PropagationRow | undefined> => {
+  const rows = await db
+    .select({
+      id: schema.lessonPropagations.id,
+      sourceLessonId: schema.lessonPropagations.sourceLessonId,
+      targetProjectId: schema.lessonPropagations.targetProjectId,
+      status: schema.lessonPropagations.status,
+      suggestedAt: schema.lessonPropagations.suggestedAt,
+      reviewedAt: schema.lessonPropagations.reviewedAt,
+    })
+    .from(schema.lessonPropagations)
+    .where(eq(schema.lessonPropagations.id, id))
+    .limit(1);
+
+  return rows[0];
+};
+
+export const updatePropagationStatus = async (
+  db: PropagationTx,
+  id: string,
+  status: "accepted" | "rejected",
+  reviewedAt: Date
+): Promise<void> => {
+  await db
+    .update(schema.lessonPropagations)
+    .set({
+      status,
+      reviewedAt,
+    })
+    .where(eq(schema.lessonPropagations.id, id));
+};

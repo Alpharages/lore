@@ -14,6 +14,8 @@ import * as startSessionFromTaskController from "../controllers/start-session-fr
 import * as queryLessonsForTaskController from "../controllers/query-lessons-for-task.controller.js";
 import * as linkLessonsToTaskController from "../controllers/link-lessons-to-task.controller.js";
 import * as getPendingPropagationsController from "../controllers/get-pending-propagations.controller.js";
+import * as acceptPropagationController from "../controllers/accept-propagation.controller.js";
+import * as rejectPropagationController from "../controllers/reject-propagation.controller.js";
 
 const saveLessonBodySchema = {
   type: "object",
@@ -174,6 +176,24 @@ const getPendingPropagationsBodySchema = {
   properties: {},
 };
 
+const acceptPropagationBodySchema = {
+  type: "object",
+  required: ["propagation_id"],
+  additionalProperties: false,
+  properties: {
+    propagation_id: { type: "string", format: "uuid" },
+  },
+};
+
+const rejectPropagationBodySchema = {
+  type: "object",
+  required: ["propagation_id"],
+  additionalProperties: false,
+  properties: {
+    propagation_id: { type: "string", format: "uuid" },
+  },
+};
+
 const mcpRoute = (
   app: FastifyInstance,
   opts: FastifyPluginOptions & { pool: Pool; db: DrizzleClient },
@@ -287,6 +307,24 @@ const mcpRoute = (
       "get_pending_propagations",
       getPendingPropagationsController.getPendingPropagationsHandler
     )
+  );
+
+  app.post(
+    "/tools/accept_propagation",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: acceptPropagationBodySchema },
+    },
+    withMcpRouteLogging("accept_propagation", acceptPropagationController.acceptPropagationHandler)
+  );
+
+  app.post(
+    "/tools/reject_propagation",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: rejectPropagationBodySchema },
+    },
+    withMcpRouteLogging("reject_propagation", rejectPropagationController.rejectPropagationHandler)
   );
 
   if (process.env.NODE_ENV !== "production") {

@@ -43,3 +43,7 @@ export const repositoryNotFound = (repoSlug: string): AppError => {
     `Repository "${repoSlug}" not found for this project`
   );
 };
+
+export const notFoundError = (message: string): AppError => {
+  return new AppError(404, "not_found", message);
+};
