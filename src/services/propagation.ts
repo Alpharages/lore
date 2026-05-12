@@ -17,7 +17,7 @@ import {
   markLessonEmbeddingFailed,
 } from "../repositories/lessons.repository.js";
 import { generateEmbeddingText, generateEmbedding } from "./embedding.js";
-import { validationError, unauthorized, notFoundError } from "../utils/errors.js";
+import { validationError, notFoundError, forbidden } from "../utils/errors.js";
 
 export const startPropagationEngine = (): void => {
   const enabled = process.env.PROPAGATION_ENABLED === "true";
@@ -97,20 +97,23 @@ export const acceptPropagation = async (
   propagationId: string,
   projectId: string
 ): Promise<{ newLessonId: string }> => {
-  const propagation = await getPropagationById(dbClient, propagationId);
+  // Use global db (bypasses RLS) so that cross-project propagation IDs return 403
+  // rather than 404. RLS on lesson_propagations would otherwise hide the row entirely,
+  // making the ownership check unreachable.
+  const propagation = await getPropagationById(db, propagationId);
   if (!propagation) {
     throw notFoundError(`Propagation ${propagationId} not found`);
   }
 
   if (propagation.targetProjectId !== projectId) {
-    throw unauthorized();
+    throw forbidden();
   }
 
   if (propagation.status !== "suggested") {
     throw validationError(`Propagation is already ${propagation.status}`);
   }
 
-  const sourceLesson = await findFullLessonById(dbClient, propagation.sourceLessonId);
+  const sourceLesson = await findFullLessonById(db, propagation.sourceLessonId);
   if (!sourceLesson) {
     throw notFoundError(`Source lesson ${propagation.sourceLessonId} not found`);
   }
@@ -169,13 +172,14 @@ export const rejectPropagation = async (
   propagationId: string,
   projectId: string
 ): Promise<{ action: "rejected" }> => {
-  const propagation = await getPropagationById(dbClient, propagationId);
+  // Use global db (bypasses RLS) — same reason as acceptPropagation above.
+  const propagation = await getPropagationById(db, propagationId);
   if (!propagation) {
     throw notFoundError(`Propagation ${propagationId} not found`);
   }
 
   if (propagation.targetProjectId !== projectId) {
-    throw unauthorized();
+    throw forbidden();
   }
 
   if (propagation.status !== "suggested") {

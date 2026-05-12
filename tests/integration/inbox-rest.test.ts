@@ -220,7 +220,7 @@ describe("POST /api/propagations/:id/accept", () => {
     expect(body.new_lesson_id).toBeDefined();
   });
 
-  it("returns 401 when propagation belongs to another project", async () => {
+  it("returns 403 when propagation belongs to another project", async () => {
     const app = buildTestApp(pool, db);
     const { api_key: projectAKey } = await registerProject(app, "project-a");
     const { project_id: projectBId } = await registerProject(app, "project-b");
@@ -251,7 +251,7 @@ describe("POST /api/propagations/:id/accept", () => {
       headers: { authorization: `Bearer ${projectAKey}` },
     });
 
-    expect(res.statusCode).toBe(401);
+    expect(res.statusCode).toBe(403);
   });
 
   it("returns 404 for non-existent propagation", async () => {
@@ -323,7 +323,7 @@ describe("POST /api/propagations/:id/reject", () => {
     expect(body.action).toBe("rejected");
   });
 
-  it("returns 401 when propagation belongs to another project", async () => {
+  it("returns 403 when propagation belongs to another project", async () => {
     const app = buildTestApp(pool, db);
     const { api_key: projectAKey } = await registerProject(app, "project-a");
     const { project_id: projectBId } = await registerProject(app, "project-b");
@@ -352,7 +352,7 @@ describe("POST /api/propagations/:id/reject", () => {
       headers: { authorization: `Bearer ${projectAKey}` },
     });
 
-    expect(res.statusCode).toBe(401);
+    expect(res.statusCode).toBe(403);
   });
 
   it("returns 404 for non-existent propagation", async () => {

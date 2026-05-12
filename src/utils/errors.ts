@@ -14,6 +14,10 @@ export const unauthorized = (): AppError => {
   return new AppError(401, "unauthorized", "Unauthorized");
 };
 
+export const forbidden = (): AppError => {
+  return new AppError(403, "forbidden", "Forbidden");
+};
+
 export const adminUnauthorized = (): AppError => {
   return new AppError(401, "admin_auth_required", "Admin auth required");
 };
