@@ -192,7 +192,7 @@ mcp:
   server: "https://your-server"
 methodology:
   type: bmad
-  tracker: {}
+tracker: {}
 repos:
   - path: "../backend"
 `);
@@ -214,9 +214,9 @@ mcp:
 methodology:
   type: bmad
   version: "^6.0.0"
-  tracker:
-    type: clickup
-    space_id: "12345"
+tracker:
+  type: clickup
+  space_id: "12345"
 repos:
   - path: "../backend"
 `);
@@ -225,8 +225,8 @@ repos:
     expect(result.methodology).toBeDefined();
     expect(result.methodology?.type).toBe("bmad");
     expect(result.methodology?.version).toBe("^6.0.0");
-    expect(result.methodology?.tracker.type).toBe("clickup");
-    expect(result.methodology?.tracker.space_id).toBe("12345");
+    expect(result.tracker?.type).toBe("clickup");
+    expect(result.tracker?.space_id).toBe("12345");
   });
 
   describe("mcp.server URL scheme validation", () => {

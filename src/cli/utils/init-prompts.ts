@@ -46,6 +46,9 @@ export const toKebabCase = (input: string): string =>
     .replace(/^-+|-+$/g, "")
     .replace(/-+/g, "-");
 
+const SLUG_PATTERN = /^[a-z0-9-]{2,40}$/;
+const SLUG_HINT = "2–40 chars, lowercase letters, numbers and hyphens only";
+
 export const promptProjectName = async (rl: readline.Interface): Promise<string> => {
   const name = await ask(rl, "Project name › ");
   if (!name.trim()) {
@@ -61,8 +64,8 @@ export const promptProjectSlug = async (
 ): Promise<string> => {
   const answer = await ask(rl, `Project slug [${derived}] › `);
   const slug = answer.trim() || derived;
-  if (!slug) {
-    console.log("Project slug is required.");
+  if (!SLUG_PATTERN.test(slug)) {
+    console.log(`  Invalid slug "${slug}". ${SLUG_HINT}.`);
     return promptProjectSlug(rl, derived);
   }
   return slug;
@@ -93,8 +96,13 @@ export const promptRepos = async (rl: readline.Interface): Promise<WizardRepo[]>
     }
 
     const derivedSlug = toKebabCase(name);
-    const slugAnswer = await ask(rl, `  Repo slug [${derivedSlug}] › `);
-    const slug = slugAnswer.trim() || derivedSlug;
+    let slug = "";
+    while (true) {
+      const slugAnswer = await ask(rl, `  Repo slug [${derivedSlug}] › `);
+      slug = slugAnswer.trim() || derivedSlug;
+      if (SLUG_PATTERN.test(slug)) break;
+      console.log(`  Invalid slug "${slug}". ${SLUG_HINT}.`);
+    }
 
     const pathAnswer = await ask(rl, "  Relative path › ");
     const repoPath = pathAnswer.trim() || `.`;

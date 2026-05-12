@@ -68,7 +68,7 @@ describe("registerProject", () => {
     expect(fetchSpy).toHaveBeenCalledWith("http://localhost:3100/api/projects/register", {
       method: "POST",
       headers: {
-        Authorization: "Bearer secret",
+        "x-admin-secret": "secret",
         "Content-Type": "application/json",
       },
       body: expect.any(String),

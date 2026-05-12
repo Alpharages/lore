@@ -31,7 +31,7 @@ describe("GET /health", () => {
     expect(response.headers["content-type"]).toContain("application/json");
 
     const body = JSON.parse(response.payload);
-    expect(Object.keys(body).sort()).toEqual(["db", "status"]);
+    expect(Object.keys(body).sort()).toEqual(["db", "status", "version"]);
     expect(body.status).toBe("healthy");
     expect(body.db).toBe("connected");
   });

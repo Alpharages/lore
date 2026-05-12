@@ -1,6 +1,7 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { DrizzleClient } from "../../repositories/projects.repository.js";
 import { probeDatabase } from "../../services/health.service.js";
+import pkg from "../../../package.json" with { type: "json" };
 
 interface RouteConfig {
   db: DrizzleClient;
@@ -28,5 +29,6 @@ export const health = async (request: FastifyRequest, reply: FastifyReply) => {
   return {
     status: dbStatus === "connected" ? "healthy" : "degraded",
     db: dbStatus,
+    version: pkg.version,
   };
 };

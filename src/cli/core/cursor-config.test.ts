@@ -108,8 +108,8 @@ describe("writeCursorConfig", () => {
       methodology: {
         type: "bmad",
         version: "1.2.0",
-        tracker: { type: "clickup" },
       },
+      tracker: { type: "clickup" },
     };
 
     writeCursorConfig(config, "/home/user");
@@ -127,8 +127,8 @@ describe("writeCursorConfig", () => {
       ...baseConfig,
       methodology: {
         type: "bmad",
-        tracker: { type: "clickup" },
       },
+      tracker: { type: "clickup" },
     };
 
     writeCursorConfig(config, "/home/user");

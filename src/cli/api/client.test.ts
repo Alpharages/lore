@@ -40,6 +40,7 @@ describe("LoreClient", () => {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
+        signal: expect.any(AbortSignal),
       });
       expect(result).toEqual(suggestions);
     });
@@ -68,6 +69,7 @@ describe("LoreClient", () => {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
+        signal: expect.any(AbortSignal),
       });
       expect(result).toEqual(response);
     });
@@ -96,6 +98,7 @@ describe("LoreClient", () => {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
         },
+        signal: expect.any(AbortSignal),
       });
       expect(result).toEqual(response);
     });

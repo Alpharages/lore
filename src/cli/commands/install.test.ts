@@ -252,8 +252,8 @@ describe("installCommand", () => {
       methodology: {
         type: "bmad",
         version: "1.2.0",
-        tracker: { type: "clickup" },
       },
+      tracker: { type: "clickup" },
     };
     mockedParseLoreConfig.mockReturnValue(config);
     mockedExistsSync.mockImplementation((p) => {

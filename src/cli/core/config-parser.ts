@@ -16,7 +16,6 @@ export interface LoreTracker {
 export interface LoreMethodology {
   type: string;
   version?: string;
-  tracker: LoreTracker;
 }
 
 export interface LoreConfig {
@@ -25,6 +24,7 @@ export interface LoreConfig {
   mcp: { server: string; image?: string };
   repos: LoreRepo[];
   methodology?: LoreMethodology;
+  tracker?: LoreTracker;
 }
 
 export const parseLoreConfig = (filePath: string): LoreConfig => {
@@ -50,8 +50,7 @@ export const parseLoreConfig = (filePath: string): LoreConfig => {
   }
 
   if (raw["methodology"] !== undefined && raw["methodology"] !== null) {
-    const methodology = raw["methodology"] as Record<string, unknown>;
-    const tracker = methodology["tracker"];
+    const tracker = raw["tracker"];
     if (
       tracker === undefined ||
       tracker === null ||

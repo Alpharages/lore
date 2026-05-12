@@ -31,7 +31,7 @@ export const registerProject = async (
   const res = await fetch(`${serverUrl}/api/projects/register`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${adminSecret}`,
+      "x-admin-secret": adminSecret,
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
