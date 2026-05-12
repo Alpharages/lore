@@ -143,3 +143,6 @@ dist
 .claude/
 
 .gitnexus
+
+# Benchmark runtime state (contains generated API key)
+scripts/benchmark/.bench-state.json
