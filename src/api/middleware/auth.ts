@@ -2,7 +2,7 @@ import { FastifyReply, FastifyRequest } from "fastify";
 import { Pool } from "pg";
 import { drizzle } from "drizzle-orm/node-postgres";
 import * as schema from "../../db/schema.js";
-import { DrizzleClient, findProjectBySlug } from "../../repositories/projects.repository.js";
+import { DrizzleClient, findProjectBySlug } from "../../services/projects.service.js";
 import { compareApiKey } from "../../services/api-key.js";
 import { unauthorized, rateLimited } from "../../utils/errors.js";
 import { isRateLimited, recordFailure, getFailureCount } from "./rate-limit.js";
