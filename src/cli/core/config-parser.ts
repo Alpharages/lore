@@ -22,7 +22,7 @@ export interface LoreMethodology {
 export interface LoreConfig {
   lore: { version: string };
   project: { name: string; slug: string };
-  mcp: { server: string };
+  mcp: { server: string; image?: string };
   repos: LoreRepo[];
   methodology?: LoreMethodology;
 }
