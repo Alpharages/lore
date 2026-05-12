@@ -1,6 +1,11 @@
 import * as fs from "fs";
 import * as path from "path";
-import { createReadline, runWizard, promptOverwrite } from "../utils/init-prompts.js";
+import {
+  createReadline,
+  runWizard,
+  promptOverwrite,
+  warnIfInsecureUrl,
+} from "../utils/init-prompts.js";
 import { checkHealth, registerProject } from "../api/register.js";
 import { generateLoreYaml } from "../generators/lore-yaml.js";
 import { generateClaudeMd } from "../generators/claude-md.js";
@@ -19,6 +24,8 @@ export const initCommand = async (): Promise<void> => {
   try {
     const answers = await runWizard(rl);
     rl.close();
+
+    warnIfInsecureUrl(answers.serverUrl);
 
     const reachable = await checkHealth(answers.serverUrl);
     if (!reachable) {

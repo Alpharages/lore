@@ -164,6 +164,20 @@ export const promptOverwrite = async (rl: readline.Interface): Promise<boolean> 
   return answer.trim().toLowerCase() === "y";
 };
 
+export const warnIfInsecureUrl = (serverUrl: string): void => {
+  if (
+    serverUrl &&
+    !serverUrl.startsWith("https://") &&
+    !/^https?:\/\/(localhost|127\.0\.0\.1)/.test(serverUrl)
+  ) {
+    console.warn(
+      "⚠️  Warning: The provided MCP server URL uses HTTP, not HTTPS.\n" +
+        "   API keys and lesson content will be transmitted in the clear.\n" +
+        "   Consider using HTTPS for your Lore server."
+    );
+  }
+};
+
 export const runWizard = async (rl: readline.Interface): Promise<WizardAnswers> => {
   const projectName = await promptProjectName(rl);
   const projectSlug = await promptProjectSlug(rl, toKebabCase(projectName));

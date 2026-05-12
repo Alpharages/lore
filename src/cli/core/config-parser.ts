@@ -63,5 +63,17 @@ export const parseLoreConfig = (filePath: string): LoreConfig => {
     }
   }
 
+  const mcpServerUrl = (raw["mcp"] as Record<string, unknown> | undefined)?.["server"] as
+    | string
+    | undefined;
+  if (mcpServerUrl) {
+    const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/.test(mcpServerUrl);
+    if (!isLocalhost && !mcpServerUrl.startsWith("https://")) {
+      throw new Error(
+        `lore.yaml: mcp.server must use https:// in production (got: "${mcpServerUrl}"). HTTP is only allowed for localhost.`
+      );
+    }
+  }
+
   return raw as unknown as LoreConfig;
 };

@@ -228,4 +228,144 @@ repos:
     expect(result.methodology?.tracker.type).toBe("clickup");
     expect(result.methodology?.tracker.space_id).toBe("12345");
   });
+
+  describe("mcp.server URL scheme validation", () => {
+    it("throws when mcp.server uses http for non-localhost", () => {
+      mockedReadFileSync.mockReturnValue(`
+lore:
+  version: "1.0.0"
+project:
+  name: "My Project"
+  slug: "my-project"
+mcp:
+  server: "http://prod.example.com"
+repos:
+  - path: "../backend"
+`);
+
+      expect(() => parseLoreConfig(filePath)).toThrow(
+        `lore.yaml: mcp.server must use https:// in production (got: "http://prod.example.com"). HTTP is only allowed for localhost.`
+      );
+    });
+
+    it("throws when mcp.server uses http for non-localhost with port", () => {
+      mockedReadFileSync.mockReturnValue(`
+lore:
+  version: "1.0.0"
+project:
+  name: "My Project"
+  slug: "my-project"
+mcp:
+  server: "http://my-server.com:3100"
+repos:
+  - path: "../backend"
+`);
+
+      expect(() => parseLoreConfig(filePath)).toThrow(
+        `lore.yaml: mcp.server must use https:// in production (got: "http://my-server.com:3100"). HTTP is only allowed for localhost.`
+      );
+    });
+
+    it("allows mcp.server with https", () => {
+      mockedReadFileSync.mockReturnValue(`
+lore:
+  version: "1.0.0"
+project:
+  name: "My Project"
+  slug: "my-project"
+mcp:
+  server: "https://prod.example.com"
+repos:
+  - path: "../backend"
+`);
+
+      const result = parseLoreConfig(filePath);
+      expect(result.mcp.server).toBe("https://prod.example.com");
+    });
+
+    it("allows mcp.server with https and path", () => {
+      mockedReadFileSync.mockReturnValue(`
+lore:
+  version: "1.0.0"
+project:
+  name: "My Project"
+  slug: "my-project"
+mcp:
+  server: "https://my-server.com/mcp/v1"
+repos:
+  - path: "../backend"
+`);
+
+      const result = parseLoreConfig(filePath);
+      expect(result.mcp.server).toBe("https://my-server.com/mcp/v1");
+    });
+
+    it("allows mcp.server with http for localhost", () => {
+      mockedReadFileSync.mockReturnValue(`
+lore:
+  version: "1.0.0"
+project:
+  name: "My Project"
+  slug: "my-project"
+mcp:
+  server: "http://localhost:3100"
+repos:
+  - path: "../backend"
+`);
+
+      const result = parseLoreConfig(filePath);
+      expect(result.mcp.server).toBe("http://localhost:3100");
+    });
+
+    it("allows mcp.server with http for localhost without port", () => {
+      mockedReadFileSync.mockReturnValue(`
+lore:
+  version: "1.0.0"
+project:
+  name: "My Project"
+  slug: "my-project"
+mcp:
+  server: "http://localhost"
+repos:
+  - path: "../backend"
+`);
+
+      const result = parseLoreConfig(filePath);
+      expect(result.mcp.server).toBe("http://localhost");
+    });
+
+    it("allows mcp.server with http for 127.0.0.1", () => {
+      mockedReadFileSync.mockReturnValue(`
+lore:
+  version: "1.0.0"
+project:
+  name: "My Project"
+  slug: "my-project"
+mcp:
+  server: "http://127.0.0.1:3100"
+repos:
+  - path: "../backend"
+`);
+
+      const result = parseLoreConfig(filePath);
+      expect(result.mcp.server).toBe("http://127.0.0.1:3100");
+    });
+
+    it("allows mcp.server with https for localhost", () => {
+      mockedReadFileSync.mockReturnValue(`
+lore:
+  version: "1.0.0"
+project:
+  name: "My Project"
+  slug: "my-project"
+mcp:
+  server: "https://localhost:3100"
+repos:
+  - path: "../backend"
+`);
+
+      const result = parseLoreConfig(filePath);
+      expect(result.mcp.server).toBe("https://localhost:3100");
+    });
+  });
 });
