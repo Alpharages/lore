@@ -16,6 +16,7 @@ import * as linkLessonsToTaskController from "../controllers/link-lessons-to-tas
 import * as getPendingPropagationsController from "../controllers/get-pending-propagations.controller.js";
 import * as acceptPropagationController from "../controllers/accept-propagation.controller.js";
 import * as rejectPropagationController from "../controllers/reject-propagation.controller.js";
+import * as captureReviewFindingController from "../controllers/capture-review-finding.controller.js";
 
 const saveLessonBodySchema = {
   type: "object",
@@ -194,6 +195,44 @@ const rejectPropagationBodySchema = {
   },
 };
 
+const captureReviewFindingBodySchema = {
+  type: "object",
+  required: ["external_task_id", "external_tracker_type", "severity", "finding"],
+  additionalProperties: false,
+  properties: {
+    external_task_id: { type: "string", minLength: 1, pattern: "\\S" },
+    external_tracker_type: { type: "string", enum: ["clickup", "jira", "asana"] },
+    external_task_ref: { type: "string", minLength: 1 },
+    severity: { type: "string", enum: ["critical", "high", "medium", "low"] },
+    finding: {
+      type: "object",
+      required: ["title", "problem", "fix", "prevention_rule"],
+      additionalProperties: false,
+      properties: {
+        title: { type: "string", minLength: 1 },
+        problem: { type: "string", minLength: 1 },
+        root_cause: { type: "string" },
+        fix: { type: "string", minLength: 1 },
+        prevention_rule: { type: "string", minLength: 1 },
+        stack_tags: { type: "array", items: { type: "string" }, default: [] },
+        category: { type: "string" },
+        code_pointer: {
+          type: "object",
+          additionalProperties: false,
+          required: ["file", "line_start", "line_end"],
+          properties: {
+            file: { type: "string", minLength: 1 },
+            line_start: { type: "integer", minimum: 1 },
+            line_end: { type: "integer", minimum: 1 },
+          },
+        },
+      },
+    },
+    reviewer: { type: "string", minLength: 1 },
+    workflow: { type: "string", minLength: 1 },
+  },
+};
+
 const mcpRoute = (
   app: FastifyInstance,
   opts: FastifyPluginOptions & { pool: Pool; db: DrizzleClient },
@@ -325,6 +364,18 @@ const mcpRoute = (
       schema: { body: rejectPropagationBodySchema },
     },
     withMcpRouteLogging("reject_propagation", rejectPropagationController.rejectPropagationHandler)
+  );
+
+  app.post(
+    "/tools/capture_review_finding",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: captureReviewFindingBodySchema },
+    },
+    withMcpRouteLogging(
+      "capture_review_finding",
+      captureReviewFindingController.captureReviewFindingHandler
+    )
   );
 
   if (process.env.NODE_ENV !== "production") {

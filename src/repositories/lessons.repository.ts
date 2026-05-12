@@ -23,6 +23,9 @@ export interface InsertLessonValues {
   embeddingStatus?: "pending" | "complete" | "failed" | null;
   propagatedFrom?: string | null;
   occurrenceCount?: number;
+  externalTaskId?: string | null;
+  externalTaskRef?: string | null;
+  externalTrackerType?: "clickup" | "jira" | "asana" | null;
 }
 
 export const insertLesson = async (
@@ -49,6 +52,9 @@ export const insertLesson = async (
       embeddingStatus: values.embeddingStatus ?? undefined,
       propagatedFrom: values.propagatedFrom ?? undefined,
       occurrenceCount: values.occurrenceCount ?? undefined,
+      externalTaskId: values.externalTaskId ?? undefined,
+      externalTaskRef: values.externalTaskRef ?? undefined,
+      externalTrackerType: values.externalTrackerType ?? undefined,
     })
     .returning({ id: schema.lessons.id });
   return lesson;
@@ -219,6 +225,26 @@ export const searchSimilarLessons = async (
 // ROLLBACK. Cross-project saves are unaffected — keys are per-project.
 export const acquireSaveLessonLock = async (db: LessonsTx, projectId: string): Promise<void> => {
   await db.execute(sql`SELECT pg_advisory_xact_lock(hashtext('save_lesson:' || ${projectId}))`);
+};
+
+export const findLessonByExternalTaskAndTitle = async (
+  db: LessonsTx,
+  projectId: string,
+  externalTaskId: string,
+  title: string
+): Promise<{ id: string } | null> => {
+  const rows = await db
+    .select({ id: schema.lessons.id })
+    .from(schema.lessons)
+    .where(
+      and(
+        eq(schema.lessons.projectId, projectId),
+        eq(schema.lessons.externalTaskId, externalTaskId),
+        eq(schema.lessons.title, title)
+      )
+    )
+    .limit(1);
+  return rows[0] ?? null;
 };
 
 export const incrementOccurrence = async (
