@@ -1,3 +1,4 @@
+import { sql } from "drizzle-orm";
 import { DrizzleClient } from "../repositories/projects.repository.js";
 import * as projectsRepo from "../repositories/projects.repository.js";
 import { generateApiKey, hashApiKey } from "./api-key.js";
@@ -32,6 +33,7 @@ export const registerProject = async (
     });
 
     if (input.repos && input.repos.length > 0) {
+      await tx.execute(sql`SELECT set_config('app.current_project_id', ${project.id}, true)`);
       await projectsRepo.insertRepositories(
         tx,
         input.repos.map((repo) => ({

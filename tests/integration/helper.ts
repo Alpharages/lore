@@ -5,7 +5,7 @@ import { buildApp } from "../../src/api/app.js";
 import * as schema from "../../src/db/schema.js";
 
 const TEST_DATABASE_URL =
-  process.env.DATABASE_URL || "postgres://lore:lore@localhost:5432/lore_memory";
+  process.env.DATABASE_URL || "postgres://postgres:12345678@localhost:5432/lore";
 
 export function createTestPool() {
   return new Pool({ connectionString: TEST_DATABASE_URL });

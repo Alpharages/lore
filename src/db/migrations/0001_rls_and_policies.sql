@@ -8,6 +8,13 @@ ALTER TABLE IF EXISTS sessions            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS repositories        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE IF EXISTS lesson_propagations ENABLE ROW LEVEL SECURITY;
 
+-- Force RLS so that even the table owner cannot bypass policies
+ALTER TABLE IF EXISTS lessons             FORCE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS patterns            FORCE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS sessions            FORCE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS repositories        FORCE ROW LEVEL SECURITY;
+ALTER TABLE IF EXISTS lesson_propagations FORCE ROW LEVEL SECURITY;
+
 -- lessons: project isolation (allows global rows where project_id IS NULL)
 DROP POLICY IF EXISTS project_isolation ON lessons;
 CREATE POLICY project_isolation ON lessons

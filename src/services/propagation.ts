@@ -8,7 +8,7 @@ import {
   PendingPropagation,
   PropagationTx,
 } from "../repositories/propagation.repository.js";
-import { db } from "../db/client.js";
+import { createAdminDb } from "../db/client.js";
 import { logger } from "../utils/logger.js";
 import {
   findFullLessonById,
@@ -17,7 +17,7 @@ import {
   markLessonEmbeddingFailed,
 } from "../repositories/lessons.repository.js";
 import { generateEmbeddingText, generateEmbedding } from "./embedding.js";
-import { validationError, notFoundError, forbidden } from "../utils/errors.js";
+import { validationError, notFoundError } from "../utils/errors.js";
 
 export const startPropagationEngine = (): void => {
   const enabled = process.env.PROPAGATION_ENABLED === "true";
@@ -38,17 +38,14 @@ export const startPropagationEngine = (): void => {
   });
 
   setInterval(async () => {
+    const admin = await createAdminDb();
     try {
       logger.info({
         tool: "propagation_engine",
         message: "Running propagation evaluation",
       });
 
-      // Background jobs use the raw db client which connects as the table
-      // owner. PostgreSQL table owners bypass RLS by default, granting full
-      // read/write access across all projects — required since this engine
-      // has no authenticated project context.
-      const qualifyingLessons = await findQualifyingLessons(db);
+      const qualifyingLessons = await findQualifyingLessons(admin.db);
 
       let evaluatedCount = 0;
       let suggestionsCreated = 0;
@@ -58,13 +55,13 @@ export const startPropagationEngine = (): void => {
         evaluatedCount++;
 
         const candidateProjects = await findCandidateProjects(
-          db,
+          admin.db,
           lesson.projectId,
           lesson.stackTags
         );
 
         for (const project of candidateProjects) {
-          const inserted = await insertPropagation(db, lesson.id, project.id);
+          const inserted = await insertPropagation(admin.db, lesson.id, project.id);
           suggestionsCreated += inserted.length;
         }
       }
@@ -81,6 +78,8 @@ export const startPropagationEngine = (): void => {
         message: "Error during propagation evaluation",
         error: error instanceof Error ? error.message : String(error),
       });
+    } finally {
+      await admin.release();
     }
   }, intervalMs);
 };
@@ -97,89 +96,92 @@ export const acceptPropagation = async (
   propagationId: string,
   projectId: string
 ): Promise<{ newLessonId: string }> => {
-  // Use global db (bypasses RLS) so that cross-project propagation IDs return 403
-  // rather than 404. RLS on lesson_propagations would otherwise hide the row entirely,
-  // making the ownership check unreachable.
-  const propagation = await getPropagationById(db, propagationId);
+  const propagation = await getPropagationById(dbClient, propagationId);
   if (!propagation) {
     throw notFoundError(`Propagation ${propagationId} not found`);
-  }
-
-  if (propagation.targetProjectId !== projectId) {
-    throw forbidden();
   }
 
   if (propagation.status !== "suggested") {
     throw validationError(`Propagation is already ${propagation.status}`);
   }
 
-  const sourceLesson = await findFullLessonById(db, propagation.sourceLessonId);
-  if (!sourceLesson) {
-    throw notFoundError(`Source lesson ${propagation.sourceLessonId} not found`);
-  }
+  const admin = await createAdminDb();
+  try {
+    const sourceLesson = await findFullLessonById(admin.db, propagation.sourceLessonId);
+    if (!sourceLesson) {
+      throw notFoundError(`Source lesson ${propagation.sourceLessonId} not found`);
+    }
 
-  const { id: newLessonId } = await insertLesson(dbClient, {
-    projectId,
-    title: sourceLesson.title,
-    problem: sourceLesson.problem,
-    rootCause: sourceLesson.rootCause,
-    fix: sourceLesson.fix,
-    preventionRule: sourceLesson.preventionRule,
-    stackTags: sourceLesson.stackTags ?? [],
-    category: sourceLesson.category,
-    severity: (sourceLesson.severity as any) ?? "medium",
-    provenance: {
-      source: "propagation",
-      propagated_from: sourceLesson.id,
-      original_provenance: sourceLesson.provenance,
-    },
-    propagatedFrom: sourceLesson.id,
-    occurrenceCount: 1,
-    embeddingStatus: "pending",
-  });
-
-  // Async embedding trigger
-  const embedText = generateEmbeddingText({
-    title: sourceLesson.title,
-    problem: sourceLesson.problem,
-    fix: sourceLesson.fix,
-    preventionRule: sourceLesson.preventionRule,
-  });
-
-  // Fire and forget — uses global db pool, not the request transaction
-  generateEmbedding(embedText)
-    .then(async (embedding) => {
-      if (embedding) {
-        await updateLessonEmbedding(db, newLessonId, projectId, embedding);
-      }
-    })
-    .catch(async (err) => {
-      logger.error({
-        tool: "acceptPropagation:asyncEmbedding",
-        lesson_id: newLessonId,
-        error: String(err),
-      });
-      await markLessonEmbeddingFailed(db, newLessonId, projectId).catch(() => undefined);
+    const { id: newLessonId } = await insertLesson(dbClient, {
+      projectId,
+      title: sourceLesson.title,
+      problem: sourceLesson.problem,
+      rootCause: sourceLesson.rootCause,
+      fix: sourceLesson.fix,
+      preventionRule: sourceLesson.preventionRule,
+      stackTags: sourceLesson.stackTags ?? [],
+      category: sourceLesson.category,
+      severity: (sourceLesson.severity as any) ?? "medium",
+      provenance: {
+        source: "propagation",
+        propagated_from: sourceLesson.id,
+        original_provenance: sourceLesson.provenance,
+      },
+      propagatedFrom: sourceLesson.id,
+      occurrenceCount: 1,
+      embeddingStatus: "pending",
     });
 
-  await updatePropagationStatus(dbClient, propagationId, "accepted", new Date());
+    const embedText = generateEmbeddingText({
+      title: sourceLesson.title,
+      problem: sourceLesson.problem,
+      fix: sourceLesson.fix,
+      preventionRule: sourceLesson.preventionRule,
+    });
 
-  return { newLessonId };
+    generateEmbedding(embedText)
+      .then(async (embedding) => {
+        const innerAdmin = await createAdminDb();
+        try {
+          if (embedding) {
+            await updateLessonEmbedding(innerAdmin.db, newLessonId, projectId, embedding);
+          }
+        } finally {
+          await innerAdmin.release();
+        }
+      })
+      .catch(async (err) => {
+        logger.error({
+          tool: "acceptPropagation:asyncEmbedding",
+          lesson_id: newLessonId,
+          error: String(err),
+        });
+        const innerAdmin = await createAdminDb();
+        try {
+          await markLessonEmbeddingFailed(innerAdmin.db, newLessonId, projectId).catch(
+            () => undefined
+          );
+        } finally {
+          await innerAdmin.release();
+        }
+      });
+
+    await updatePropagationStatus(dbClient, propagationId, "accepted", new Date());
+
+    return { newLessonId };
+  } finally {
+    await admin.release();
+  }
 };
 
 export const rejectPropagation = async (
   dbClient: PropagationTx,
   propagationId: string,
-  projectId: string
+  _projectId: string
 ): Promise<{ action: "rejected" }> => {
-  // Use global db (bypasses RLS) — same reason as acceptPropagation above.
-  const propagation = await getPropagationById(db, propagationId);
+  const propagation = await getPropagationById(dbClient, propagationId);
   if (!propagation) {
     throw notFoundError(`Propagation ${propagationId} not found`);
-  }
-
-  if (propagation.targetProjectId !== projectId) {
-    throw forbidden();
   }
 
   if (propagation.status !== "suggested") {

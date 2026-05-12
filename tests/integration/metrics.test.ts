@@ -3,6 +3,9 @@ import { Pool } from "pg";
 import { createTestPool, createTestDb, buildTestApp, resetDatabase } from "./helper.js";
 import { register, recordToolDuration } from "../../src/services/metrics.js";
 
+const ADMIN_SECRET = "test_admin_secret_do_not_ship";
+process.env.ADMIN_SECRET = ADMIN_SECRET;
+
 describe("GET /metrics", () => {
   let pool: Pool;
   let db: ReturnType<typeof createTestDb>;
@@ -22,10 +25,22 @@ describe("GET /metrics", () => {
     await resetDatabase(pool);
   });
 
-  it("returns 200 with Prometheus text/plain content type", async () => {
+  it("returns 401 without admin secret", async () => {
     const response = await app.inject({
       method: "GET",
       url: "/metrics",
+    });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it("returns 200 with Prometheus text/plain content type when authed", async () => {
+    const response = await app.inject({
+      method: "GET",
+      url: "/metrics",
+      headers: {
+        "x-admin-secret": ADMIN_SECRET,
+      },
     });
 
     expect(response.statusCode).toBe(200);
@@ -33,12 +48,14 @@ describe("GET /metrics", () => {
   });
 
   it("exposes every metric named in architecture §8.3 with correct types", async () => {
-    // Seed one observation so labeled histograms emit data lines
     recordToolDuration("test", 50);
 
     const response = await app.inject({
       method: "GET",
       url: "/metrics",
+      headers: {
+        "x-admin-secret": ADMIN_SECRET,
+      },
     });
 
     const payload = response.payload;
@@ -55,11 +72,9 @@ describe("GET /metrics", () => {
     ];
 
     for (const { name, type } of expectedMetrics) {
-      // Check TYPE line exists
       const typeRegex = new RegExp(`^# TYPE ${name} ${type}`, "m");
       expect(payload).toMatch(typeRegex);
 
-      // Check metric line exists (or _bucket/_sum/_count for histograms)
       if (type === "histogram") {
         expect(payload).toMatch(new RegExp(`^${name}_count`, "m"));
         expect(payload).toMatch(new RegExp(`^${name}_sum`, "m"));
@@ -74,6 +89,9 @@ describe("GET /metrics", () => {
     const response = await app.inject({
       method: "GET",
       url: "/metrics",
+      headers: {
+        "x-admin-secret": ADMIN_SECRET,
+      },
     });
 
     const payload = response.payload;
@@ -82,18 +100,29 @@ describe("GET /metrics", () => {
   });
 
   it("counters are monotonically non-decreasing across scrapes", async () => {
-    // Trigger an embedding counter increment
     const { incrementEmbeddingTotal } = await import("../../src/services/metrics.js");
     incrementEmbeddingTotal();
 
-    const response1 = await app.inject({ method: "GET", url: "/metrics" });
+    const response1 = await app.inject({
+      method: "GET",
+      url: "/metrics",
+      headers: {
+        "x-admin-secret": ADMIN_SECRET,
+      },
+    });
     const match1 = response1.payload.match(/^lore_embeddings_total (\d+)/m);
     expect(match1).toBeTruthy();
     const count1 = Number(match1![1]);
 
     incrementEmbeddingTotal();
 
-    const response2 = await app.inject({ method: "GET", url: "/metrics" });
+    const response2 = await app.inject({
+      method: "GET",
+      url: "/metrics",
+      headers: {
+        "x-admin-secret": ADMIN_SECRET,
+      },
+    });
     const match2 = response2.payload.match(/^lore_embeddings_total (\d+)/m);
     expect(match2).toBeTruthy();
     const count2 = Number(match2![1]);

@@ -1,5 +1,8 @@
 import { defineConfig } from "vitest/config";
 
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL || "postgres://postgres:12345678@localhost:5432/lore";
+
 export default defineConfig({
   test: {
     globals: true,
