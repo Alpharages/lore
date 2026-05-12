@@ -1,4 +1,6 @@
 import { sql } from "drizzle-orm";
+
+const EMBEDDING_DIMENSIONS = process.env.EMBEDDING_PROVIDER === "local" ? 768 : 1536;
 import {
   pgTable,
   uuid,
@@ -127,7 +129,7 @@ export const lessons = pgTable(
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).defaultNow(),
     sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
     propagatedFrom: uuid("propagated_from"),
-    embedding: vector("embedding", { dimensions: 1536 }),
+    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }),
     embeddingStatus: text("embedding_status").default("pending"),
     externalTaskId: text("external_task_id"),
     externalTaskRef: text("external_task_ref"),
@@ -172,7 +174,7 @@ export const patterns = pgTable(
     codeExample: text("code_example"),
     usageCount: integer("usage_count").default(1),
     lastUsedAt: timestamp("last_used_at", { withTimezone: true }).defaultNow(),
-    embedding: vector("embedding", { dimensions: 1536 }),
+    embedding: vector("embedding", { dimensions: EMBEDDING_DIMENSIONS }),
     externalTaskId: text("external_task_id"),
     externalTaskRef: text("external_task_ref"),
     externalTrackerType: text("external_tracker_type"),

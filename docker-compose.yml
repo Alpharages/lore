@@ -17,6 +17,21 @@ services:
       timeout: 5s
       retries: 5
 
+  ollama:
+    image: ollama/ollama
+    profiles: ["local-embedding"]
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "127.0.0.1:11434:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
   mcp-server:
     build:
       context: .
@@ -32,4 +47,6 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  ollama_data:
     driver: local
