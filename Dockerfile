@@ -1,5 +1,5 @@
 # Build stage
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@11.0.8 --activate
 COPY package.json pnpm-lock.yaml ./
@@ -8,7 +8,7 @@ COPY . .
 RUN pnpm run build
 
 # Runtime stage
-FROM node:20-alpine
+FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production
 RUN corepack enable && corepack prepare pnpm@11.0.8 --activate
