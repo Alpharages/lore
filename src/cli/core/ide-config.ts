@@ -13,11 +13,13 @@ export interface IdeProfile {
   ) => Record<string, unknown>;
 }
 
-const loreMcpServers = (config: LoreConfig): Record<string, unknown> => {
+const loreMcpServers = (config: LoreConfig, apiKey?: string): Record<string, unknown> => {
+  const slug = config.project.slug;
+  const serverEntry: Record<string, unknown> = { url: `${config.mcp.server}/mcp` };
+  if (apiKey) serverEntry.headers = { Authorization: `Bearer ${apiKey}` };
+
   const servers: Record<string, unknown> = {
-    "lore-memory": {
-      url: `${config.mcp.server}/mcp`,
-    },
+    [`lore-memory-${slug}`]: serverEntry,
     gitnexus: {
       command: "npx",
       args: ["-y", "gitnexus", "--mcp"],
@@ -47,7 +49,8 @@ const defaultObjectSerialize = (
   loreServers: Record<string, unknown>,
   existing: Record<string, unknown>
 ): Record<string, unknown> => {
-  const mcpServers = (existing.mcpServers as Record<string, unknown>) ?? {};
+  const mcpServers = { ...((existing.mcpServers as Record<string, unknown>) ?? {}) };
+  delete mcpServers["lore-memory"]; // migrate old generic entry to slug-scoped one
   const servers = { ...mcpServers, ...loreServers };
   return { ...existing, mcpServers: servers };
 };
@@ -83,6 +86,9 @@ const continueSerialize = (
     }
   );
 
+  // Migrate: remove old generic lore-memory entry (replaced by lore-memory-<slug>)
+  const filteredExisting = existingServers.filter((e) => (e.name as string) !== "lore-memory");
+
   const seen = new Set<string>();
   const merged: Array<Record<string, unknown>> = [];
 
@@ -95,7 +101,7 @@ const continueSerialize = (
   }
 
   // Add existing entries not overridden by lore
-  for (const entry of existingServers) {
+  for (const entry of filteredExisting) {
     const entryName = entry.name as string;
     if (entryName === undefined || seen.has(entryName)) continue;
     seen.add(entryName);
@@ -269,10 +275,11 @@ export const writeIdeConfig = (
 export const configureIdeMcp = (
   profile: IdeProfile,
   loreConfig: LoreConfig,
-  homeDir = os.homedir()
+  homeDir = os.homedir(),
+  apiKey?: string
 ): boolean => {
   const existing = readIdeConfig(profile, homeDir);
-  const servers = loreMcpServers(loreConfig);
+  const servers = loreMcpServers(loreConfig, apiKey);
   const output = profile.serialize
     ? profile.serialize(servers, existing)
     : defaultObjectSerialize(servers, existing);

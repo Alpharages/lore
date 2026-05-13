@@ -34,6 +34,10 @@ vi.mock("../generators/repo-identity.js", () => ({
   writeRepoIdentities: vi.fn(),
 }));
 
+vi.mock("../core/credentials.js", () => ({
+  writeCredential: vi.fn(),
+}));
+
 import { initCommand } from "./init.js";
 import * as fs from "fs";
 import {

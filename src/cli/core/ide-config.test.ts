@@ -162,27 +162,8 @@ describe("configureIdeMcp", () => {
   });
 
   it("returns true when config changes", () => {
-    let renamed = false;
-    mockedExistsSync.mockImplementation((p: unknown) => {
-      if (typeof p === "string" && p.includes(".cursor") && !p.endsWith(".tmp")) {
-        return renamed;
-      }
-      return false;
-    });
-    mockedReadFileSync.mockImplementation((p: unknown) => {
-      if (typeof p === "string" && p.includes(".cursor") && !p.endsWith(".tmp") && renamed) {
-        return JSON.stringify({
-          mcpServers: {
-            "lore-memory": { url: "https://lore.test/mcp" },
-            gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-          },
-        });
-      }
-      return JSON.stringify({ mcpServers: {} });
-    });
-    mockedRenameSync.mockImplementation(() => {
-      renamed = true;
-    });
+    mockedExistsSync.mockReturnValue(false);
+    mockedRenameSync.mockImplementation(() => {});
 
     const cursor = getProfileById("cursor")!;
     const updated = configureIdeMcp(cursor, baseConfig);
@@ -194,7 +175,7 @@ describe("configureIdeMcp", () => {
     mockedReadFileSync.mockReturnValue(
       JSON.stringify({
         mcpServers: {
-          "lore-memory": { url: "https://lore.test/mcp" },
+          "lore-memory-test": { url: "https://lore.test/mcp" },
           gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
         },
       })
@@ -202,6 +183,47 @@ describe("configureIdeMcp", () => {
     const cursor = getProfileById("cursor")!;
     const updated = configureIdeMcp(cursor, baseConfig);
     expect(updated).toBe(false);
+  });
+
+  it("writes lore-memory-<slug> entry with auth header when apiKey provided", () => {
+    mockedExistsSync.mockReturnValue(false);
+    const cursor = getProfileById("cursor")!;
+    configureIdeMcp(cursor, baseConfig, "/home/user", "lore_test_secretkey");
+
+    const written = JSON.parse(mockedWriteFileSync.mock.calls[0][1] as string);
+    expect(written.mcpServers["lore-memory-test"]).toEqual({
+      url: "https://lore.test/mcp",
+      headers: { Authorization: "Bearer lore_test_secretkey" },
+    });
+  });
+
+  it("writes lore-memory-<slug> entry without headers when no apiKey", () => {
+    mockedExistsSync.mockReturnValue(false);
+    const cursor = getProfileById("cursor")!;
+    configureIdeMcp(cursor, baseConfig);
+
+    const written = JSON.parse(mockedWriteFileSync.mock.calls[0][1] as string);
+    expect(written.mcpServers["lore-memory-test"]).toEqual({ url: "https://lore.test/mcp" });
+    expect(written.mcpServers["lore-memory-test"].headers).toBeUndefined();
+  });
+
+  it("removes old generic lore-memory key on migration", () => {
+    mockedExistsSync.mockReturnValue(true);
+    mockedReadFileSync.mockReturnValue(
+      JSON.stringify({
+        mcpServers: {
+          "lore-memory": { url: "https://old.test/mcp" },
+          other: { command: "foo" },
+        },
+      })
+    );
+    const cursor = getProfileById("cursor")!;
+    configureIdeMcp(cursor, baseConfig);
+
+    const written = JSON.parse(mockedWriteFileSync.mock.calls[0][1] as string);
+    expect(written.mcpServers["lore-memory"]).toBeUndefined();
+    expect(written.mcpServers["lore-memory-test"]).toBeDefined();
+    expect(written.mcpServers["other"]).toEqual({ command: "foo" });
   });
 
   it("writes bmad entry when methodology is present", () => {
@@ -234,7 +256,7 @@ describe("configureIdeMcp", () => {
 
     const written = JSON.parse(mockedWriteFileSync.mock.calls[0][1] as string);
     expect(written.mcpServers["other"]).toEqual({ command: "foo" });
-    expect(written.mcpServers["lore-memory"]).toBeDefined();
+    expect(written.mcpServers["lore-memory-test"]).toBeDefined();
   });
 
   it("writes continue config in array format", () => {
@@ -273,7 +295,7 @@ describe("configureIdeMcp", () => {
     expect(written.experimental).toBeDefined();
     expect(written.experimental.modelContextProtocolServers).toBeInstanceOf(Array);
     expect(written.experimental.modelContextProtocolServers.length).toBe(2);
-    expect(written.experimental.modelContextProtocolServers[0].name).toBe("lore-memory");
+    expect(written.experimental.modelContextProtocolServers[0].name).toBe("lore-memory-test");
     expect(written.experimental.modelContextProtocolServers[0].transport.type).toBe("http");
     expect(written.experimental.modelContextProtocolServers[1].name).toBe("gitnexus");
     expect(written.experimental.modelContextProtocolServers[1].transport.type).toBe("stdio");
@@ -299,9 +321,9 @@ describe("configureIdeMcp", () => {
     const names = written.experimental.modelContextProtocolServers.map(
       (s: Record<string, unknown>) => s.name
     );
-    expect(names).toEqual(["lore-memory", "gitnexus", "other"]);
+    expect(names).toEqual(["lore-memory-test", "gitnexus", "other"]);
     const loreMemory = written.experimental.modelContextProtocolServers.find(
-      (s: Record<string, unknown>) => s.name === "lore-memory"
+      (s: Record<string, unknown>) => s.name === "lore-memory-test"
     );
     expect(loreMemory.transport.url).toBe("https://lore.test/mcp");
   });

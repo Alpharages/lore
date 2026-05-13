@@ -7,6 +7,7 @@ import {
   warnIfInsecureUrl,
 } from "../utils/init-prompts.js";
 import { checkHealth, registerProject } from "../api/register.js";
+import { writeCredential } from "../core/credentials.js";
 import { generateLoreYaml } from "../generators/lore-yaml.js";
 import { generateClaudeMd } from "../generators/claude-md.js";
 import { generateConstitution } from "../generators/constitution.js";
@@ -67,6 +68,7 @@ export const initCommand = async (): Promise<void> => {
       process.exit(1);
     }
 
+    writeCredential(answers.projectSlug, result.api_key);
     fs.writeFileSync(loreYamlPath, generateLoreYaml(answers), "utf-8");
     fs.writeFileSync(path.join(cwd, "CLAUDE.md"), generateClaudeMd(answers), "utf-8");
 

@@ -30,6 +30,10 @@ vi.mock("../core/version-check.js", () => ({
   checkVersionCompatibility: vi.fn(),
 }));
 
+vi.mock("../core/credentials.js", () => ({
+  getApiKey: vi.fn(),
+}));
+
 vi.mock("../core/ide-config.js", () => ({
   IDE_PROFILES: [
     { id: "cursor", name: "Cursor", configPath: (h: string) => `${h}/.cursor/mcp.json` },
@@ -69,6 +73,7 @@ import { readInstallState, writeInstallState, clearInstallState } from "../core/
 import { checkVersionCompatibility } from "../core/version-check.js";
 import { detectInstalledIdes, getProfileById, configureIdeMcp } from "../core/ide-config.js";
 import { promptIdeSelection, promptClaudeInclude } from "../utils/install-prompts.js";
+import { getApiKey } from "../core/credentials.js";
 import * as os from "os";
 import * as fs from "fs";
 
@@ -86,6 +91,7 @@ const mockedGetProfileById = vi.mocked(getProfileById);
 const mockedConfigureIdeMcp = vi.mocked(configureIdeMcp);
 const mockedPromptIdeSelection = vi.mocked(promptIdeSelection);
 const mockedPromptClaudeInclude = vi.mocked(promptClaudeInclude);
+const mockedGetApiKey = vi.mocked(getApiKey);
 const mockedHomedir = vi.mocked(os.homedir);
 const mockedExistsSync = vi.mocked(fs.existsSync);
 const mockedReadFileSync = vi.mocked(fs.readFileSync);
@@ -119,6 +125,7 @@ describe("installCommand", () => {
     mockedAnalyzeAllRepos.mockResolvedValue([]);
     mockedCheckVersionCompatibility.mockResolvedValue("1.0.0");
     mockedReadInstallState.mockReturnValue({});
+    mockedGetApiKey.mockReturnValue(undefined);
     mockedDetectInstalledIdes.mockReturnValue(["cursor"]);
     mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
     mockedPromptClaudeInclude.mockResolvedValue(true);
@@ -159,7 +166,8 @@ describe("installCommand", () => {
     expect(mockedConfigureIdeMcp).toHaveBeenCalledWith(
       expect.objectContaining({ id: "cursor" }),
       baseConfig,
-      "/home/user"
+      "/home/user",
+      undefined
     );
     expect(mockedAppendClaudeMdInclude).toHaveBeenCalledWith(
       "/projects/myapp/lore.yaml",
@@ -256,7 +264,8 @@ describe("installCommand", () => {
     expect(mockedConfigureIdeMcp).toHaveBeenCalledWith(
       expect.objectContaining({ id: "cursor" }),
       baseConfig,
-      "/home/user"
+      "/home/user",
+      undefined
     );
     expect(mockedAppendClaudeMdInclude).toHaveBeenCalledWith(
       "/projects/myapp/lore.yaml",
@@ -638,6 +647,22 @@ describe("installCommand", () => {
 
     expect(mockedPromptIdeSelection).not.toHaveBeenCalled();
     expect(mockedConfigureIdeMcp).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes apiKey from credentials to configureIdeMcp", async () => {
+    mockedGetApiKey.mockReturnValue("lore_test_secretkey");
+    mockedExistsSync.mockReturnValue(false);
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(false);
+
+    await installCommand();
+
+    expect(mockedConfigureIdeMcp).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "cursor" }),
+      baseConfig,
+      "/home/user",
+      "lore_test_secretkey"
+    );
   });
 
   it("warns when no valid profiles match --ide", async () => {

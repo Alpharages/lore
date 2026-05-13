@@ -14,6 +14,7 @@ import {
   getProfileById,
   configureIdeMcp,
 } from "../core/ide-config.js";
+import { getApiKey } from "../core/credentials.js";
 import {
   createReadline,
   promptIdeSelection,
@@ -95,6 +96,14 @@ export const installCommand = async (
   const selectedIdeIds = await resolveIdeIds(options);
   const configureClaude = await resolveClaudeInclude();
 
+  const apiKey = getApiKey(config.project.slug) ?? process.env.LORE_API_KEY;
+  if (!apiKey) {
+    console.warn(
+      "  ⚠ No API key found for this project. MCP auth will not be configured.\n" +
+        "    Run `lore init` first, or set LORE_API_KEY and re-run install."
+    );
+  }
+
   // --- IDE MCP Configs ---
   const ideUpdates: { profileId: string; name: string; existed: boolean; updated: boolean }[] = [];
 
@@ -106,7 +115,7 @@ export const installCommand = async (
     const existed = fs.existsSync(configPath);
 
     try {
-      const updated = configureIdeMcp(profile, config, homeDir);
+      const updated = configureIdeMcp(profile, config, homeDir, apiKey);
       ideUpdates.push({ profileId, name: profile.name, existed, updated });
     } catch (err: any) {
       console.error(`Error: ${err.message}`);
