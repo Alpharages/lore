@@ -106,6 +106,72 @@ in your MCP client config.
 
 ---
 
+## CLI Commands
+
+The `@lore/cli` package is shipped with this repo. It wires the MCP server into
+Cursor and Claude Code on developer machines.
+
+```bash
+# Run from any project that has a lore.yaml
+npx lore <command>
+```
+
+| Command   | Purpose                                                                |
+| --------- | ---------------------------------------------------------------------- |
+| `init`    | Initialize a new Lore project configuration interactively              |
+| `install` | Configure MCP tools and AI assistant integration for this project      |
+| `inbox`   | Triage pending lesson-propagation suggestions from sister projects     |
+| `update`  | Upgrade the lore-memory-mcp Docker image to a newer compatible version |
+
+### `lore init`
+
+Creates `lore.yaml`, `CLAUDE.md`, `ops/constitution.md`, and per-repo
+`REPO_IDENTITY.md` files. Registers the project with the Lore server and prints
+an API key.
+
+```bash
+export LORE_ADMIN_SECRET=<your-admin-secret>
+npx lore init
+```
+
+### `lore install`
+
+Reads `lore.yaml` and configures the local machine:
+
+- Writes `~/.cursor/mcp.json` with `lore-memory`, `gitnexus`, and optionally
+  `bmad` MCP servers.
+- Appends an include to `~/.claude/CLAUDE.md`.
+- Installs git hooks (`post-commit`, `post-merge`) in declared repos.
+- Runs GitNexus analysis on repos that haven't been analyzed yet.
+- Records progress in `~/.lore/install-state.json` for idempotency.
+
+```bash
+npx lore install          # normal run — skips already-done work
+npx lore install --force  # clear state and redo everything
+```
+
+### `lore inbox`
+
+Fetches cross-project lesson suggestions and lets you accept or reject them
+one-by-one.
+
+```bash
+export LORE_API_KEY=<your-project-api-key>
+npx lore inbox
+```
+
+### `lore update`
+
+Checks the running Lore server version against the latest compatible Docker
+tag, shows release notes, verifies migration compatibility, and upgrades the
+server in place.
+
+```bash
+npx lore update
+```
+
+---
+
 ## Environment Variables
 
 | Variable               | Required | Default | Description                          |
