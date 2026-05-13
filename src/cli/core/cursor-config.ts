@@ -42,7 +42,14 @@ export const writeCursorConfig = (config: LoreConfig, homeDir = os.homedir()): v
 
   if (config.methodology !== undefined && config.methodology !== null) {
     const version = config.methodology.version;
-    const versionSpec = version ? `^${version}` : "latest";
+    const versionSpec = version
+      ? version.startsWith("^") ||
+        version.startsWith("~") ||
+        version.startsWith(">=") ||
+        version.startsWith(">")
+        ? version
+        : `^${version}`
+      : "latest";
     servers["bmad"] = {
       command: "npx",
       args: ["-y", `bmad-mcp-server@${versionSpec}`, "--mcp"],

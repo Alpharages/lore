@@ -278,6 +278,37 @@ describe("installCommand", () => {
     expect(logs).toContain("bmad-mcp-server@^1.2.0");
   });
 
+  it("does not double-prefix caret when version already starts with ^", async () => {
+    const config: LoreConfig = {
+      ...baseConfig,
+      methodology: {
+        type: "bmad",
+        version: "^1.2.0",
+      },
+    };
+    mockedParseLoreConfig.mockReturnValue(config);
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadCursorConfig.mockReturnValueOnce({ mcpServers: {} }).mockReturnValueOnce({
+      mcpServers: {
+        "lore-memory": { url: "https://lore.test/mcp" },
+        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
+        bmad: { command: "npx", args: ["-y", "bmad-mcp-server@^1.2.0", "--mcp"] },
+      },
+    });
+    mockedReadFileSync
+      .mockReturnValueOnce("") // before
+      .mockReturnValueOnce("@/projects/myapp/CLAUDE.md\n"); // after
+
+    await installCommand();
+
+    const logs = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
+    expect(logs).toContain("bmad-mcp-server@^1.2.0");
+    expect(logs).not.toContain("bmad-mcp-server@^^1.2.0");
+  });
+
   it("exits with error when lore.yaml is not found", async () => {
     mockedFindLoreYaml.mockImplementation(() => {
       throw new Error("lore.yaml not found");

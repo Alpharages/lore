@@ -140,6 +140,32 @@ describe("writeCursorConfig", () => {
     });
   });
 
+  it("preserves existing semver prefix in bmad version (^, ~, >=)", () => {
+    const prefixes = [
+      { input: "^1.2.0", expected: "bmad-mcp-server@^1.2.0" },
+      { input: "~1.2.0", expected: "bmad-mcp-server@~1.2.0" },
+      { input: ">=1.2.0", expected: "bmad-mcp-server@>=1.2.0" },
+      { input: ">1.2.0", expected: "bmad-mcp-server@>1.2.0" },
+    ];
+    for (const { input, expected } of prefixes) {
+      vi.clearAllMocks();
+      mockedExistsSync.mockReturnValue(false);
+      const config: LoreConfig = {
+        ...baseConfig,
+        methodology: {
+          type: "bmad",
+          version: input,
+        },
+      };
+      writeCursorConfig(config, "/home/user");
+      const written = JSON.parse(mockedWriteFileSync.mock.calls[0][1] as string);
+      expect(written.mcpServers["bmad"]).toEqual({
+        command: "npx",
+        args: ["-y", expected, "--mcp"],
+      });
+    }
+  });
+
   it("updates existing entry in place without duplicating", () => {
     mockedExistsSync.mockImplementation((p) => p === "/home/user/.cursor/mcp.json");
     mockedReadFileSync.mockReturnValue(

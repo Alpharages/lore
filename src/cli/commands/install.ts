@@ -75,7 +75,14 @@ export const installCommand = async (options: { force?: boolean } = {}): Promise
     console.log(`    • gitnexus     → npx -y gitnexus --mcp`);
     if (config.methodology) {
       const version = config.methodology.version;
-      const versionSpec = version ? `^${version}` : "latest";
+      const versionSpec = version
+        ? version.startsWith("^") ||
+          version.startsWith("~") ||
+          version.startsWith(">=") ||
+          version.startsWith(">")
+          ? version
+          : `^${version}`
+        : "latest";
       console.log(`    • bmad         → npx -y bmad-mcp-server@${versionSpec} --mcp`);
     }
   } else {
