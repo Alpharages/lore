@@ -3,6 +3,8 @@ import { Pool } from "pg";
 import { DrizzleClient } from "../../repositories/projects.repository.js";
 import { createRequireProjectAuth } from "../middleware/auth.js";
 import { withMcpRouteLogging } from "../../mcp/server.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { createMcpProtocolServer, type ToolExecutionState } from "../../mcp/mcp-protocol-server.js";
 import * as mcpController from "../controllers/mcp.controller.js";
 import * as saveLessonController from "../controllers/save-lesson.controller.js";
 import * as incrementOccurrenceController from "../controllers/increment-occurrence.controller.js";
@@ -377,6 +379,78 @@ const mcpRoute = (
       captureReviewFindingController.captureReviewFindingHandler
     )
   );
+
+  // Standard MCP Streamable HTTP transport entry point
+  app.post("/", { preHandler: [requireProjectAuth] }, async (request, reply) => {
+    reply.hijack();
+
+    // Prevent the global onResponse hook from double-releasing this
+    // connection — the try/finally below manages the full lifecycle.
+    const tx = request.tx;
+    request.tx = undefined;
+
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+      enableJsonResponse: true,
+    });
+    // The MCP SDK catches tool-handler exceptions and converts them to
+    // `isError: true` content, so transport.handleRequest returns normally
+    // even when a tool failed. `state.errored` is flipped by the tool wrapper
+    // (see mcp-protocol-server.ts) so we ROLLBACK rather than COMMIT in that
+    // case — mirroring the REST path's `request.txShouldRollback` mechanism.
+    const state: ToolExecutionState = { errored: false };
+    const mcpServer = createMcpProtocolServer(request.project!, request.txDb!, state);
+
+    try {
+      await mcpServer.connect(transport);
+      await transport.handleRequest(
+        request.raw,
+        reply.raw,
+        request.body as Record<string, unknown>
+      );
+      if (tx) {
+        if (state.errored) {
+          try {
+            await tx.query("ROLLBACK");
+          } catch (rollbackErr) {
+            request.log.warn(
+              { err: rollbackErr, tool: "mcp:protocol" },
+              "mcp_rollback_after_tool_error_failed"
+            );
+          }
+        } else {
+          await tx.query("COMMIT");
+        }
+      }
+    } catch (err) {
+      request.log.error({ err, tool: "mcp:protocol" }, "mcp_transport_error");
+      if (tx) {
+        try {
+          await tx.query("ROLLBACK");
+        } catch (rollbackErr) {
+          request.log.warn(
+            { err: rollbackErr, tool: "mcp:protocol" },
+            "mcp_rollback_after_transport_error_failed"
+          );
+        }
+      }
+      if (!reply.raw.headersSent) {
+        reply.raw.writeHead(500, { "Content-Type": "application/json" });
+        reply.raw.end(JSON.stringify({ error: "internal_error" }));
+      }
+    } finally {
+      if (tx) {
+        tx.release();
+      }
+    }
+  });
+
+  app.get("/", async (_request, reply) => {
+    reply.status(405).send({
+      error: "method_not_allowed",
+      message: "Stateless MCP mode — GET /mcp not supported",
+    });
+  });
 
   if (process.env.NODE_ENV !== "production") {
     app.get(
