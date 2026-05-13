@@ -10,7 +10,7 @@ const program = new Command();
 program
   .name("lore")
   .description("Lore CLI — institutional memory layer for BMAD-driven development")
-  .version("0.1.0");
+  .version("1.0.0");
 
 program
   .command("init")
