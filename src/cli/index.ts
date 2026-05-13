@@ -21,7 +21,11 @@ program
   .command("install")
   .description("Configure MCP tools and AI assistant integration for this project")
   .option("--force", "bypass state check and reinstall everything")
-  .action((opts) => installCommand({ force: opts.force }));
+  .option(
+    "--ide <list>",
+    "comma-separated IDE IDs to configure (cursor, claude-desktop, claude-code, antigravity, windsurf, cline, continue, or 'all', 'detected')"
+  )
+  .action((opts) => installCommand({ force: opts.force, ide: opts.ide }));
 
 program
   .command("inbox")

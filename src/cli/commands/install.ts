@@ -4,16 +4,69 @@ import * as os from "os";
 import { findLoreYaml } from "../core/config-finder.js";
 import { parseLoreConfig, LoreConfig, LoreRepo } from "../core/config-parser.js";
 import { checkVersionCompatibility } from "../core/version-check.js";
-import { writeCursorConfig, readCursorConfig } from "../core/cursor-config.js";
 import { appendClaudeMdInclude } from "../core/claude-config.js";
 import { installGitHooks } from "../core/git-hooks.js";
 import { analyzeAllRepos } from "../core/gitnexus.js";
 import { readInstallState, writeInstallState, clearInstallState } from "../core/state.js";
+import {
+  IDE_PROFILES,
+  detectInstalledIdes,
+  getProfileById,
+  configureIdeMcp,
+} from "../core/ide-config.js";
+import {
+  createReadline,
+  promptIdeSelection,
+  promptClaudeInclude,
+} from "../utils/install-prompts.js";
 
 const getRepoSlug = (repo: LoreRepo, repoPath: string): string =>
   repo.slug || path.basename(repoPath);
 
-export const installCommand = async (options: { force?: boolean } = {}): Promise<void> => {
+const resolveIdeIds = async (options: { ide?: string; force?: boolean }): Promise<string[]> => {
+  if (options.ide) {
+    if (options.ide === "all") {
+      return IDE_PROFILES.map((p) => p.id);
+    }
+    if (options.ide === "detected") {
+      return detectInstalledIdes();
+    }
+    return options.ide
+      .split(",")
+      .map((s) => s.trim())
+      .filter((s) => getProfileById(s) !== undefined);
+  }
+
+  const detected = detectInstalledIdes();
+
+  if (process.stdin.isTTY) {
+    const selected = await promptIdeSelection(IDE_PROFILES, detected);
+    return selected;
+  }
+
+  // Non-TTY: fall back to detected profiles only (configure nothing if none found)
+  return detected;
+};
+
+const resolveClaudeInclude = async (): Promise<boolean> => {
+  const claudeDir = path.join(os.homedir(), ".claude");
+  const detected = fs.existsSync(claudeDir);
+
+  if (process.stdin.isTTY) {
+    const rl = createReadline();
+    try {
+      return await promptClaudeInclude(rl, detected);
+    } finally {
+      rl.close();
+    }
+  }
+
+  return true;
+};
+
+export const installCommand = async (
+  options: { force?: boolean; ide?: string } = {}
+): Promise<void> => {
   if (options.force) {
     clearInstallState();
   }
@@ -39,63 +92,86 @@ export const installCommand = async (options: { force?: boolean } = {}): Promise
   }
 
   const homeDir = os.homedir();
-  const cursorConfigPath = path.join(homeDir, ".cursor", "mcp.json");
-  const claudeMdPath = path.join(homeDir, ".claude", "CLAUDE.md");
-  const cursorExisted = fs.existsSync(cursorConfigPath);
-  const claudeExisted = fs.existsSync(claudeMdPath);
+  const selectedIdeIds = await resolveIdeIds(options);
+  const configureClaude = await resolveClaudeInclude();
 
-  let cursorUpdated = false;
-  try {
-    const before = JSON.stringify(readCursorConfig(homeDir));
-    writeCursorConfig(config, homeDir);
-    const after = JSON.stringify(readCursorConfig(homeDir));
-    cursorUpdated = before !== after;
-  } catch (err: any) {
-    console.error(`Error: ${err.message}`);
-    process.exit(1);
+  // --- IDE MCP Configs ---
+  const ideUpdates: { profileId: string; name: string; existed: boolean; updated: boolean }[] = [];
+
+  for (const profileId of selectedIdeIds) {
+    const profile = getProfileById(profileId);
+    if (!profile) continue;
+
+    const configPath = profile.configPath(homeDir);
+    const existed = fs.existsSync(configPath);
+
+    try {
+      const updated = configureIdeMcp(profile, config, homeDir);
+      ideUpdates.push({ profileId, name: profile.name, existed, updated });
+    } catch (err: any) {
+      console.error(`Error: ${err.message}`);
+      process.exit(1);
+    }
   }
 
+  // --- Claude Code context includes ---
+  const claudeMdPath = path.join(homeDir, ".claude", "CLAUDE.md");
+  const claudeExisted = fs.existsSync(claudeMdPath);
   let claudeUpdated = false;
-  try {
-    const before = fs.existsSync(claudeMdPath) ? fs.readFileSync(claudeMdPath, "utf-8") : "";
-    appendClaudeMdInclude(loreYamlPath, homeDir);
-    const after = fs.existsSync(claudeMdPath) ? fs.readFileSync(claudeMdPath, "utf-8") : "";
-    claudeUpdated = before !== after;
-  } catch (err: any) {
-    console.error(`Error: ${err.message}`);
-    process.exit(1);
+
+  if (configureClaude) {
+    try {
+      const before = fs.existsSync(claudeMdPath) ? fs.readFileSync(claudeMdPath, "utf-8") : "";
+      appendClaudeMdInclude(loreYamlPath, homeDir);
+      const after = fs.existsSync(claudeMdPath) ? fs.readFileSync(claudeMdPath, "utf-8") : "";
+      claudeUpdated = before !== after;
+    } catch (err: any) {
+      console.error(`Error: ${err.message}`);
+      process.exit(1);
+    }
   }
 
   console.log("✓ Install complete.");
   console.log("");
 
-  if (cursorUpdated) {
-    console.log(`  ${cursorExisted ? "Updated" : "Created"} ~/.cursor/mcp.json`);
-    console.log(`    • lore-memory  → ${config.mcp.server}/mcp`);
-    console.log(`    • gitnexus     → npx -y gitnexus --mcp`);
-    if (config.methodology) {
-      const version = config.methodology.version;
-      const versionSpec = version
-        ? version.startsWith("^") ||
-          version.startsWith("~") ||
-          version.startsWith(">=") ||
-          version.startsWith(">")
-          ? version
-          : `^${version}`
-        : "latest";
-      console.log(`    • bmad         → npx -y bmad-mcp-server@${versionSpec} --mcp`);
+  // Print IDE config summary
+  if (ideUpdates.length > 0) {
+    for (const { name, existed, updated } of ideUpdates) {
+      if (updated) {
+        console.log(`  ${existed ? "Updated" : "Created"} ${name} MCP config`);
+        console.log(`    • lore-memory  → ${config.mcp.server}/mcp`);
+        console.log(`    • gitnexus     → npx -y gitnexus --mcp`);
+        if (config.methodology) {
+          const version = config.methodology.version;
+          const versionSpec = version
+            ? version.startsWith("^") ||
+              version.startsWith("~") ||
+              version.startsWith(">=") ||
+              version.startsWith(">")
+              ? version
+              : `^${version}`
+            : "latest";
+          console.log(`    • bmad         → npx -y bmad-mcp-server@${versionSpec} --mcp`);
+        }
+      } else {
+        console.log(`  ${name} MCP config — no changes needed (already up to date)`);
+      }
     }
   } else {
-    console.log("  ~/.cursor/mcp.json — no changes needed (already up to date)");
+    console.log("  No IDEs selected for MCP configuration.");
   }
 
   console.log("");
 
-  if (claudeUpdated) {
-    console.log(`  ${claudeExisted ? "Updated" : "Created"} ~/.claude/CLAUDE.md`);
-    console.log(`    • Include → @${path.join(path.dirname(loreYamlPath), "CLAUDE.md")}`);
+  if (configureClaude) {
+    if (claudeUpdated) {
+      console.log(`  ${claudeExisted ? "Updated" : "Created"} ~/.claude/CLAUDE.md`);
+      console.log(`    • Include → @${path.join(path.dirname(loreYamlPath), "CLAUDE.md")}`);
+    } else {
+      console.log("  ~/.claude/CLAUDE.md — no changes needed (already up to date)");
+    }
   } else {
-    console.log("  ~/.claude/CLAUDE.md — no changes needed (already up to date)");
+    console.log("  Claude Code context includes skipped.");
   }
 
   const loreYamlDir = path.dirname(loreYamlPath);

@@ -8,11 +8,6 @@ vi.mock("../core/config-parser.js", () => ({
   parseLoreConfig: vi.fn(),
 }));
 
-vi.mock("../core/cursor-config.js", () => ({
-  readCursorConfig: vi.fn(),
-  writeCursorConfig: vi.fn(),
-}));
-
 vi.mock("../core/claude-config.js", () => ({
   appendClaudeMdInclude: vi.fn(),
 }));
@@ -35,6 +30,26 @@ vi.mock("../core/version-check.js", () => ({
   checkVersionCompatibility: vi.fn(),
 }));
 
+vi.mock("../core/ide-config.js", () => ({
+  IDE_PROFILES: [
+    { id: "cursor", name: "Cursor", configPath: (h: string) => `${h}/.cursor/mcp.json` },
+    {
+      id: "claude-desktop",
+      name: "Claude Desktop",
+      configPath: (h: string) => `${h}/.claude-desktop/config.json`,
+    },
+  ],
+  detectInstalledIdes: vi.fn(),
+  getProfileById: vi.fn(),
+  configureIdeMcp: vi.fn(),
+}));
+
+vi.mock("../utils/install-prompts.js", () => ({
+  createReadline: vi.fn(),
+  promptIdeSelection: vi.fn(),
+  promptClaudeInclude: vi.fn(),
+}));
+
 vi.mock("os", () => ({
   homedir: vi.fn(),
 }));
@@ -47,19 +62,18 @@ vi.mock("fs", () => ({
 import { installCommand } from "./install.js";
 import { findLoreYaml } from "../core/config-finder.js";
 import { parseLoreConfig, LoreConfig } from "../core/config-parser.js";
-import { readCursorConfig, writeCursorConfig } from "../core/cursor-config.js";
 import { appendClaudeMdInclude } from "../core/claude-config.js";
 import { installGitHooks } from "../core/git-hooks.js";
 import { analyzeAllRepos } from "../core/gitnexus.js";
 import { readInstallState, writeInstallState, clearInstallState } from "../core/state.js";
 import { checkVersionCompatibility } from "../core/version-check.js";
+import { detectInstalledIdes, getProfileById, configureIdeMcp } from "../core/ide-config.js";
+import { promptIdeSelection, promptClaudeInclude } from "../utils/install-prompts.js";
 import * as os from "os";
 import * as fs from "fs";
 
 const mockedFindLoreYaml = vi.mocked(findLoreYaml);
 const mockedParseLoreConfig = vi.mocked(parseLoreConfig);
-const mockedReadCursorConfig = vi.mocked(readCursorConfig);
-const mockedWriteCursorConfig = vi.mocked(writeCursorConfig);
 const mockedAppendClaudeMdInclude = vi.mocked(appendClaudeMdInclude);
 const mockedInstallGitHooks = vi.mocked(installGitHooks);
 const mockedAnalyzeAllRepos = vi.mocked(analyzeAllRepos);
@@ -67,6 +81,11 @@ const mockedWriteInstallState = vi.mocked(writeInstallState);
 const mockedReadInstallState = vi.mocked(readInstallState);
 const mockedClearInstallState = vi.mocked(clearInstallState);
 const mockedCheckVersionCompatibility = vi.mocked(checkVersionCompatibility);
+const mockedDetectInstalledIdes = vi.mocked(detectInstalledIdes);
+const mockedGetProfileById = vi.mocked(getProfileById);
+const mockedConfigureIdeMcp = vi.mocked(configureIdeMcp);
+const mockedPromptIdeSelection = vi.mocked(promptIdeSelection);
+const mockedPromptClaudeInclude = vi.mocked(promptClaudeInclude);
 const mockedHomedir = vi.mocked(os.homedir);
 const mockedExistsSync = vi.mocked(fs.existsSync);
 const mockedReadFileSync = vi.mocked(fs.readFileSync);
@@ -95,12 +114,26 @@ describe("installCommand", () => {
     mockedHomedir.mockReturnValue("/home/user");
     mockedFindLoreYaml.mockReturnValue("/projects/myapp/lore.yaml");
     mockedParseLoreConfig.mockReturnValue(baseConfig);
-    mockedWriteCursorConfig.mockImplementation(() => {});
     mockedAppendClaudeMdInclude.mockImplementation(() => {});
     mockedInstallGitHooks.mockReturnValue({ installed: [], skipped: [], errors: [] });
     mockedAnalyzeAllRepos.mockResolvedValue([]);
     mockedCheckVersionCompatibility.mockResolvedValue("1.0.0");
     mockedReadInstallState.mockReturnValue({});
+    mockedDetectInstalledIdes.mockReturnValue(["cursor"]);
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedPromptClaudeInclude.mockResolvedValue(true);
+    mockedGetProfileById.mockImplementation((id: string) => {
+      if (id === "cursor")
+        return { id: "cursor", name: "Cursor", configPath: (h: string) => `${h}/.cursor/mcp.json` };
+      if (id === "claude-desktop")
+        return {
+          id: "claude-desktop",
+          name: "Claude Desktop",
+          configPath: (h: string) => `${h}/.claude-desktop/config.json`,
+        };
+      return undefined;
+    });
+    mockedConfigureIdeMcp.mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -110,31 +143,31 @@ describe("installCommand", () => {
     exitSpy.mockRestore();
   });
 
-  it("prints summary when cursor and claude configs are updated", async () => {
+  it("prints summary when cursor config is updated", async () => {
     mockedExistsSync.mockImplementation((p) => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
     });
-    mockedReadCursorConfig.mockReturnValueOnce({ mcpServers: {} }).mockReturnValueOnce({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-      },
-    });
     mockedReadFileSync
       .mockReturnValueOnce("") // before
       .mockReturnValueOnce("@/projects/myapp/CLAUDE.md\n"); // after
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(true);
 
     await installCommand();
 
-    expect(mockedWriteCursorConfig).toHaveBeenCalledWith(baseConfig, "/home/user");
+    expect(mockedConfigureIdeMcp).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "cursor" }),
+      baseConfig,
+      "/home/user"
+    );
     expect(mockedAppendClaudeMdInclude).toHaveBeenCalledWith(
       "/projects/myapp/lore.yaml",
       "/home/user"
     );
 
     const logs = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
-    expect(logs).toContain("Created ~/.cursor/mcp.json");
+    expect(logs).toContain("Created Cursor MCP config");
     expect(logs).toContain("Updated ~/.claude/CLAUDE.md");
     expect(logs).toContain("lore-memory");
     expect(logs).toContain("gitnexus");
@@ -145,13 +178,9 @@ describe("installCommand", () => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
     });
-    mockedReadCursorConfig.mockReturnValue({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-      },
-    });
     mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(false);
     mockedInstallGitHooks.mockReturnValue({
       installed: [
         "/projects/myapp/.git/hooks/post-commit",
@@ -180,13 +209,9 @@ describe("installCommand", () => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
     });
-    mockedReadCursorConfig.mockReturnValue({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-      },
-    });
     mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(false);
 
     await installCommand();
 
@@ -201,13 +226,9 @@ describe("installCommand", () => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
     });
-    mockedReadCursorConfig.mockReturnValue({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-      },
-    });
     mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(false);
     mockedInstallGitHooks.mockReturnValue({
       installed: ["/projects/myapp/.git/hooks/post-commit"],
       skipped: [],
@@ -226,17 +247,17 @@ describe("installCommand", () => {
 
   it("prints 'no changes needed' when both configs are already up to date", async () => {
     mockedExistsSync.mockReturnValue(true);
-    mockedReadCursorConfig.mockReturnValue({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-      },
-    });
     mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(false);
 
     await installCommand();
 
-    expect(mockedWriteCursorConfig).toHaveBeenCalledWith(baseConfig, "/home/user");
+    expect(mockedConfigureIdeMcp).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "cursor" }),
+      baseConfig,
+      "/home/user"
+    );
     expect(mockedAppendClaudeMdInclude).toHaveBeenCalledWith(
       "/projects/myapp/lore.yaml",
       "/home/user"
@@ -260,16 +281,9 @@ describe("installCommand", () => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
     });
-    mockedReadCursorConfig.mockReturnValueOnce({ mcpServers: {} }).mockReturnValueOnce({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-        bmad: { command: "npx", args: ["-y", "bmad-mcp-server@^1.2.0", "--mcp"] },
-      },
-    });
-    mockedReadFileSync
-      .mockReturnValueOnce("") // before
-      .mockReturnValueOnce("@/projects/myapp/CLAUDE.md\n"); // after
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(true);
 
     await installCommand();
 
@@ -291,16 +305,9 @@ describe("installCommand", () => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
     });
-    mockedReadCursorConfig.mockReturnValueOnce({ mcpServers: {} }).mockReturnValueOnce({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-        bmad: { command: "npx", args: ["-y", "bmad-mcp-server@^1.2.0", "--mcp"] },
-      },
-    });
-    mockedReadFileSync
-      .mockReturnValueOnce("") // before
-      .mockReturnValueOnce("@/projects/myapp/CLAUDE.md\n"); // after
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(true);
 
     await installCommand();
 
@@ -327,10 +334,10 @@ describe("installCommand", () => {
     expect(consoleErrorSpy).toHaveBeenCalledWith("Error: Invalid YAML");
   });
 
-  it("exits with error when writeCursorConfig fails", async () => {
+  it("exits with error when configureIdeMcp fails", async () => {
     mockedExistsSync.mockReturnValue(false);
-    mockedReadCursorConfig.mockReturnValue({ mcpServers: {} });
-    mockedWriteCursorConfig.mockImplementation(() => {
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockImplementation(() => {
       throw new Error("Permission denied");
     });
 
@@ -343,15 +350,9 @@ describe("installCommand", () => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
     });
-    mockedReadCursorConfig.mockReturnValueOnce({ mcpServers: {} }).mockReturnValueOnce({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-      },
-    });
-    mockedReadFileSync
-      .mockReturnValueOnce("") // before
-      .mockReturnValueOnce("@/projects/myapp/CLAUDE.md\n"); // after
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(false);
     mockedAppendClaudeMdInclude.mockImplementation(() => {
       throw new Error("Disk full");
     });
@@ -365,13 +366,9 @@ describe("installCommand", () => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
     });
-    mockedReadCursorConfig.mockReturnValue({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-      },
-    });
     mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(false);
     mockedInstallGitHooks.mockReturnValue({
       installed: [
         "/projects/myapp/.git/hooks/post-commit",
@@ -409,13 +406,9 @@ describe("installCommand", () => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
     });
-    mockedReadCursorConfig.mockReturnValue({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-      },
-    });
     mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(false);
     mockedInstallGitHooks.mockReturnValue({
       installed: ["/projects/myapp/.git/hooks/post-commit"],
       skipped: [],
@@ -440,13 +433,9 @@ describe("installCommand", () => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
     });
-    mockedReadCursorConfig.mockReturnValue({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-      },
-    });
     mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(false);
     mockedInstallGitHooks.mockReturnValue({
       installed: [],
       skipped: [],
@@ -476,13 +465,9 @@ describe("installCommand", () => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
     });
-    mockedReadCursorConfig.mockReturnValue({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-      },
-    });
     mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(false);
     mockedReadInstallState.mockReturnValue({
       hooks_installed: {
         myapp: { post_commit: true, post_merge: true },
@@ -515,13 +500,9 @@ describe("installCommand", () => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
     });
-    mockedReadCursorConfig.mockReturnValue({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-      },
-    });
     mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(false);
     mockedInstallGitHooks.mockReturnValue({
       installed: [
         "/projects/myapp/.git/hooks/post-commit",
@@ -569,13 +550,9 @@ describe("installCommand", () => {
       if (p === "/home/user/.claude/CLAUDE.md") return true;
       return false;
     });
-    mockedReadCursorConfig.mockReturnValue({
-      mcpServers: {
-        "lore-memory": { url: "https://lore.test/mcp" },
-        gitnexus: { command: "npx", args: ["-y", "gitnexus", "--mcp"] },
-      },
-    });
     mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(false);
     mockedReadInstallState.mockReturnValue({
       hooks_installed: {
         backend: { post_commit: true, post_merge: true },
@@ -618,5 +595,62 @@ describe("installCommand", () => {
       backend: "2026-05-10T10:00:00.000Z",
       frontend: "2026-05-11T12:00:00.000Z",
     });
+  });
+
+  it("resolves --ide all to all profile IDs", async () => {
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedConfigureIdeMcp.mockReturnValue(false);
+
+    await installCommand({ ide: "all" });
+
+    expect(mockedPromptIdeSelection).not.toHaveBeenCalled();
+    expect(mockedConfigureIdeMcp).toHaveBeenCalledTimes(2); // cursor + claude-desktop from mock
+  });
+
+  it("resolves --ide detected to detected profiles", async () => {
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedDetectInstalledIdes.mockReturnValue(["cursor"]);
+    mockedConfigureIdeMcp.mockReturnValue(false);
+
+    await installCommand({ ide: "detected" });
+
+    expect(mockedPromptIdeSelection).not.toHaveBeenCalled();
+    expect(mockedConfigureIdeMcp).toHaveBeenCalledTimes(1);
+  });
+
+  it("resolves --ide csv to matching profile IDs", async () => {
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedConfigureIdeMcp.mockReturnValue(false);
+
+    await installCommand({ ide: "cursor,bogus-id" });
+
+    expect(mockedPromptIdeSelection).not.toHaveBeenCalled();
+    expect(mockedConfigureIdeMcp).toHaveBeenCalledTimes(1);
+  });
+
+  it("warns when no valid profiles match --ide", async () => {
+    mockedExistsSync.mockImplementation((p) => {
+      if (p === "/home/user/.claude/CLAUDE.md") return true;
+      return false;
+    });
+    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
+    mockedConfigureIdeMcp.mockReturnValue(false);
+
+    await installCommand({ ide: "bogus-id" });
+
+    const logs = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
+    expect(logs).toContain("No IDEs selected for MCP configuration");
   });
 });

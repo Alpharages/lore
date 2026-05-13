@@ -138,16 +138,23 @@ npx lore init
 
 Reads `lore.yaml` and configures the local machine:
 
-- Writes `~/.cursor/mcp.json` with `lore-memory`, `gitnexus`, and optionally
-  `bmad` MCP servers.
+- Interactively selects IDEs/agents via a checkbox-style multi-select TUI
+  (arrow keys to navigate, space to toggle, `a` for all, `i` to invert,
+  enter to confirm).
+- Writes MCP config for each selected target:
+  **Cursor**, **Claude Desktop**, **Claude Code**, **Google Antigravity**,
+  **Windsurf**, **Cline**, and **Continue**.
 - Appends an include to `~/.claude/CLAUDE.md`.
 - Installs git hooks (`post-commit`, `post-merge`) in declared repos.
 - Runs GitNexus analysis on repos that haven't been analyzed yet.
 - Records progress in `~/.lore/install-state.json` for idempotency.
 
 ```bash
-npx lore install          # normal run — skips already-done work
-npx lore install --force  # clear state and redo everything
+npx lore install                              # normal run — interactive picker
+npx lore install --force                      # clear state and redo everything
+npx lore install --ide cursor,claude-code     # non-interactive, specific targets
+npx lore install --ide all                    # configure every supported target
+npx lore install --ide detected               # configure only detected targets
 ```
 
 ### `lore inbox`
