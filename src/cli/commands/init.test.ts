@@ -38,6 +38,10 @@ vi.mock("../core/credentials.js", () => ({
   writeCredential: vi.fn(),
 }));
 
+vi.mock("../core/claude-config.js", () => ({
+  upsertLoreSection: vi.fn(),
+}));
+
 import { initCommand } from "./init.js";
 import * as fs from "fs";
 import {
@@ -51,6 +55,7 @@ import { generateLoreYaml } from "../generators/lore-yaml.js";
 import { generateClaudeMd } from "../generators/claude-md.js";
 import { generateConstitution } from "../generators/constitution.js";
 import { writeRepoIdentities } from "../generators/repo-identity.js";
+import { upsertLoreSection } from "../core/claude-config.js";
 
 const mockedExistsSync = vi.mocked(fs.existsSync);
 const mockedWriteFileSync = vi.mocked(fs.writeFileSync);
@@ -65,6 +70,7 @@ const mockedGenerateLoreYaml = vi.mocked(generateLoreYaml);
 const mockedGenerateClaudeMd = vi.mocked(generateClaudeMd);
 const mockedGenerateConstitution = vi.mocked(generateConstitution);
 const mockedWriteRepoIdentities = vi.mocked(writeRepoIdentities);
+const mockedUpsertLoreSection = vi.mocked(upsertLoreSection);
 
 describe("initCommand", () => {
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
@@ -147,10 +153,13 @@ describe("initCommand", () => {
       "lore:\n  version: 1.0.0\n",
       "utf-8"
     );
-    expect(mockedWriteFileSync).toHaveBeenCalledWith(
+    expect(mockedUpsertLoreSection).toHaveBeenCalledWith(
       expect.stringContaining("CLAUDE.md"),
-      "# CLAUDE.md\n",
-      "utf-8"
+      "# CLAUDE.md\n"
+    );
+    expect(mockedUpsertLoreSection).toHaveBeenCalledWith(
+      expect.stringContaining("AGENTS.md"),
+      "# CLAUDE.md\n"
     );
     expect(mockedMkdirSync).toHaveBeenCalledWith(expect.stringContaining("ops"), {
       recursive: true,
@@ -159,6 +168,8 @@ describe("initCommand", () => {
     const logs = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(logs).toContain("Project registered successfully");
     expect(logs).toContain("lore_test_abc123");
+    expect(logs).toContain("CLAUDE.md");
+    expect(logs).toContain("AGENTS.md");
   });
 
   it("exits when server is unreachable", async () => {

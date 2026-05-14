@@ -8,6 +8,7 @@ import {
 } from "../utils/init-prompts.js";
 import { checkHealth, registerProject } from "../api/register.js";
 import { writeCredential } from "../core/credentials.js";
+import { upsertLoreSection } from "../core/claude-config.js";
 import { generateLoreYaml } from "../generators/lore-yaml.js";
 import { generateClaudeMd } from "../generators/claude-md.js";
 import { generateConstitution } from "../generators/constitution.js";
@@ -70,7 +71,12 @@ export const initCommand = async (): Promise<void> => {
 
     writeCredential(answers.projectSlug, result.api_key);
     fs.writeFileSync(loreYamlPath, generateLoreYaml(answers), "utf-8");
-    fs.writeFileSync(path.join(cwd, "CLAUDE.md"), generateClaudeMd(answers), "utf-8");
+
+    const loreSectionContent = generateClaudeMd(answers);
+    const claudeMdPath = path.join(cwd, "CLAUDE.md");
+    const agentsMdPath = path.join(cwd, "AGENTS.md");
+    upsertLoreSection(claudeMdPath, loreSectionContent);
+    upsertLoreSection(agentsMdPath, loreSectionContent);
 
     const opsDir = path.join(cwd, "ops");
     fs.mkdirSync(opsDir, { recursive: true });
@@ -84,7 +90,8 @@ export const initCommand = async (): Promise<void> => {
     console.log(`    export LORE_API_KEY=${result.api_key}`);
     console.log("\n  Generated files:");
     console.log(`    ${loreYamlPath}`);
-    console.log(`    ${path.join(cwd, "CLAUDE.md")}`);
+    console.log(`    ${claudeMdPath}`);
+    console.log(`    ${agentsMdPath}`);
     console.log(`    ${path.join(cwd, "ops", "constitution.md")}`);
     for (const repo of answers.repos) {
       console.log(`    ${path.join(cwd, "repos", repo.slug, "REPO_IDENTITY.md")}`);
