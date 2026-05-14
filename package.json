@@ -1,6 +1,6 @@
 {
   "name": "lore-memory-mcp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Lore memory server — institutional memory layer for BMAD-driven development",
   "type": "module",
   "main": "dist/index.js",

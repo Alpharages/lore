@@ -26,14 +26,6 @@ vi.mock("../generators/claude-md.js", () => ({
   generateClaudeMd: vi.fn(),
 }));
 
-vi.mock("../generators/constitution.js", () => ({
-  generateConstitution: vi.fn(),
-}));
-
-vi.mock("../generators/repo-identity.js", () => ({
-  writeRepoIdentities: vi.fn(),
-}));
-
 vi.mock("../core/credentials.js", () => ({
   writeCredential: vi.fn(),
 }));
@@ -53,13 +45,10 @@ import {
 import { checkHealth, registerProject } from "../api/register.js";
 import { generateLoreYaml } from "../generators/lore-yaml.js";
 import { generateClaudeMd } from "../generators/claude-md.js";
-import { generateConstitution } from "../generators/constitution.js";
-import { writeRepoIdentities } from "../generators/repo-identity.js";
 import { upsertLoreSection } from "../core/claude-config.js";
 
 const mockedExistsSync = vi.mocked(fs.existsSync);
 const mockedWriteFileSync = vi.mocked(fs.writeFileSync);
-const mockedMkdirSync = vi.mocked(fs.mkdirSync);
 const mockedCreateReadline = vi.mocked(createReadline);
 const mockedRunWizard = vi.mocked(runWizard);
 const mockedPromptOverwrite = vi.mocked(promptOverwrite);
@@ -68,8 +57,6 @@ const mockedCheckHealth = vi.mocked(checkHealth);
 const mockedRegisterProject = vi.mocked(registerProject);
 const mockedGenerateLoreYaml = vi.mocked(generateLoreYaml);
 const mockedGenerateClaudeMd = vi.mocked(generateClaudeMd);
-const mockedGenerateConstitution = vi.mocked(generateConstitution);
-const mockedWriteRepoIdentities = vi.mocked(writeRepoIdentities);
 const mockedUpsertLoreSection = vi.mocked(upsertLoreSection);
 
 describe("initCommand", () => {
@@ -108,8 +95,6 @@ describe("initCommand", () => {
     });
     mockedGenerateLoreYaml.mockReturnValue("lore:\n  version: 1.0.0\n");
     mockedGenerateClaudeMd.mockReturnValue("# CLAUDE.md\n");
-    mockedGenerateConstitution.mockReturnValue("# Constitution\n");
-    mockedWriteRepoIdentities.mockReturnValue(["/cwd/repos/api/REPO_IDENTITY.md"]);
     mockedExistsSync.mockReturnValue(false);
   });
 
@@ -145,8 +130,6 @@ describe("initCommand", () => {
     });
     expect(mockedGenerateLoreYaml).toHaveBeenCalledWith(baseAnswers);
     expect(mockedGenerateClaudeMd).toHaveBeenCalledWith(baseAnswers);
-    expect(mockedGenerateConstitution).toHaveBeenCalledWith(baseAnswers);
-    expect(mockedWriteRepoIdentities).toHaveBeenCalledWith(baseAnswers, expect.any(String));
 
     expect(mockedWriteFileSync).toHaveBeenCalledWith(
       expect.stringContaining("lore.yaml"),
@@ -161,9 +144,6 @@ describe("initCommand", () => {
       expect.stringContaining("AGENTS.md"),
       "# CLAUDE.md\n"
     );
-    expect(mockedMkdirSync).toHaveBeenCalledWith(expect.stringContaining("ops"), {
-      recursive: true,
-    });
 
     const logs = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(logs).toContain("Project registered successfully");

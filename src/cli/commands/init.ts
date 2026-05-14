@@ -11,8 +11,6 @@ import { writeCredential } from "../core/credentials.js";
 import { upsertLoreSection } from "../core/claude-config.js";
 import { generateLoreYaml } from "../generators/lore-yaml.js";
 import { generateClaudeMd } from "../generators/claude-md.js";
-import { generateConstitution } from "../generators/constitution.js";
-import { writeRepoIdentities } from "../generators/repo-identity.js";
 
 export const initCommand = async (): Promise<void> => {
   const adminSecret = process.env.LORE_ADMIN_SECRET;
@@ -78,12 +76,6 @@ export const initCommand = async (): Promise<void> => {
     upsertLoreSection(claudeMdPath, loreSectionContent);
     upsertLoreSection(agentsMdPath, loreSectionContent);
 
-    const opsDir = path.join(cwd, "ops");
-    fs.mkdirSync(opsDir, { recursive: true });
-    fs.writeFileSync(path.join(opsDir, "constitution.md"), generateConstitution(answers), "utf-8");
-
-    writeRepoIdentities(answers, cwd);
-
     console.log("\n✓ Project registered successfully.");
     console.log(`\n  API Key: ${result.api_key}`);
     console.log("\n  Store it securely:");
@@ -92,10 +84,6 @@ export const initCommand = async (): Promise<void> => {
     console.log(`    ${loreYamlPath}`);
     console.log(`    ${claudeMdPath}`);
     console.log(`    ${agentsMdPath}`);
-    console.log(`    ${path.join(cwd, "ops", "constitution.md")}`);
-    for (const repo of answers.repos) {
-      console.log(`    ${path.join(cwd, "repos", repo.slug, "REPO_IDENTITY.md")}`);
-    }
   } catch (err: any) {
     rl.close();
     console.error(`Error: ${err.message}`);
