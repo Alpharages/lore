@@ -1,4 +1,4 @@
-import 'server-only';
+import "server-only";
 
 const apiUrl = process.env.NEXT_PUBLIC_LORE_API_URL;
 if (!apiUrl) {

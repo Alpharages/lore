@@ -113,6 +113,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      cookie:
+        specifier: ^1.1.1
+        version: 1.1.1
       lucide-react:
         specifier: ^0.511.0
         version: 0.511.0(react@19.2.6)
@@ -138,6 +141,9 @@ importers:
       "@tailwindcss/postcss":
         specifier: ^4.3.0
         version: 4.3.0
+      "@types/cookie":
+        specifier: ^1.0.0
+        version: 1.0.0
       "@types/node":
         specifier: ^22.15.3
         version: 22.19.17
@@ -1778,6 +1784,13 @@ packages:
         integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==,
       }
 
+  "@types/cookie@1.0.0":
+    resolution:
+      {
+        integrity: sha512-mGFXbkDQJ6kAXByHS7QAggRXgols0mAdP4MuXgloGY1tXokvzaFFM4SMqWvf7AH0oafI7zlFJwoGWzmhDqTZ9w==,
+      }
+    deprecated: This is a stub types definition. cookie provides its own type definitions, so you do not need this installed.
+
   "@types/cookiejar@2.1.5":
     resolution:
       {
@@ -2229,6 +2242,13 @@ packages:
         integrity: sha512-yki5XnKuf750l50uGTllt6kKILY4nQ1eNIQatoXEByZ5dWgnKqbnqmTrBE5B4N7lrMJKQ2ytWMiTO2o0v6Ew/w==,
       }
     engines: { node: ">= 0.6" }
+
+  cookie@1.1.1:
+    resolution:
+      {
+        integrity: sha512-ei8Aos7ja0weRpFzJnEA9UHJ/7XQmqglbRwnf2ATjcB9Wq874VKH9kfjjirM6UhU2/E5fFYadylyhFldcqSidQ==,
+      }
+    engines: { node: ">=18" }
 
   cookiejar@2.1.4:
     resolution:
@@ -5135,6 +5155,10 @@ snapshots:
       "@types/deep-eql": 4.0.2
       assertion-error: 2.0.1
 
+  "@types/cookie@1.0.0":
+    dependencies:
+      cookie: 1.1.1
+
   "@types/cookiejar@2.1.5": {}
 
   "@types/deep-eql@4.0.2": {}
@@ -5373,6 +5397,8 @@ snapshots:
   cookie-signature@1.2.2: {}
 
   cookie@0.7.2: {}
+
+  cookie@1.1.1: {}
 
   cookiejar@2.1.4: {}
 
