@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { login } from "@/lib/api";
 
 const LoginPage = () => {
   const router = useRouter();
@@ -18,20 +19,11 @@ const LoginPage = () => {
     const password = (form.elements.namedItem("password") as HTMLInputElement).value;
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-
-      if (res.ok) {
-        router.push("/lessons");
-      } else {
-        setError("Incorrect password.");
-        setLoading(false);
-      }
-    } catch {
-      setError("Network error. Please try again.");
+      await login(password);
+      router.push("/lessons");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      setError(msg === "Network error" ? "Network error. Please try again." : "Incorrect password.");
       setLoading(false);
     }
   };

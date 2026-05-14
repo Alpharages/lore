@@ -10,4 +10,6 @@ if (!webUiSecret) {
   throw new Error("WEB_UI_SECRET is required");
 }
 
+export const LORE_API_URL = apiUrl;
+
 export const config = { apiUrl, webUiSecret } as const;
