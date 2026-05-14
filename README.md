@@ -130,11 +130,11 @@ docker compose up -d
 pnpm run db:migrate
 
 # 6. Create your first project
-curl -X POST https://your-host/projects \
-  -H "Authorization: Bearer $ADMIN_SECRET" \
+curl -X POST https://your-host/api/projects/register \
+  -H "X-Admin-Secret: $ADMIN_SECRET" \
   -H "Content-Type: application/json" \
-  -d '{"name":"my-project","stackTags":["typescript","postgres"]}'
-# → returns { apiKey: "lore_..." }
+  -d '{"name":"my-project","slug":"my-project","stack_tags":["typescript","postgres"]}'
+# → returns { apiKey: "lore_my-project_..." }
 ```
 
 The MCP server is reachable at `https://your-host/mcp`. Use the returned API key
@@ -212,6 +212,39 @@ server in place.
 ```bash
 npx lore update
 ```
+
+---
+
+## Postman Collection
+
+A ready-to-import Postman collection is included at the root of this repo:
+[`lore-api.postman_collection.json`](lore-api.postman_collection.json)
+
+**Import:** Postman > File > Import > select the file.
+
+### Collection variables
+
+| Variable        | Description                                              |
+| --------------- | -------------------------------------------------------- |
+| `baseUrl`       | Base URL of the server — default `http://localhost:3000` |
+| `projectApiKey` | Project API key — format `lore_<slug>_<24chars>`         |
+| `adminSecret`   | Value of your `ADMIN_SECRET` environment variable        |
+| `projectSlug`   | Project slug used in path parameters                     |
+| `sessionId`     | UUID of an active session                                |
+| `lessonId`      | UUID of a lesson                                         |
+| `propagationId` | UUID of a pending propagation                            |
+
+### Folders
+
+| Folder           | Routes                                                                           | Auth             |
+| ---------------- | -------------------------------------------------------------------------------- | ---------------- |
+| Public           | `GET /health`                                                                    | None             |
+| Admin — Projects | `POST /api/projects/register`, `GET /api/projects`, `DELETE /api/projects/:slug` | `X-Admin-Secret` |
+| Admin — Metrics  | `GET /metrics`                                                                   | `X-Admin-Secret` |
+| Inbox            | `GET /api/projects/:slug/inbox`, accept/reject propagations                      | Bearer token     |
+| MCP Tools        | All 13 tool endpoints under `/mcp/tools/*`                                       | Bearer token     |
+| MCP Protocol     | `POST /mcp` — Streamable HTTP JSON-RPC entry point                               | Bearer token     |
+| Dev Only         | `GET /mcp/_test/lesson-count` (non-production only)                              | Bearer token     |
 
 ---
 
