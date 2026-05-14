@@ -17,6 +17,42 @@ compounds over time.
 
 ---
 
+## What's Coming in v2
+
+v2 introduces the **Lore Web UI** — a browser-based interface for searching,
+curating, and monitoring your team's institutional memory.
+
+All v1 epics (memory server, MCP tools, CLI, propagation engine) are complete
+and production-ready. The v2 Web UI is the next milestone.
+
+### Web UI
+
+A Next.js 15 application served alongside the existing Lore server. Designed
+for developers and project leads who want a visual window into the team's
+accumulated knowledge.
+
+| Feature                   | Description                                                                                                                                                                               |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Lesson search**         | Free-text semantic search over all captured lessons. Results appear as you type, debounced at 250ms. Filters by stack tag, severity, and category appear after results — never as a gate. |
+| **Lesson detail**         | Slide-over panel with four tabs: Fix, Context, Code (syntax-highlighted via shiki), and Provenance. Deep-linkable via URL.                                                                |
+| **Cmd+K palette**         | Global command palette accessible from any page. Search lessons in under 15 seconds without navigating away.                                                                              |
+| **Propagation inbox**     | Triage cross-project lesson suggestions with Accept / Reject buttons. Optimistic UI with a 5-second undo window.                                                                          |
+| **Dashboard**             | Stats cards and a memory growth trend chart showing lessons captured, sessions run, and propagations sent over time.                                                                      |
+| **Admin panel**           | Projects table with API key management — copy, revoke, and regenerate keys without touching the server.                                                                                   |
+| **Dark / Light / System** | Three-mode theme with no flash of unstyled content. Preference stored in `localStorage`.                                                                                                  |
+
+**Design system:** shadcn/ui + Tailwind CSS with an indigo/zinc palette.
+**Auth:** Single admin password via `WEB_UI_SECRET` env var. 7-day session cookie.
+**Deployment:** Ships as a Docker service added to the existing `docker-compose.yml`.
+
+Full planning artifacts are in [`planning-artifacts/`](planning-artifacts/):
+
+- [UX Design Specification](planning-artifacts/ux-design-specification.md)
+- [Web UI Epics and Stories](planning-artifacts/web-ui-epics.md)
+- [Web UI Technical Specification](planning-artifacts/web-ui-tech-spec.md)
+
+---
+
 ## How It Works
 
 1. **Capture** — BMAD code-review skills automatically push findings into Lore as lessons.

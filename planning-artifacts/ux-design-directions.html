@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lore — UX Design Directions</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, 'Inter', sans-serif; background: #09090b; color: #fafafa; font-size: 14px; }
+
+  /* Nav */
+  .top-nav { display: flex; gap: 8px; padding: 16px 24px; background: #18181b; border-bottom: 1px solid #27272a; align-items: center; flex-wrap: wrap; }
+  .top-nav h1 { color: #818cf8; font-size: 15px; font-weight: 600; margin-right: 16px; flex-shrink: 0; }
+  .dir-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid #3f3f46; background: transparent; color: #a1a1aa; cursor: pointer; font-size: 13px; transition: all 0.15s; }
+  .dir-btn:hover { border-color: #818cf8; color: #e4e4e7; }
+  .dir-btn.active { background: #4f46e5; border-color: #4f46e5; color: white; }
+  .screen-btn { padding: 6px 14px; border-radius: 6px; border: 1px solid #27272a; background: transparent; color: #71717a; cursor: pointer; font-size: 12px; transition: all 0.15s; }
+  .screen-btn:hover { color: #a1a1aa; border-color: #3f3f46; }
+  .screen-btn.active { background: #27272a; color: #e4e4e7; border-color: #3f3f46; }
+  .separator { width: 1px; height: 24px; background: #27272a; margin: 0 8px; }
+  .label { font-size: 11px; color: #52525b; text-transform: uppercase; letter-spacing: 0.08em; margin-right: 4px; }
+
+  /* Canvas */
+  .canvas { padding: 24px; min-height: calc(100vh - 57px); }
+  .direction { display: none; }
+  .direction.active { display: block; }
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* Browser chrome */
+  .browser { background: #18181b; border-radius: 10px; border: 1px solid #27272a; overflow: hidden; max-width: 1200px; margin: 0 auto; box-shadow: 0 25px 60px rgba(0,0,0,0.6); }
+  .browser-bar { background: #09090b; padding: 10px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #27272a; }
+  .browser-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .browser-url { flex: 1; background: #18181b; border: 1px solid #27272a; border-radius: 4px; padding: 3px 10px; font-size: 11px; color: #52525b; margin: 0 12px; }
+  .browser-content { display: flex; height: 680px; overflow: hidden; }
+
+  /* ── DIRECTION A: FOCUS ── */
+  /* Collapsed icon sidebar */
+  .da-sidebar { width: 52px; background: #09090b; border-right: 1px solid #27272a; display: flex; flex-direction: column; align-items: center; padding: 12px 0; gap: 4px; flex-shrink: 0; }
+  .da-logo { width: 32px; height: 32px; background: #4f46e5; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: white; margin-bottom: 8px; }
+  .da-nav-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #52525b; font-size: 16px; transition: all 0.15s; }
+  .da-nav-icon:hover { background: #27272a; color: #a1a1aa; }
+  .da-nav-icon.active { background: #1e1b4b; color: #818cf8; }
+  .da-spacer { flex: 1; }
+  .da-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .da-search-area { padding: 20px 24px 16px; border-bottom: 1px solid #27272a; }
+  .da-search-wrap { position: relative; }
+  .da-search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #52525b; font-size: 14px; }
+  .da-search { width: 100%; background: #09090b; border: 1px solid #3f3f46; border-radius: 8px; padding: 10px 12px 10px 36px; font-size: 15px; color: #e4e4e7; outline: none; }
+  .da-search:focus { border-color: #4f46e5; box-shadow: 0 0 0 3px rgba(79,70,229,0.15); }
+  .da-search::placeholder { color: #52525b; }
+  .da-filters { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+  .chip { padding: 3px 10px; border-radius: 100px; background: #27272a; color: #a1a1aa; font-size: 11px; cursor: pointer; border: 1px solid transparent; }
+  .chip:hover { border-color: #3f3f46; color: #e4e4e7; }
+  .chip.active { background: #1e1b4b; color: #818cf8; border-color: #3730a3; }
+  .da-results { flex: 1; overflow-y: auto; padding: 12px 24px; display: flex; flex-direction: column; gap: 8px; }
+  .da-results-header { font-size: 11px; color: #52525b; margin-bottom: 4px; display: flex; justify-content: space-between; }
+
+  /* Lesson card A */
+  .lcard { background: #09090b; border: 1px solid #27272a; border-radius: 8px; padding: 14px 16px; cursor: pointer; transition: all 0.15s; }
+  .lcard:hover { border-color: #3f3f46; background: #111111; }
+  .lcard.selected { border-color: #4f46e5; background: #0d0d1a; }
+  .lcard-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 6px; }
+  .sev { padding: 2px 8px; border-radius: 100px; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; flex-shrink: 0; margin-top: 1px; }
+  .sev-critical { background: rgba(239,68,68,0.15); color: #f87171; }
+  .sev-high { background: rgba(249,115,22,0.15); color: #fb923c; }
+  .sev-medium { background: rgba(234,179,8,0.15); color: #facc15; }
+  .sev-low { background: rgba(59,130,246,0.15); color: #60a5fa; }
+  .lcard-title { font-size: 13px; font-weight: 500; color: #e4e4e7; flex: 1; line-height: 1.4; }
+  .lcard-fix { font-size: 12px; color: #71717a; margin-bottom: 8px; line-height: 1.5; }
+  .lcard-fix span { color: #a1a1aa; }
+  .lcard-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .tag { padding: 2px 8px; border-radius: 4px; background: #27272a; color: #71717a; font-size: 10px; font-family: 'SF Mono', monospace; }
+  .prov { font-size: 10px; color: #52525b; display: flex; align-items: center; gap: 3px; }
+  .prov-dot { width: 6px; height: 6px; border-radius: 50%; background: #818cf8; }
+  .prov-dot-manual { background: #71717a; }
+  .prov-dot-prop { background: #34d399; }
+  .ocr { font-size: 10px; color: #52525b; margin-left: auto; }
+
+  /* Slide-over panel */
+  .da-panel { width: 420px; border-left: 1px solid #27272a; background: #09090b; display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden; }
+  .panel-header { padding: 16px 20px; border-bottom: 1px solid #27272a; display: flex; align-items: flex-start; gap: 10px; }
+  .panel-close { width: 24px; height: 24px; border-radius: 4px; background: #27272a; border: none; color: #71717a; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .panel-title { font-size: 14px; font-weight: 600; color: #f4f4f5; line-height: 1.4; flex: 1; }
+  .panel-tabs { display: flex; border-bottom: 1px solid #27272a; padding: 0 20px; }
+  .ptab { padding: 8px 14px; font-size: 12px; color: #71717a; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; }
+  .ptab.active { color: #818cf8; border-bottom-color: #818cf8; }
+  .panel-body { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 16px; }
+  .panel-section { }
+  .panel-section-label { font-size: 10px; font-weight: 600; color: #52525b; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 6px; }
+  .panel-section-text { font-size: 13px; color: #a1a1aa; line-height: 1.6; }
+  .code-block { background: #18181b; border: 1px solid #27272a; border-radius: 6px; padding: 12px; font-family: 'SF Mono', monospace; font-size: 11px; color: #86efac; line-height: 1.6; overflow-x: auto; }
+  .code-comment { color: #52525b; }
+  .code-keyword { color: #818cf8; }
+
+  /* ── DIRECTION B: COMMAND CENTER ── */
+  .db-sidebar { width: 220px; background: #09090b; border-right: 1px solid #27272a; display: flex; flex-direction: column; flex-shrink: 0; }
+  .db-logo-wrap { padding: 16px; border-bottom: 1px solid #27272a; display: flex; align-items: center; gap: 10px; }
+  .db-logo { width: 28px; height: 28px; background: #4f46e5; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; }
+  .db-logo-name { font-size: 14px; font-weight: 600; color: #e4e4e7; }
+  .db-logo-sub { font-size: 10px; color: #52525b; }
+  .db-nav { padding: 8px; flex: 1; }
+  .db-nav-section { font-size: 10px; color: #3f3f46; text-transform: uppercase; letter-spacing: 0.08em; padding: 8px 8px 4px; }
+  .db-nav-item { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 6px; cursor: pointer; color: #71717a; font-size: 13px; transition: all 0.12s; }
+  .db-nav-item:hover { background: #18181b; color: #a1a1aa; }
+  .db-nav-item.active { background: #1e1b4b; color: #818cf8; }
+  .db-nav-item .nav-icon { width: 16px; text-align: center; font-size: 14px; flex-shrink: 0; }
+  .db-nav-item .nav-badge { margin-left: auto; background: #4f46e5; color: white; font-size: 10px; padding: 1px 6px; border-radius: 100px; }
+  .db-footer { padding: 12px; border-top: 1px solid #27272a; }
+  .db-project { display: flex; align-items: center; gap: 8px; padding: 8px; border-radius: 6px; background: #18181b; cursor: pointer; }
+  .db-project-dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; flex-shrink: 0; }
+  .db-project-name { font-size: 12px; color: #a1a1aa; flex: 1; }
+  .db-project-arrow { color: #52525b; font-size: 10px; }
+
+  .db-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .db-topbar { padding: 12px 20px; border-bottom: 1px solid #27272a; display: flex; align-items: center; gap: 12px; }
+  .db-page-title { font-size: 14px; font-weight: 600; color: #e4e4e7; }
+  .db-search { flex: 1; background: #18181b; border: 1px solid #27272a; border-radius: 6px; padding: 7px 12px; font-size: 13px; color: #e4e4e7; outline: none; max-width: 480px; }
+  .db-search::placeholder { color: #3f3f46; }
+  .db-stats-bar { display: flex; gap: 1px; padding: 0 0 0 0; border-bottom: 1px solid #27272a; background: #27272a; }
+  .db-stat { flex: 1; background: #09090b; padding: 10px 20px; }
+  .db-stat-value { font-size: 20px; font-weight: 700; color: #818cf8; line-height: 1; }
+  .db-stat-label { font-size: 10px; color: #52525b; margin-top: 2px; }
+  .db-content { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 6px; }
+  .db-filter-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .db-filter-label { font-size: 11px; color: #52525b; }
+  .db-sort { background: #18181b; border: 1px solid #27272a; border-radius: 4px; padding: 4px 8px; font-size: 11px; color: #71717a; margin-left: auto; }
+
+  /* Lesson card B — denser */
+  .lcard-b { background: #18181b; border: 1px solid #27272a; border-radius: 6px; padding: 10px 14px; cursor: pointer; transition: all 0.12s; display: flex; align-items: flex-start; gap: 10px; }
+  .lcard-b:hover { border-color: #3f3f46; }
+  .lcard-b.selected { border-color: #4f46e5; }
+  .lcard-b-body { flex: 1; min-width: 0; }
+  .lcard-b-title { font-size: 13px; font-weight: 500; color: #e4e4e7; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lcard-b-fix { font-size: 11px; color: #71717a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
+  .lcard-b-tags { display: flex; gap: 4px; }
+  .lcard-b-meta { flex-shrink: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+  .occ-badge { font-size: 10px; color: #52525b; background: #27272a; padding: 2px 6px; border-radius: 4px; white-space: nowrap; }
+
+  /* ── DIRECTION C: EXPLORER (card grid, wider) ── */
+  .dc-layout { display: flex; height: 100%; }
+  .dc-sidebar { width: 200px; background: #0d0d14; border-right: 1px solid #1e1b4b; flex-shrink: 0; display: flex; flex-direction: column; }
+  .dc-logo-wrap { padding: 20px 16px 16px; }
+  .dc-logo-text { font-size: 18px; font-weight: 800; color: #818cf8; letter-spacing: -0.02em; }
+  .dc-logo-sub { font-size: 10px; color: #3730a3; margin-top: 1px; }
+  .dc-nav { padding: 8px; flex: 1; }
+  .dc-nav-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; cursor: pointer; color: #4338ca; font-size: 13px; margin-bottom: 2px; transition: all 0.12s; }
+  .dc-nav-item:hover { background: rgba(79,70,229,0.1); color: #818cf8; }
+  .dc-nav-item.active { background: rgba(79,70,229,0.15); color: #a5b4fc; }
+  .dc-nav-icon { font-size: 15px; width: 18px; text-align: center; }
+  .dc-nav-badge { margin-left: auto; background: rgba(79,70,229,0.3); color: #818cf8; font-size: 10px; padding: 1px 6px; border-radius: 100px; }
+  .dc-main { flex: 1; background: #09090b; display: flex; flex-direction: column; overflow: hidden; }
+  .dc-header { padding: 20px 24px 0; }
+  .dc-header-title { font-size: 20px; font-weight: 700; color: #f4f4f5; margin-bottom: 12px; letter-spacing: -0.02em; }
+  .dc-search-row { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
+  .dc-search { flex: 1; background: #18181b; border: 1px solid #27272a; border-radius: 10px; padding: 11px 16px; font-size: 14px; color: #e4e4e7; outline: none; }
+  .dc-search:focus { border-color: #4f46e5; }
+  .dc-search::placeholder { color: #3f3f46; }
+  .dc-filter-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .dc-chip { padding: 4px 12px; border-radius: 100px; background: #18181b; color: #71717a; font-size: 11px; cursor: pointer; border: 1px solid #27272a; transition: all 0.12s; }
+  .dc-chip:hover { border-color: #4f46e5; color: #818cf8; }
+  .dc-chip.active { background: rgba(79,70,229,0.15); color: #818cf8; border-color: #3730a3; }
+  .dc-grid { flex: 1; overflow-y: auto; padding: 0 24px 24px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; align-content: start; }
+  .dc-card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.15s; }
+  .dc-card:hover { border-color: #3730a3; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(79,70,229,0.1); }
+  .dc-card-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+  .dc-card-title { font-size: 13px; font-weight: 600; color: #e4e4e7; margin-bottom: 6px; line-height: 1.4; }
+  .dc-card-fix { font-size: 12px; color: #71717a; line-height: 1.5; margin-bottom: 10px; }
+  .dc-card-fix strong { color: #a1a1aa; }
+  .dc-card-bottom { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .dc-prov { display: flex; align-items: center; gap: 4px; font-size: 10px; color: #52525b; margin-left: auto; }
+  .dc-prov-icon { width: 14px; height: 14px; border-radius: 50%; background: #818cf8; display: flex; align-items: center; justify-content: center; font-size: 8px; color: white; }
+
+  /* Inbox screens */
+  .inbox-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 12px; color: #52525b; }
+  .inbox-empty-icon { font-size: 40px; }
+  .inbox-empty-title { font-size: 15px; font-weight: 500; color: #3f3f46; }
+  .inbox-empty-sub { font-size: 13px; }
+  .inbox-list { padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; flex: 1; }
+  .inbox-item { background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 14px 16px; transition: all 0.12s; }
+  .inbox-item:hover { border-color: #3f3f46; }
+  .inbox-item-top { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 8px; }
+  .inbox-item-title { font-size: 13px; font-weight: 500; color: #e4e4e7; flex: 1; }
+  .inbox-item-why { font-size: 12px; color: #71717a; margin-bottom: 10px; line-height: 1.5; }
+  .inbox-item-why strong { color: #818cf8; }
+  .inbox-item-actions { display: flex; gap: 8px; align-items: center; }
+  .btn-accept { background: #1e4d2e; color: #4ade80; border: 1px solid #166534; border-radius: 6px; padding: 5px 14px; font-size: 12px; cursor: pointer; }
+  .btn-reject { background: #27272a; color: #71717a; border: 1px solid #3f3f46; border-radius: 6px; padding: 5px 14px; font-size: 12px; cursor: pointer; }
+  .inbox-kbd { font-size: 10px; color: #3f3f46; margin-left: auto; }
+  kbd { background: #27272a; border: 1px solid #3f3f46; border-radius: 3px; padding: 1px 5px; font-size: 10px; font-family: monospace; color: #71717a; }
+
+  /* Dashboard */
+  .dash-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; padding: 16px 20px; overflow-y: auto; flex: 1; align-content: start; }
+  .dash-card { background: #18181b; border: 1px solid #27272a; border-radius: 8px; padding: 16px; }
+  .dash-card-label { font-size: 11px; color: #52525b; margin-bottom: 8px; }
+  .dash-card-value { font-size: 28px; font-weight: 700; color: #818cf8; line-height: 1; margin-bottom: 4px; }
+  .dash-card-sub { font-size: 11px; color: #71717a; }
+  .dash-card-wide { grid-column: span 2; }
+  .dash-chart { height: 60px; display: flex; align-items: flex-end; gap: 4px; margin-top: 10px; }
+  .dash-bar { flex: 1; background: #1e1b4b; border-radius: 3px; min-height: 4px; transition: all 0.3s; }
+  .dash-bar:hover { background: #4f46e5; }
+  .dash-recent { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+  .dash-recent-item { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+  .dash-recent-title { color: #a1a1aa; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dash-recent-time { color: #52525b; white-space: nowrap; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+
+  .description-bar { max-width: 1200px; margin: 0 auto 16px; padding: 12px 16px; background: #18181b; border: 1px solid #27272a; border-radius: 8px; font-size: 12px; color: #71717a; line-height: 1.5; }
+  .description-bar strong { color: #a1a1aa; }
+</style>
+</head>
+<body>
+
+<div class="top-nav">
+  <h1>Lore — Design Directions</h1>
+  <span class="label">Direction</span>
+  <button class="dir-btn active" onclick="setDir('a')">A — Focus</button>
+  <button class="dir-btn" onclick="setDir('b')">B — Command</button>
+  <button class="dir-btn" onclick="setDir('c')">C — Explorer</button>
+  <div class="separator"></div>
+  <span class="label">Screen</span>
+  <button class="screen-btn active" onclick="setScreen('lessons')">Lessons</button>
+  <button class="screen-btn" onclick="setScreen('inbox')">Inbox</button>
+  <button class="screen-btn" onclick="setScreen('dashboard')">Dashboard</button>
+</div>
+
+<div class="canvas">
+
+  <!-- ═══════════════════════════════════════════════
+       DIRECTION A — FOCUS
+  ═══════════════════════════════════════════════ -->
+  <div class="direction active" id="dir-a">
+
+    <!-- A: Lessons -->
+    <div class="screen active" id="a-lessons">
+      <div class="description-bar"><strong>Direction A — Focus:</strong> Icon-only sidebar keeps chrome minimal. Search is the hero element — large, centered, immediately accessible. Slide-over panel preserves list context. Ideal for developers who come in, search, and leave.</div>
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dot" style="background:#ff5f57"></div>
+          <div class="browser-dot" style="background:#febc2e;margin-left:6px"></div>
+          <div class="browser-dot" style="background:#28c840;margin-left:6px"></div>
+          <div class="browser-url">lore.yourteam.com/lessons?q=prisma+migration</div>
+        </div>
+        <div class="browser-content">
+          <!-- Sidebar: icons only -->
+          <div class="da-sidebar">
+            <div class="da-logo">L</div>
+            <div class="da-nav-icon active" title="Lessons">📖</div>
+            <div class="da-nav-icon" title="Inbox">📥</div>
+            <div class="da-nav-icon" title="Dashboard">📊</div>
+            <div class="da-spacer"></div>
+            <div class="da-nav-icon" title="Admin">⚙️</div>
+            <div class="da-nav-icon" title="Theme">🌙</div>
+          </div>
+          <!-- Main -->
+          <div class="da-main">
+            <div class="da-search-area">
+              <div class="da-search-wrap">
+                <span class="da-search-icon">🔍</span>
+                <input class="da-search" value="prisma migration" placeholder="Search lessons...">
+              </div>
+              <div class="da-filters">
+                <span class="chip active">typescript</span>
+                <span class="chip">prisma</span>
+                <span class="chip">drizzle</span>
+                <span class="chip">postgres</span>
+                <span class="chip">nextjs</span>
+                <span class="chip" style="margin-left:auto;color:#52525b">⌘K</span>
+              </div>
+            </div>
+            <div class="da-results">
+              <div class="da-results-header"><span>12 lessons · sorted by relevance</span><span>Severity ▾</span></div>
+              <div class="lcard selected">
+                <div class="lcard-top">
+                  <span class="sev sev-critical">critical</span>
+                  <span class="lcard-title">Prisma migrate dev resets shadow DB causing data loss in CI</span>
+                </div>
+                <div class="lcard-fix"><span>Fix:</span> Use <code style="background:#1e1e2e;padding:1px 5px;border-radius:3px;font-size:11px">prisma migrate deploy</code> in CI/CD pipelines instead of <code style="background:#1e1e2e;padding:1px 5px;border-radius:3px;font-size:11px">migrate dev</code> — deploy never resets and is safe for non-interactive environments.</div>
+                <div class="lcard-meta">
+                  <span class="tag">typescript</span>
+                  <span class="tag">prisma</span>
+                  <span class="tag">ci</span>
+                  <span class="prov"><span class="prov-dot"></span>From review</span>
+                  <span class="ocr">4 occurrences</span>
+                </div>
+              </div>
+              <div class="lcard">
+                <div class="lcard-top">
+                  <span class="sev sev-high">high</span>
+                  <span class="lcard-title">Missing await on Prisma transaction causes silent failure</span>
+                </div>
+                <div class="lcard-fix"><span>Fix:</span> Always await <code style="background:#1e1e2e;padding:1px 5px;border-radius:3px;font-size:11px">prisma.$transaction()</code> — unawaited transactions silently succeed in dev but fail under load in production.</div>
+                <div class="lcard-meta">
+                  <span class="tag">typescript</span>
+                  <span class="tag">prisma</span>
+                  <span class="prov"><span class="prov-dot"></span>From review</span>
+                  <span class="ocr">2 occurrences</span>
+                </div>
+              </div>
+              <div class="lcard">
+                <div class="lcard-top">
+                  <span class="sev sev-medium">medium</span>
+                  <span class="lcard-title">Prisma relation fields not included by default in select</span>
+                </div>
+                <div class="lcard-fix"><span>Fix:</span> Explicitly include relation fields in every <code style="background:#1e1e2e;padding:1px 5px;border-radius:3px;font-size:11px">findMany</code> / <code style="background:#1e1e2e;padding:1px 5px;border-radius:3px;font-size:11px">findUnique</code> with <code style="background:#1e1e2e;padding:1px 5px;border-radius:3px;font-size:11px">include: {}</code>.</div>
+                <div class="lcard-meta">
+                  <span class="tag">typescript</span>
+                  <span class="tag">prisma</span>
+                  <span class="prov"><span class="prov-dot prov-dot-manual"></span>Manual</span>
+                  <span class="ocr">1 occurrence</span>
+                </div>
+              </div>
+              <div class="lcard">
+                <div class="lcard-top">
+                  <span class="sev sev-low">low</span>
+                  <span class="lcard-title">Drizzle ORM migration naming collisions in monorepo</span>
+                </div>
+                <div class="lcard-fix"><span>Fix:</span> Prefix migration filenames with the package name to avoid collisions when multiple packages share a migration folder.</div>
+                <div class="lcard-meta">
+                  <span class="tag">drizzle</span>
+                  <span class="tag">monorepo</span>
+                  <span class="prov"><span class="prov-dot prov-dot-prop"></span>Propagated</span>
+                  <span class="ocr">3 occurrences</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Slide-over panel -->
+          <div class="da-panel">
+            <div class="panel-header">
+              <button class="panel-close">✕</button>
+              <div>
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span class="sev sev-critical">critical</span></div>
+                <div class="panel-title">Prisma migrate dev resets shadow DB causing data loss in CI</div>
+              </div>
+            </div>
+            <div class="panel-tabs">
+              <div class="ptab active">Fix</div>
+              <div class="ptab">Context</div>
+              <div class="ptab">Code</div>
+              <div class="ptab">Provenance</div>
+            </div>
+            <div class="panel-body">
+              <div class="panel-section">
+                <div class="panel-section-label">Prevention Rule</div>
+                <div class="panel-section-text">Never run <code style="background:#27272a;padding:1px 5px;border-radius:3px;font-size:11px">prisma migrate dev</code> in CI/CD environments. Reserve it for local development only. Use <code style="background:#27272a;padding:1px 5px;border-radius:3px;font-size:11px">prisma migrate deploy</code> in all automated pipelines.</div>
+              </div>
+              <div class="panel-section">
+                <div class="panel-section-label">Fix</div>
+                <div class="panel-section-text">Replace <code style="background:#27272a;padding:1px 5px;border-radius:3px;font-size:11px">migrate dev</code> with <code style="background:#27272a;padding:1px 5px;border-radius:3px;font-size:11px">migrate deploy</code> in your CI workflow file. The deploy command applies pending migrations without resetting the shadow database or generating new migrations.</div>
+              </div>
+              <div class="code-block"><span class="code-comment"># .github/workflows/deploy.yml</span>
+<span class="code-keyword">-</span> npx prisma migrate dev    <span class="code-comment"># ❌ resets shadow DB</span>
+<span class="code-keyword">+</span> npx prisma migrate deploy  <span class="code-comment"># ✅ safe for CI</span></div>
+              <div class="panel-section">
+                <div class="panel-section-label">Stack Tags</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap"><span class="tag" style="font-size:11px">typescript</span><span class="tag" style="font-size:11px">prisma</span><span class="tag" style="font-size:11px">ci</span><span class="tag" style="font-size:11px">postgres</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A: Inbox -->
+    <div class="screen" id="a-inbox">
+      <div class="description-bar"><strong>Direction A — Inbox:</strong> Feed view with inline accept/reject. Keyboard shortcut hints visible. Empty state celebrates completion.</div>
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dot" style="background:#ff5f57"></div>
+          <div class="browser-dot" style="background:#febc2e;margin-left:6px"></div>
+          <div class="browser-dot" style="background:#28c840;margin-left:6px"></div>
+          <div class="browser-url">lore.yourteam.com/inbox</div>
+        </div>
+        <div class="browser-content">
+          <div class="da-sidebar">
+            <div class="da-logo">L</div>
+            <div class="da-nav-icon" title="Lessons">📖</div>
+            <div class="da-nav-icon active" title="Inbox" style="position:relative">📥<span style="position:absolute;top:4px;right:4px;width:8px;height:8px;background:#4f46e5;border-radius:50%;"></span></div>
+            <div class="da-nav-icon" title="Dashboard">📊</div>
+            <div class="da-spacer"></div>
+            <div class="da-nav-icon" title="Admin">⚙️</div>
+          </div>
+          <div class="da-main">
+            <div style="padding:16px 24px;border-bottom:1px solid #27272a;display:flex;align-items:center;gap:12px;">
+              <span style="font-size:14px;font-weight:600;color:#e4e4e7">Inbox</span>
+              <span style="background:#4f46e5;color:white;font-size:10px;padding:2px 8px;border-radius:100px">3 pending</span>
+              <span style="margin-left:auto;font-size:11px;color:#52525b">Navigate <kbd>J</kbd><kbd>K</kbd> · Accept <kbd>A</kbd> · Reject <kbd>R</kbd></span>
+            </div>
+            <div class="inbox-list">
+              <div class="inbox-item" style="border-color:#4f46e5">
+                <div class="inbox-item-top">
+                  <span class="sev sev-critical">critical</span>
+                  <span class="inbox-item-title">React useEffect cleanup missing on async operations</span>
+                </div>
+                <div class="inbox-item-why">Suggested because your project shares <strong>typescript, react</strong> with alpharages/staffedup · <strong>5 occurrences</strong> there · trust: high (from code review)</div>
+                <div class="inbox-item-actions">
+                  <button class="btn-accept">✓ Accept</button>
+                  <button class="btn-reject">✕ Reject</button>
+                  <span class="inbox-kbd"><kbd>A</kbd> accept · <kbd>R</kbd> reject</span>
+                </div>
+              </div>
+              <div class="inbox-item">
+                <div class="inbox-item-top">
+                  <span class="sev sev-high">high</span>
+                  <span class="inbox-item-title">Fastify reply.send() after async error swallows error in logs</span>
+                </div>
+                <div class="inbox-item-why">Suggested because your project shares <strong>typescript, fastify</strong> with alpharages/api-gateway · <strong>2 occurrences</strong> there</div>
+                <div class="inbox-item-actions">
+                  <button class="btn-accept">✓ Accept</button>
+                  <button class="btn-reject">✕ Reject</button>
+                </div>
+              </div>
+              <div class="inbox-item">
+                <div class="inbox-item-top">
+                  <span class="sev sev-medium">medium</span>
+                  <span class="inbox-item-title">Drizzle ORM migration naming collisions in monorepo</span>
+                </div>
+                <div class="inbox-item-why">Suggested because your project shares <strong>drizzle, postgres</strong> with alpharages/lore · <strong>3 occurrences</strong> there</div>
+                <div class="inbox-item-actions">
+                  <button class="btn-accept">✓ Accept</button>
+                  <button class="btn-reject">✕ Reject</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A: Dashboard -->
+    <div class="screen" id="a-dashboard">
+      <div class="description-bar"><strong>Direction A — Dashboard:</strong> Compact stats grid shows compounding value at a glance. Recent activity feed surfaces automated captures. Minimal chrome keeps focus on the data.</div>
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dot" style="background:#ff5f57"></div>
+          <div class="browser-dot" style="background:#febc2e;margin-left:6px"></div>
+          <div class="browser-dot" style="background:#28c840;margin-left:6px"></div>
+          <div class="browser-url">lore.yourteam.com/dashboard</div>
+        </div>
+        <div class="browser-content">
+          <div class="da-sidebar">
+            <div class="da-logo">L</div>
+            <div class="da-nav-icon" title="Lessons">📖</div>
+            <div class="da-nav-icon" title="Inbox">📥</div>
+            <div class="da-nav-icon active" title="Dashboard">📊</div>
+            <div class="da-spacer"></div>
+            <div class="da-nav-icon" title="Admin">⚙️</div>
+          </div>
+          <div class="da-main" style="overflow-y:auto">
+            <div style="padding:16px 24px 12px;border-bottom:1px solid #27272a"><span style="font-size:14px;font-weight:600;color:#e4e4e7">Dashboard</span><span style="font-size:11px;color:#52525b;margin-left:12px">lore · last 30 days</span></div>
+            <div class="dash-grid">
+              <div class="dash-card">
+                <div class="dash-card-label">Total Lessons</div>
+                <div class="dash-card-value">247</div>
+                <div class="dash-card-sub">+18 this month</div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-label">Sessions Run</div>
+                <div class="dash-card-value">84</div>
+                <div class="dash-card-sub">across 4 developers</div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-label">Reviews Captured</div>
+                <div class="dash-card-value">31</div>
+                <div class="dash-card-sub">auto from code review</div>
+              </div>
+              <div class="dash-card dash-card-wide">
+                <div class="dash-card-label">Lessons Captured — Last 30 Days</div>
+                <div class="dash-chart">
+                  <div class="dash-bar" style="height:20%"></div>
+                  <div class="dash-bar" style="height:35%"></div>
+                  <div class="dash-bar" style="height:25%"></div>
+                  <div class="dash-bar" style="height:60%"></div>
+                  <div class="dash-bar" style="height:45%"></div>
+                  <div class="dash-bar" style="height:80%"></div>
+                  <div class="dash-bar" style="height:55%"></div>
+                  <div class="dash-bar" style="height:70%"></div>
+                  <div class="dash-bar" style="height:90%"></div>
+                  <div class="dash-bar" style="height:65%"></div>
+                  <div class="dash-bar" style="height:100%"></div>
+                  <div class="dash-bar" style="height:75%;background:#4f46e5"></div>
+                </div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-label">Propagations Accepted</div>
+                <div class="dash-card-value">12</div>
+                <div class="dash-card-sub">from 2 sister projects</div>
+              </div>
+              <div class="dash-card dash-card-wide">
+                <div class="dash-card-label">Recent Captures</div>
+                <div class="dash-recent">
+                  <div class="dash-recent-item"><span class="prov-dot" style="width:6px;height:6px;border-radius:50%;background:#818cf8;display:inline-block;flex-shrink:0"></span><span class="dash-recent-title">Prisma migrate dev resets shadow DB in CI</span><span class="dash-recent-time">2h ago</span></div>
+                  <div class="dash-recent-item"><span class="prov-dot" style="width:6px;height:6px;border-radius:50%;background:#818cf8;display:inline-block;flex-shrink:0"></span><span class="dash-recent-title">Missing await on async Fastify plugin registration</span><span class="dash-recent-time">5h ago</span></div>
+                  <div class="dash-recent-item"><span class="prov-dot" style="width:6px;height:6px;border-radius:50%;background:#34d399;display:inline-block;flex-shrink:0"></span><span class="dash-recent-title">React useEffect cleanup on async ops (propagated)</span><span class="dash-recent-time">1d ago</span></div>
+                  <div class="dash-recent-item"><span class="prov-dot" style="width:6px;height:6px;border-radius:50%;background:#71717a;display:inline-block;flex-shrink:0"></span><span class="dash-recent-title">Drizzle ORM migration naming in monorepo</span><span class="dash-recent-time">2d ago</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       DIRECTION B — COMMAND CENTER
+  ═══════════════════════════════════════════════ -->
+  <div class="direction" id="dir-b">
+
+    <!-- B: Lessons -->
+    <div class="screen active" id="b-lessons">
+      <div class="description-bar"><strong>Direction B — Command:</strong> Full-label sidebar with project context. Stats bar gives instant project health. Denser lesson list optimized for power users who triage many results. Search inline in the top bar.</div>
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dot" style="background:#ff5f57"></div>
+          <div class="browser-dot" style="background:#febc2e;margin-left:6px"></div>
+          <div class="browser-dot" style="background:#28c840;margin-left:6px"></div>
+          <div class="browser-url">lore.yourteam.com/lessons</div>
+        </div>
+        <div class="browser-content">
+          <div class="db-sidebar">
+            <div class="db-logo-wrap">
+              <div class="db-logo">L</div>
+              <div><div class="db-logo-name">Lore</div><div class="db-logo-sub">alpharages / lore</div></div>
+            </div>
+            <div class="db-nav">
+              <div class="db-nav-section">Memory</div>
+              <div class="db-nav-item active"><span class="nav-icon">📖</span>Lessons</div>
+              <div class="db-nav-item"><span class="nav-icon">🔷</span>Patterns</div>
+              <div class="db-nav-section">Workflow</div>
+              <div class="db-nav-item"><span class="nav-icon">📥</span>Inbox <span class="nav-badge">3</span></div>
+              <div class="db-nav-item"><span class="nav-icon">🔗</span>Sessions</div>
+              <div class="db-nav-section">Project</div>
+              <div class="db-nav-item"><span class="nav-icon">📊</span>Dashboard</div>
+              <div class="db-nav-item"><span class="nav-icon">⚙️</span>Admin</div>
+            </div>
+            <div class="db-footer">
+              <div class="db-project">
+                <div class="db-project-dot"></div>
+                <div class="db-project-name">lore · v1.0.0</div>
+                <div class="db-project-arrow">▾</div>
+              </div>
+            </div>
+          </div>
+          <div class="db-main">
+            <div class="db-topbar">
+              <span class="db-page-title">Lessons</span>
+              <input class="db-search" placeholder="Search lessons... (⌘K)" value="prisma migration">
+            </div>
+            <div class="db-stats-bar">
+              <div class="db-stat"><div class="db-stat-value">247</div><div class="db-stat-label">Total lessons</div></div>
+              <div class="db-stat"><div class="db-stat-value" style="color:#fb923c">18</div><div class="db-stat-label">High / Critical</div></div>
+              <div class="db-stat"><div class="db-stat-value" style="color:#4ade80">12</div><div class="db-stat-label">Propagated in</div></div>
+              <div class="db-stat"><div class="db-stat-value" style="color:#60a5fa">84</div><div class="db-stat-label">Sessions this month</div></div>
+            </div>
+            <div class="db-content">
+              <div class="db-filter-row">
+                <span class="db-filter-label">Filter:</span>
+                <span class="chip active">typescript</span>
+                <span class="chip">prisma</span>
+                <span class="chip sev-critical" style="background:rgba(239,68,68,0.1);color:#f87171;border:none">critical</span>
+                <span class="chip sev-high" style="background:rgba(249,115,22,0.1);color:#fb923c;border:none">high</span>
+                <div class="db-sort">Sort: Relevance ▾</div>
+              </div>
+              <div class="lcard-b selected">
+                <span class="sev sev-critical" style="margin-top:2px">crit</span>
+                <div class="lcard-b-body">
+                  <div class="lcard-b-title">Prisma migrate dev resets shadow DB causing data loss in CI</div>
+                  <div class="lcard-b-fix">Fix: Use migrate deploy in CI/CD — never migrate dev in automated pipelines</div>
+                  <div class="lcard-b-tags"><span class="tag">typescript</span><span class="tag">prisma</span><span class="tag">ci</span></div>
+                </div>
+                <div class="lcard-b-meta">
+                  <span class="prov" style="font-size:10px"><span class="prov-dot"></span>Review</span>
+                  <span class="occ-badge">4×</span>
+                </div>
+              </div>
+              <div class="lcard-b">
+                <span class="sev sev-high" style="margin-top:2px">high</span>
+                <div class="lcard-b-body">
+                  <div class="lcard-b-title">Missing await on Prisma transaction causes silent failure in production</div>
+                  <div class="lcard-b-fix">Fix: Always await prisma.$transaction() — unawaited transactions fail silently under load</div>
+                  <div class="lcard-b-tags"><span class="tag">typescript</span><span class="tag">prisma</span></div>
+                </div>
+                <div class="lcard-b-meta">
+                  <span class="prov" style="font-size:10px"><span class="prov-dot"></span>Review</span>
+                  <span class="occ-badge">2×</span>
+                </div>
+              </div>
+              <div class="lcard-b">
+                <span class="sev sev-medium" style="margin-top:2px">med</span>
+                <div class="lcard-b-body">
+                  <div class="lcard-b-title">Prisma relation fields not included by default in select queries</div>
+                  <div class="lcard-b-fix">Fix: Explicitly include relation fields in every findMany / findUnique with include: {}</div>
+                  <div class="lcard-b-tags"><span class="tag">typescript</span><span class="tag">prisma</span></div>
+                </div>
+                <div class="lcard-b-meta">
+                  <span class="prov" style="font-size:10px"><span class="prov-dot prov-dot-manual"></span>Manual</span>
+                  <span class="occ-badge">1×</span>
+                </div>
+              </div>
+              <div class="lcard-b">
+                <span class="sev sev-low" style="margin-top:2px">low</span>
+                <div class="lcard-b-body">
+                  <div class="lcard-b-title">Drizzle ORM migration naming collisions in monorepo</div>
+                  <div class="lcard-b-fix">Fix: Prefix migration filenames with the package name to avoid collisions</div>
+                  <div class="lcard-b-tags"><span class="tag">drizzle</span><span class="tag">monorepo</span></div>
+                </div>
+                <div class="lcard-b-meta">
+                  <span class="prov" style="font-size:10px"><span class="prov-dot prov-dot-prop"></span>Prop</span>
+                  <span class="occ-badge">3×</span>
+                </div>
+              </div>
+              <div class="lcard-b">
+                <span class="sev sev-medium" style="margin-top:2px">med</span>
+                <div class="lcard-b-body">
+                  <div class="lcard-b-title">Postgres connection pool exhausted under high concurrency</div>
+                  <div class="lcard-b-fix">Fix: Set max pool size to match DATABASE_MAX_CONNECTIONS env var, default 10</div>
+                  <div class="lcard-b-tags"><span class="tag">postgres</span><span class="tag">performance</span></div>
+                </div>
+                <div class="lcard-b-meta">
+                  <span class="prov" style="font-size:10px"><span class="prov-dot"></span>Review</span>
+                  <span class="occ-badge">2×</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B: Inbox -->
+    <div class="screen" id="b-inbox">
+      <div class="description-bar"><strong>Direction B — Inbox:</strong> Same feed model but with the command sidebar for context. Stats bar shows propagation health at a glance.</div>
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dot" style="background:#ff5f57"></div>
+          <div class="browser-dot" style="background:#febc2e;margin-left:6px"></div>
+          <div class="browser-dot" style="background:#28c840;margin-left:6px"></div>
+          <div class="browser-url">lore.yourteam.com/inbox</div>
+        </div>
+        <div class="browser-content">
+          <div class="db-sidebar">
+            <div class="db-logo-wrap">
+              <div class="db-logo">L</div>
+              <div><div class="db-logo-name">Lore</div><div class="db-logo-sub">alpharages / lore</div></div>
+            </div>
+            <div class="db-nav">
+              <div class="db-nav-item"><span class="nav-icon">📖</span>Lessons</div>
+              <div class="db-nav-item active"><span class="nav-icon">📥</span>Inbox <span class="nav-badge">3</span></div>
+              <div class="db-nav-item"><span class="nav-icon">📊</span>Dashboard</div>
+              <div class="db-nav-item"><span class="nav-icon">⚙️</span>Admin</div>
+            </div>
+            <div class="db-footer">
+              <div class="db-project">
+                <div class="db-project-dot"></div>
+                <div class="db-project-name">lore · v1.0.0</div>
+                <div class="db-project-arrow">▾</div>
+              </div>
+            </div>
+          </div>
+          <div class="db-main">
+            <div class="db-topbar">
+              <span class="db-page-title">Inbox</span>
+              <span style="font-size:11px;color:#52525b;margin-left:auto">3 pending · <kbd>A</kbd> accept · <kbd>R</kbd> reject · <kbd>J/K</kbd> navigate</span>
+            </div>
+            <div class="db-stats-bar">
+              <div class="db-stat"><div class="db-stat-value">3</div><div class="db-stat-label">Pending</div></div>
+              <div class="db-stat"><div class="db-stat-value" style="color:#4ade80">12</div><div class="db-stat-label">Accepted (30d)</div></div>
+              <div class="db-stat"><div class="db-stat-value" style="color:#71717a">4</div><div class="db-stat-label">Rejected (30d)</div></div>
+              <div class="db-stat"><div class="db-stat-value" style="color:#60a5fa">2</div><div class="db-stat-label">Source projects</div></div>
+            </div>
+            <div class="inbox-list" style="background:#09090b">
+              <div class="inbox-item" style="border-color:#4f46e5;background:#0d0d1a">
+                <div class="inbox-item-top">
+                  <span class="sev sev-critical">critical</span>
+                  <span class="inbox-item-title">React useEffect cleanup missing on async operations</span>
+                </div>
+                <div class="inbox-item-why">Suggested because your project shares <strong>typescript, react</strong> · 5 occurrences · trust: high (from code review)</div>
+                <div class="inbox-item-actions">
+                  <button class="btn-accept">✓ Accept</button>
+                  <button class="btn-reject">✕ Reject</button>
+                  <span class="inbox-kbd"><kbd>A</kbd> · <kbd>R</kbd></span>
+                </div>
+              </div>
+              <div class="inbox-item">
+                <div class="inbox-item-top">
+                  <span class="sev sev-high">high</span>
+                  <span class="inbox-item-title">Fastify reply.send() after async error swallows error in logs</span>
+                </div>
+                <div class="inbox-item-why">Suggested because your project shares <strong>typescript, fastify</strong> · 2 occurrences</div>
+                <div class="inbox-item-actions">
+                  <button class="btn-accept">✓ Accept</button>
+                  <button class="btn-reject">✕ Reject</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B: Dashboard -->
+    <div class="screen" id="b-dashboard">
+      <div class="description-bar"><strong>Direction B — Dashboard:</strong> Prominent stats bar at top. Chart and recent activity below. Sidebar keeps navigation context always visible.</div>
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dot" style="background:#ff5f57"></div>
+          <div class="browser-dot" style="background:#febc2e;margin-left:6px"></div>
+          <div class="browser-dot" style="background:#28c840;margin-left:6px"></div>
+          <div class="browser-url">lore.yourteam.com/dashboard</div>
+        </div>
+        <div class="browser-content">
+          <div class="db-sidebar">
+            <div class="db-logo-wrap">
+              <div class="db-logo">L</div>
+              <div><div class="db-logo-name">Lore</div><div class="db-logo-sub">alpharages / lore</div></div>
+            </div>
+            <div class="db-nav">
+              <div class="db-nav-item"><span class="nav-icon">📖</span>Lessons</div>
+              <div class="db-nav-item"><span class="nav-icon">📥</span>Inbox <span class="nav-badge">3</span></div>
+              <div class="db-nav-item active"><span class="nav-icon">📊</span>Dashboard</div>
+              <div class="db-nav-item"><span class="nav-icon">⚙️</span>Admin</div>
+            </div>
+          </div>
+          <div class="db-main">
+            <div class="db-topbar"><span class="db-page-title">Dashboard</span><span style="font-size:11px;color:#52525b;margin-left:8px">Last 30 days · lore</span></div>
+            <div class="db-stats-bar">
+              <div class="db-stat"><div class="db-stat-value">247</div><div class="db-stat-label">Lessons</div></div>
+              <div class="db-stat"><div class="db-stat-value">84</div><div class="db-stat-label">Sessions</div></div>
+              <div class="db-stat"><div class="db-stat-value" style="color:#fb923c">18</div><div class="db-stat-label">Captured this month</div></div>
+              <div class="db-stat"><div class="db-stat-value" style="color:#4ade80">12</div><div class="db-stat-label">Propagations accepted</div></div>
+            </div>
+            <div class="dash-grid" style="padding:16px 20px">
+              <div class="dash-card dash-card-wide">
+                <div class="dash-card-label">Lessons Captured — Last 30 Days</div>
+                <div class="dash-chart">
+                  <div class="dash-bar" style="height:20%"></div><div class="dash-bar" style="height:35%"></div><div class="dash-bar" style="height:25%"></div><div class="dash-bar" style="height:60%"></div><div class="dash-bar" style="height:45%"></div><div class="dash-bar" style="height:80%"></div><div class="dash-bar" style="height:55%"></div><div class="dash-bar" style="height:70%"></div><div class="dash-bar" style="height:90%"></div><div class="dash-bar" style="height:65%"></div><div class="dash-bar" style="height:100%"></div><div class="dash-bar" style="height:75%;background:#4f46e5"></div>
+                </div>
+              </div>
+              <div class="dash-card">
+                <div class="dash-card-label">Top Stack Tags</div>
+                <div class="dash-recent" style="margin-top:8px">
+                  <div class="dash-recent-item"><span class="tag" style="font-size:11px">typescript</span><span style="margin-left:auto;color:#818cf8;font-size:12px">89</span></div>
+                  <div class="dash-recent-item"><span class="tag" style="font-size:11px">prisma</span><span style="margin-left:auto;color:#818cf8;font-size:12px">34</span></div>
+                  <div class="dash-recent-item"><span class="tag" style="font-size:11px">fastify</span><span style="margin-left:auto;color:#818cf8;font-size:12px">28</span></div>
+                  <div class="dash-recent-item"><span class="tag" style="font-size:11px">react</span><span style="margin-left:auto;color:#818cf8;font-size:12px">21</span></div>
+                </div>
+              </div>
+              <div class="dash-card dash-card-wide">
+                <div class="dash-card-label">Recent Captures</div>
+                <div class="dash-recent">
+                  <div class="dash-recent-item"><span class="prov-dot" style="width:6px;height:6px;border-radius:50%;background:#818cf8;flex-shrink:0;display:inline-block"></span><span class="dash-recent-title">Prisma migrate dev resets shadow DB in CI</span><span class="sev sev-critical" style="margin-left:8px">crit</span><span class="dash-recent-time">2h ago</span></div>
+                  <div class="dash-recent-item"><span class="prov-dot" style="width:6px;height:6px;border-radius:50%;background:#818cf8;flex-shrink:0;display:inline-block"></span><span class="dash-recent-title">Missing await on async Fastify plugin registration</span><span class="sev sev-high" style="margin-left:8px">high</span><span class="dash-recent-time">5h ago</span></div>
+                  <div class="dash-recent-item"><span class="prov-dot" style="width:6px;height:6px;border-radius:50%;background:#34d399;flex-shrink:0;display:inline-block"></span><span class="dash-recent-title">React useEffect cleanup on async ops (propagated)</span><span class="sev sev-critical" style="margin-left:8px">crit</span><span class="dash-recent-time">1d ago</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════
+       DIRECTION C — EXPLORER
+  ═══════════════════════════════════════════════ -->
+  <div class="direction" id="dir-c">
+
+    <!-- C: Lessons -->
+    <div class="screen active" id="c-lessons">
+      <div class="description-bar"><strong>Direction C — Explorer:</strong> Indigo-tinted sidebar creates a distinct brand presence. Card grid gives lessons more visual breathing room. Better for teams who browse and explore rather than search with precision queries.</div>
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dot" style="background:#ff5f57"></div>
+          <div class="browser-dot" style="background:#febc2e;margin-left:6px"></div>
+          <div class="browser-dot" style="background:#28c840;margin-left:6px"></div>
+          <div class="browser-url">lore.yourteam.com/lessons</div>
+        </div>
+        <div class="browser-content">
+          <div class="dc-layout" style="width:100%">
+            <div class="dc-sidebar">
+              <div class="dc-logo-wrap">
+                <div class="dc-logo-text">Lore</div>
+                <div class="dc-logo-sub">alpharages / lore</div>
+              </div>
+              <div class="dc-nav">
+                <div class="dc-nav-item active"><span class="dc-nav-icon">📖</span>Lessons</div>
+                <div class="dc-nav-item"><span class="dc-nav-icon">📥</span>Inbox <span class="dc-nav-badge">3</span></div>
+                <div class="dc-nav-item"><span class="dc-nav-icon">📊</span>Dashboard</div>
+                <div class="dc-nav-item"><span class="dc-nav-icon">⚙️</span>Admin</div>
+              </div>
+            </div>
+            <div class="dc-main">
+              <div class="dc-header">
+                <div class="dc-header-title">Lessons</div>
+                <div class="dc-search-row">
+                  <input class="dc-search" placeholder="Search your team's institutional memory..." value="prisma migration">
+                </div>
+                <div class="dc-filter-row">
+                  <span class="dc-chip active">typescript</span>
+                  <span class="dc-chip active">prisma</span>
+                  <span class="dc-chip">drizzle</span>
+                  <span class="dc-chip">fastify</span>
+                  <span class="dc-chip">react</span>
+                  <span class="dc-chip" style="margin-left:auto;color:#3730a3;border-color:#1e1b4b">⌘K anywhere</span>
+                </div>
+              </div>
+              <div class="dc-grid">
+                <div class="dc-card" style="border-color:#3730a3">
+                  <div class="dc-card-top">
+                    <span class="sev sev-critical">critical</span>
+                    <span class="prov" style="margin-left:auto;font-size:10px"><span class="prov-dot"></span>From review · 4×</span>
+                  </div>
+                  <div class="dc-card-title">Prisma migrate dev resets shadow DB causing data loss in CI</div>
+                  <div class="dc-card-fix"><strong>Fix:</strong> Use <code style="background:#27272a;padding:1px 4px;border-radius:3px;font-size:10px">migrate deploy</code> in all CI/CD pipelines — never <code style="background:#27272a;padding:1px 4px;border-radius:3px;font-size:10px">migrate dev</code> in automated environments.</div>
+                  <div class="dc-card-bottom">
+                    <span class="tag">typescript</span><span class="tag">prisma</span><span class="tag">ci</span>
+                  </div>
+                </div>
+                <div class="dc-card">
+                  <div class="dc-card-top">
+                    <span class="sev sev-high">high</span>
+                    <span class="prov" style="margin-left:auto;font-size:10px"><span class="prov-dot"></span>From review · 2×</span>
+                  </div>
+                  <div class="dc-card-title">Missing await on Prisma transaction causes silent failure</div>
+                  <div class="dc-card-fix"><strong>Fix:</strong> Always await <code style="background:#27272a;padding:1px 4px;border-radius:3px;font-size:10px">prisma.$transaction()</code> — unawaited calls silently succeed in dev but fail under load.</div>
+                  <div class="dc-card-bottom">
+                    <span class="tag">typescript</span><span class="tag">prisma</span>
+                  </div>
+                </div>
+                <div class="dc-card">
+                  <div class="dc-card-top">
+                    <span class="sev sev-medium">medium</span>
+                    <span class="prov" style="margin-left:auto;font-size:10px"><span class="prov-dot prov-dot-manual"></span>Manual · 1×</span>
+                  </div>
+                  <div class="dc-card-title">Prisma relation fields not included by default in select</div>
+                  <div class="dc-card-fix"><strong>Fix:</strong> Explicitly include relation fields in every query with <code style="background:#27272a;padding:1px 4px;border-radius:3px;font-size:10px">include: {}</code>.</div>
+                  <div class="dc-card-bottom">
+                    <span class="tag">typescript</span><span class="tag">prisma</span>
+                  </div>
+                </div>
+                <div class="dc-card">
+                  <div class="dc-card-top">
+                    <span class="sev sev-low">low</span>
+                    <span class="prov" style="margin-left:auto;font-size:10px"><span class="prov-dot prov-dot-prop"></span>Propagated · 3×</span>
+                  </div>
+                  <div class="dc-card-title">Drizzle ORM migration naming collisions in monorepo</div>
+                  <div class="dc-card-fix"><strong>Fix:</strong> Prefix migration filenames with package name to avoid cross-package collisions in shared migration folders.</div>
+                  <div class="dc-card-bottom">
+                    <span class="tag">drizzle</span><span class="tag">monorepo</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- C: Inbox -->
+    <div class="screen" id="c-inbox">
+      <div class="description-bar"><strong>Direction C — Inbox:</strong> Indigo sidebar with feed inbox. Wider layout gives each propagation item more reading space.</div>
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dot" style="background:#ff5f57"></div>
+          <div class="browser-dot" style="background:#febc2e;margin-left:6px"></div>
+          <div class="browser-dot" style="background:#28c840;margin-left:6px"></div>
+          <div class="browser-url">lore.yourteam.com/inbox</div>
+        </div>
+        <div class="browser-content">
+          <div class="dc-layout" style="width:100%">
+            <div class="dc-sidebar">
+              <div class="dc-logo-wrap"><div class="dc-logo-text">Lore</div></div>
+              <div class="dc-nav">
+                <div class="dc-nav-item"><span class="dc-nav-icon">📖</span>Lessons</div>
+                <div class="dc-nav-item active"><span class="dc-nav-icon">📥</span>Inbox <span class="dc-nav-badge">3</span></div>
+                <div class="dc-nav-item"><span class="dc-nav-icon">📊</span>Dashboard</div>
+                <div class="dc-nav-item"><span class="dc-nav-icon">⚙️</span>Admin</div>
+              </div>
+            </div>
+            <div class="dc-main">
+              <div class="dc-header">
+                <div class="dc-header-title">Inbox</div>
+                <div style="font-size:11px;color:#3730a3;margin-bottom:16px">3 propagation suggestions · <kbd>A</kbd> accept · <kbd>R</kbd> reject</div>
+              </div>
+              <div class="inbox-list" style="padding:0 24px 24px">
+                <div class="inbox-item" style="border-color:#3730a3;background:#0d0d14">
+                  <div class="inbox-item-top">
+                    <span class="sev sev-critical">critical</span>
+                    <span class="inbox-item-title">React useEffect cleanup missing on async operations</span>
+                  </div>
+                  <div class="inbox-item-why">Shared stack: <strong>typescript, react</strong> · 5 occurrences · high trust (captured from code review)</div>
+                  <div class="inbox-item-actions">
+                    <button class="btn-accept">✓ Accept</button>
+                    <button class="btn-reject">✕ Reject</button>
+                    <span class="inbox-kbd"><kbd>A</kbd> · <kbd>R</kbd></span>
+                  </div>
+                </div>
+                <div class="inbox-item">
+                  <div class="inbox-item-top">
+                    <span class="sev sev-high">high</span>
+                    <span class="inbox-item-title">Fastify reply.send() after async error swallows error in logs</span>
+                  </div>
+                  <div class="inbox-item-why">Shared stack: <strong>typescript, fastify</strong> · 2 occurrences</div>
+                  <div class="inbox-item-actions">
+                    <button class="btn-accept">✓ Accept</button>
+                    <button class="btn-reject">✕ Reject</button>
+                  </div>
+                </div>
+                <div class="inbox-item">
+                  <div class="inbox-item-top">
+                    <span class="sev sev-medium">medium</span>
+                    <span class="inbox-item-title">Drizzle ORM migration naming collisions in monorepo</span>
+                  </div>
+                  <div class="inbox-item-why">Shared stack: <strong>drizzle, postgres</strong> · 3 occurrences</div>
+                  <div class="inbox-item-actions">
+                    <button class="btn-accept">✓ Accept</button>
+                    <button class="btn-reject">✕ Reject</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- C: Dashboard -->
+    <div class="screen" id="c-dashboard">
+      <div class="description-bar"><strong>Direction C — Dashboard:</strong> Explorer layout with card-based stats. Warmer data presentation with growth narrative.</div>
+      <div class="browser">
+        <div class="browser-bar">
+          <div class="browser-dot" style="background:#ff5f57"></div>
+          <div class="browser-dot" style="background:#febc2e;margin-left:6px"></div>
+          <div class="browser-dot" style="background:#28c840;margin-left:6px"></div>
+          <div class="browser-url">lore.yourteam.com/dashboard</div>
+        </div>
+        <div class="browser-content">
+          <div class="dc-layout" style="width:100%">
+            <div class="dc-sidebar">
+              <div class="dc-logo-wrap"><div class="dc-logo-text">Lore</div></div>
+              <div class="dc-nav">
+                <div class="dc-nav-item"><span class="dc-nav-icon">📖</span>Lessons</div>
+                <div class="dc-nav-item"><span class="dc-nav-icon">📥</span>Inbox <span class="dc-nav-badge">3</span></div>
+                <div class="dc-nav-item active"><span class="dc-nav-icon">📊</span>Dashboard</div>
+                <div class="dc-nav-item"><span class="dc-nav-icon">⚙️</span>Admin</div>
+              </div>
+            </div>
+            <div class="dc-main" style="overflow-y:auto">
+              <div class="dc-header" style="padding-bottom:0">
+                <div class="dc-header-title">Dashboard</div>
+                <div style="font-size:12px;color:#3730a3;margin-bottom:16px">lore · last 30 days</div>
+              </div>
+              <div class="dash-grid" style="padding:0 24px 24px">
+                <div class="dash-card"><div class="dash-card-label">Total Lessons</div><div class="dash-card-value">247</div><div class="dash-card-sub">+18 this month</div></div>
+                <div class="dash-card"><div class="dash-card-label">Sessions Run</div><div class="dash-card-value">84</div><div class="dash-card-sub">4 active developers</div></div>
+                <div class="dash-card"><div class="dash-card-label">Auto-Captured</div><div class="dash-card-value">31</div><div class="dash-card-sub">from code reviews</div></div>
+                <div class="dash-card dash-card-wide">
+                  <div class="dash-card-label">Memory Growth</div>
+                  <div class="dash-chart">
+                    <div class="dash-bar" style="height:20%"></div><div class="dash-bar" style="height:35%"></div><div class="dash-bar" style="height:25%"></div><div class="dash-bar" style="height:60%"></div><div class="dash-bar" style="height:45%"></div><div class="dash-bar" style="height:80%"></div><div class="dash-bar" style="height:55%"></div><div class="dash-bar" style="height:70%"></div><div class="dash-bar" style="height:90%"></div><div class="dash-bar" style="height:65%"></div><div class="dash-bar" style="height:100%"></div><div class="dash-bar" style="height:75%;background:#4f46e5"></div>
+                  </div>
+                </div>
+                <div class="dash-card"><div class="dash-card-label">Propagations</div><div class="dash-card-value" style="color:#34d399">12</div><div class="dash-card-sub">accepted from 2 projects</div></div>
+                <div class="dash-card dash-card-wide">
+                  <div class="dash-card-label">Recent Captures</div>
+                  <div class="dash-recent">
+                    <div class="dash-recent-item"><span style="width:6px;height:6px;border-radius:50%;background:#818cf8;flex-shrink:0;display:inline-block"></span><span class="dash-recent-title">Prisma migrate dev resets shadow DB in CI</span><span class="dash-recent-time">2h ago</span></div>
+                    <div class="dash-recent-item"><span style="width:6px;height:6px;border-radius:50%;background:#818cf8;flex-shrink:0;display:inline-block"></span><span class="dash-recent-title">Missing await on async Fastify plugin registration</span><span class="dash-recent-time">5h ago</span></div>
+                    <div class="dash-recent-item"><span style="width:6px;height:6px;border-radius:50%;background:#34d399;flex-shrink:0;display:inline-block"></span><span class="dash-recent-title">React useEffect cleanup (propagated)</span><span class="dash-recent-time">1d ago</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function setDir(dir) {
+    document.querySelectorAll('.direction').forEach(d => d.classList.remove('active'));
+    document.querySelectorAll('.dir-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('dir-' + dir).classList.add('active');
+    document.querySelectorAll('.dir-btn').forEach(b => { if (b.textContent.toLowerCase().startsWith(dir)) b.classList.add('active'); });
+
+    // re-apply current screen
+    const activeScreen = document.querySelector('.screen-btn.active').textContent.toLowerCase();
+    setScreen(activeScreen);
+  }
+
+  function setScreen(screen) {
+    const activeDir = document.querySelector('.direction.active').id.replace('dir-', '');
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.screen-btn').forEach(b => b.classList.remove('active'));
+
+    const target = document.getElementById(activeDir + '-' + screen);
+    if (target) target.classList.add('active');
+    document.querySelectorAll('.screen-btn').forEach(b => { if (b.textContent.toLowerCase() === screen) b.classList.add('active'); });
+  }
+</script>
+</body>
+</html>
