@@ -28,7 +28,8 @@
     "lint:fix": "oxlint src/ --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "[ -d .git ] && husky || true"
+    "prepare": "[ -d .git ] && husky || true",
+    "publish:cli": "node scripts/publish-cli.mjs"
   },
   "dependencies": {
     "@fastify/sensible": "^5.6.0",

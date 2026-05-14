@@ -30,10 +30,10 @@ Memory is **team-shared and project-isolated** — all developers benefit, no pr
 
 ## Components
 
-| Component         | Description                                                                           |
-| ----------------- | ------------------------------------------------------------------------------------- |
-| `lore-memory-mcp` | The server (this repo). Fastify + PostgreSQL 16 + pgvector + MCP protocol over HTTPS. |
-| `@lore/cli`       | npm package. Wires the MCP server into Cursor / Claude Code on developer machines.    |
+| Component          | Description                                                                           |
+| ------------------ | ------------------------------------------------------------------------------------- |
+| `lore-memory-mcp`  | The server (this repo). Fastify + PostgreSQL 16 + pgvector + MCP protocol over HTTPS. |
+| `@alpharages/lore` | npm package. Wires the MCP server into Cursor / Claude Code on developer machines.    |
 
 ---
 
@@ -108,7 +108,7 @@ in your MCP client config.
 
 ## CLI Commands
 
-The `@lore/cli` package is shipped with this repo. It wires the MCP server into
+The `@alpharages/lore` package is shipped with this repo. It wires the MCP server into
 Cursor and Claude Code on developer machines.
 
 ```bash

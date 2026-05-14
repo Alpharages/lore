@@ -12,17 +12,17 @@ Lore Platform consists of two independently deployable components:
 
 | Component         | Type        | Language             | Deployment                 |
 | ----------------- | ----------- | -------------------- | -------------------------- |
-| `@lore/cli`       | npm package | TypeScript / Node.js | Developer machine (global) |
+| `@alpharages/lore`       | npm package | TypeScript / Node.js | Developer machine (global) |
 | `lore-memory-mcp` | HTTP server | TypeScript / Node.js | Docker, self-hosted        |
 
 ---
 
-## 2. `@lore/cli` Specification
+## 2. `@alpharages/lore` Specification
 
 ### 2.1 Installation
 
 ```
-npm install -g @lore/cli
+npm install -g @alpharages/lore
 ```
 
 Minimum Node.js version: 20.0.0
@@ -148,7 +148,7 @@ Response:
 
 ```bash
 #!/bin/sh
-# Auto-installed by @lore/cli
+# Auto-installed by @alpharages/lore
 # Re-indexes changed files after commit (background, silent)
 if command -v npx > /dev/null 2>&1; then
   npx gitnexus analyze --incremental --quiet > /dev/null 2>&1 &
@@ -159,7 +159,7 @@ fi
 
 ```bash
 #!/bin/sh
-# Auto-installed by @lore/cli
+# Auto-installed by @alpharages/lore
 # Re-indexes after pull/merge (background, silent)
 if command -v npx > /dev/null 2>&1; then
   npx gitnexus analyze --incremental --quiet > /dev/null 2>&1 &
@@ -249,7 +249,7 @@ repos:
 **Validation rules:**
 
 - `methodology` is optional. When present, `tracker` is required.
-- `lore.version` is checked by `@lore/cli` against the running
+- `lore.version` is checked by `@alpharages/lore` against the running
   `lore-memory-mcp` version on `lore install`.
 
 ---

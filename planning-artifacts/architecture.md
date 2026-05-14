@@ -45,7 +45,7 @@ exclusively through the MCP protocol using project-scoped API keys.
 ║                                                                   ║
 ║  ┌──────────────┐   ┌──────────────┐   ┌────────────────────┐    ║
 ║  │  OpenAI API  │   │  Tracker     │   │  npm Registry      │    ║
-║  │  (embeddings)│   │  (ClickUp/   │   │  (@lore/cli,       │    ║
+║  │  (embeddings)│   │  (ClickUp/   │   │  (@alpharages/lore,       │    ║
 ║  │              │   │   Jira/Asana)│   │   bmad-mcp-server) │    ║
 ║  └──────┬───────┘   └──────┬───────┘   └─────────┬──────────┘    ║
 ╚═════════│══════════════════│═════════════════════│═══════════════╝
@@ -106,10 +106,10 @@ exclusively through the MCP protocol using project-scoped API keys.
 
 ## 3. Component Architecture
 
-### 3.1 `@lore/cli` Internal Structure
+### 3.1 `@alpharages/lore` Internal Structure
 
 ```
-@lore/cli/
+@alpharages/lore/
 ├── src/
 │   ├── index.ts              ← CLI entry point (commander.js)
 │   ├── commands/
@@ -742,7 +742,7 @@ docker compose up -d mcp-server
 
 Postgres stays running during MCP server restart — zero downtime for DB.
 
-### 9.2 `@lore/cli` Release
+### 9.2 `@alpharages/lore` Release
 
 ```bash
 npm version patch|minor|major
@@ -833,11 +833,11 @@ Violations of these boundaries are lint/review failures.
 ## 11. Two-Component Summary
 
 ```
-@lore/cli (npm global package)
+@alpharages/lore (npm global package)
   Purpose:  Developer-facing setup, init, install, update, inbox
   Nature:   Node.js CLI
   Consumed: Developers install globally once
-  Updates:  npm publish → developers run npm update -g @lore/cli
+  Updates:  npm publish → developers run npm update -g @alpharages/lore
 
 lore-memory-mcp (Docker, self-hosted)
   Purpose:  Persistent memory server for all projects
@@ -851,7 +851,7 @@ Per-project config (lore.yaml + CLAUDE.md + constitution.md +
   Purpose:  Project identity, methodology + tracker declaration,
             and MCP wiring (the "ratification document")
   Nature:   Config files committed to project's primary repo
-  Consumed: @lore/cli reads lore.yaml to configure everything
+  Consumed: @alpharages/lore reads lore.yaml to configure everything
             BMAD reads tracker config to route work
             AI agents read CLAUDE.md / constitution.md
             on every session

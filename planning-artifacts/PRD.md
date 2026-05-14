@@ -15,7 +15,7 @@ the team has already solved.
 
 Lore consists of two components: a self-hosted memory server
 (`lore-memory-mcp`, Postgres + pgvector + MCP tools) and a CLI
-(`@lore/cli`) that wires the development ecosystem together. Lore does not
+(`@alpharages/lore`) that wires the development ecosystem together. Lore does not
 own methodology, tracker integration, or AI agent behavior — those belong
 to bmad-mcp-server. Lore exposes MCP tools; BMAD custom-skills call them
 by convention.
@@ -169,7 +169,7 @@ infrastructure.
 
 Lore is two components plus a per-project config artifact.
 
-### 6.1 `@lore/cli` (npm package)
+### 6.1 `@alpharages/lore` (npm package)
 
 The developer-facing CLI. Handles install, project initialization, MCP
 config writing for all three ecosystem servers (lore-memory +
@@ -188,7 +188,7 @@ cross-project propagation engine on a schedule.
 A single YAML file committed to the project's primary repository.
 Declares project identity, repos, stack tags, methodology + tracker
 (when used), Lore server URL, and version pins. Acts as the project's
-**ratification document** — `@lore/cli` reads it to wire everything
+**ratification document** — `@alpharages/lore` reads it to wire everything
 else.
 
 ---

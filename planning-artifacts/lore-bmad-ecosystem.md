@@ -40,7 +40,7 @@ workflows.
 | System                                     | Owns                                                                                                                                                                                                                         | Does Not Own                                                                       |
 | ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | **bmad-mcp-server**                        | Methodology, agents, workflows, custom-skills, tracker integrations (ClickUp/Jira/Asana)                                                                                                                                     | Cross-session memory, semantic recall, cross-project lesson propagation            |
-| **Lore** (`@lore/cli` + `lore-memory-mcp`) | Persistent memory (lessons/patterns/sessions), Postgres + pgvector, propagation engine, project isolation (RLS), API keys, ecosystem CLI (`lore install` / `lore init` / `lore inbox`), `lore.yaml` as ratification document | Tasks, epics, stories, sprints, agents, methodology workflows, **behavior skills** |
+| **Lore** (`@alpharages/lore` + `lore-memory-mcp`) | Persistent memory (lessons/patterns/sessions), Postgres + pgvector, propagation engine, project isolation (RLS), API keys, ecosystem CLI (`lore install` / `lore init` / `lore inbox`), `lore.yaml` as ratification document | Tasks, epics, stories, sprints, agents, methodology workflows, **behavior skills** |
 | **GitNexus**                               | Code knowledge graph, blast-radius, call-chain analysis                                                                                                                                                                      | Memory or methodology                                                              |
 
 Each system is independently deployable and useful, but the strongest value
@@ -53,7 +53,7 @@ emerges when all three are wired through `lore.yaml` and run together.
 | Aspect                    | Lore PRD v1.0.0                                                                                       | Lore PRD v2.0.0 (proposed)                                                                                                                               |
 | ------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | §1 framing                | "Multi-project AI governance and memory system" with three layers (skills + memory + CLI)             | "Institutional memory layer for BMAD-driven development" — memory + ecosystem glue                                                                       |
-| Architecture              | 3 components: `@lore/cli` + `lore-platform` + `lore-memory-mcp`                                       | **2 components: `@lore/cli` + `lore-memory-mcp`.** `lore-platform` removed entirely — see §9.3.                                                          |
+| Architecture              | 3 components: `@alpharages/lore` + `lore-platform` + `lore-memory-mcp`                                       | **2 components: `@alpharages/lore` + `lore-memory-mcp`.** `lore-platform` removed entirely — see §9.3.                                                          |
 | Skills layer              | Full skill platform shipping bootstrap, judge, pr, lesson, memory, status, plus stack-specific skills | **Removed entirely.** Behavior skills owned by bmad-mcp-server. Lore exposes MCP tools only; BMAD custom-skills call them by convention.                 |
 | Bootstrap skill           | Top-level entry point for every session                                                               | **Removed entirely** — see §9.1. Replaced by per-BMAD-skill JIT memory queries and `CLAUDE.md` auto-load.                                                |
 | Auto-capture              | Heuristic: same error 2× in a session triggers `save_lesson`                                          | **Heuristic removed.** Two paths: review-driven (`capture_review_finding` from `clickup-code-review`) and manual (agent invokes `save_lesson` directly). |
@@ -195,7 +195,7 @@ repos:
 
 - `methodology` is optional. When present, `tracker` is also required.
 - CLI validates the tracker connection during `lore init` after methodology is declared.
-- `lore.version` is the Lore server compatibility range; checked by `@lore/cli` against the running `lore-memory-mcp` version on `lore install`.
+- `lore.version` is the Lore server compatibility range; checked by `@alpharages/lore` against the running `lore-memory-mcp` version on `lore install`.
 
 ### 6.3 What this enables
 
@@ -406,7 +406,7 @@ No silent observers, no thresholds, no session-level tracking state.
 
 **Status: removed entirely.**
 
-v1 PRD framed Lore as a 3-component architecture: `@lore/cli` +
+v1 PRD framed Lore as a 3-component architecture: `@alpharages/lore` +
 `lore-platform` (versioned skill files) + `lore-memory-mcp` (Docker
 server). With bootstrap and heuristic auto-capture both removed (§9.1,
 §9.2), and dev/review behavior owned by bmad-mcp-server, `lore-platform`
@@ -416,7 +416,7 @@ has no skills left to ship. The component collapses entirely.
 
 | Component             | Type               | Role                                                                                                                                                |
 | --------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **`@lore/cli`**       | npm global package | Project init, MCP config writing for all three servers (lore-memory + bmad + gitnexus), `lore inbox` for propagations, version-compatibility checks |
+| **`@alpharages/lore`**       | npm global package | Project init, MCP config writing for all three servers (lore-memory + bmad + gitnexus), `lore inbox` for propagations, version-compatibility checks |
 | **`lore-memory-mcp`** | Docker self-hosted | Postgres + pgvector + MCP tools + propagation engine                                                                                                |
 
 **What this removes:**
@@ -425,7 +425,7 @@ has no skills left to ship. The component collapses entirely.
 - `~/.lore/skills/` install path
 - `registry.json` and skill version tracking
 - `skills:` block in `lore.yaml`
-- `downloader.ts`, `registry.ts` modules in `@lore/cli`
+- `downloader.ts`, `registry.ts` modules in `@alpharages/lore`
 - Tech-spec §3 (lore-platform Skills Specification) entirely
 
 **How BMAD integration works without skill files:**

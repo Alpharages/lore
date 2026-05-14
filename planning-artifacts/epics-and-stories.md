@@ -9,7 +9,7 @@ Date: 2026-05-06
 ## Overview
 
 Six epics mapped to PRD feature areas and the two-component
-architecture (`@lore/cli`, `lore-memory-mcp`). Stories are ordered by
+architecture (`@alpharages/lore`, `lore-memory-mcp`). Stories are ordered by
 dependency — earlier epics must be substantially complete before later
 ones can be tested end-to-end.
 
@@ -449,7 +449,7 @@ similar stacks,
 
 ---
 
-## Epic 4 — `@lore/cli` — Project Initialization
+## Epic 4 — `@alpharages/lore` — Project Initialization
 
 **Goal:** Implement `lore init` so a project lead can initialize a new
 project's configuration in under 5 minutes (US-06, FR-08–FR-13).
@@ -504,7 +504,7 @@ configuration,
 
 ---
 
-## Epic 5 — `@lore/cli` — Install and Update
+## Epic 5 — `@alpharages/lore` — Install and Update
 
 **Goal:** Implement `lore install`, `lore update`, and the
 ecosystem-integration steps so developers can set up and maintain AI
