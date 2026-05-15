@@ -42,6 +42,8 @@ export interface Propagation {
   sharedStackTags?: string[];
   sourceProject?: string;
   trustTier?: string;
+  createdAt?: string;
+  targetProject?: string;
 }
 
 export interface Stats {
