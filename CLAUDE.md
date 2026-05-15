@@ -105,7 +105,7 @@ Architecture §10 is the authoritative reference for all conventions above.
 
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lore** (821 symbols, 1651 relationships, 13 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lore** (914 symbols, 1899 relationships, 15 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 

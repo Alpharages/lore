@@ -80,7 +80,7 @@ pnpm test          # must be green
 
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **lore** (900 symbols, 1850 relationships, 14 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **lore** (914 symbols, 1899 relationships, 15 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
