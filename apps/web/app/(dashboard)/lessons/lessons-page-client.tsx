@@ -10,6 +10,7 @@ import { SearchBar } from "@/components/app/search-bar";
 import { FilterChips } from "@/components/app/filter-chips";
 import { LessonCard } from "@/components/app/lesson-card";
 import { LessonCardSkeletonList } from "@/components/app/lesson-card-skeleton";
+import { LessonPanel } from "@/components/app/lesson-panel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { FilterState } from "@/lib/api-types";
 
@@ -17,6 +18,7 @@ export const LessonsPageClient = () => {
   const searchParams = useSearchParams();
   const router = useRouter();
   const { projectSlug } = useProject();
+  const searchBarRef = useRef<HTMLInputElement>(null);
 
   const initialQ = searchParams.get("q") ?? "";
   const [inputValue, setInputValue] = useState(initialQ);
@@ -65,6 +67,7 @@ export const LessonsPageClient = () => {
     <section className="space-y-4">
       <h1 className="text-xl font-semibold">Lessons</h1>
       <SearchBar
+        ref={searchBarRef}
         value={inputValue}
         onChange={setInputValue}
         count={!isLoading && data !== undefined ? lessons.length : undefined}
@@ -72,9 +75,7 @@ export const LessonsPageClient = () => {
         onRetry={refetch}
       />
 
-      {data !== undefined && (
-        <FilterChips results={lessons} activeFilters={activeFilters} />
-      )}
+      {data !== undefined && <FilterChips results={lessons} activeFilters={activeFilters} />}
 
       {isLoading ? (
         <LessonCardSkeletonList count={debouncedQuery ? 5 : 20} />
@@ -96,6 +97,7 @@ export const LessonsPageClient = () => {
           </div>
         </ScrollArea>
       )}
+      <LessonPanel searchBarRef={searchBarRef} />
     </section>
   );
 };

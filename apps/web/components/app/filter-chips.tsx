@@ -26,9 +26,7 @@ export const FilterChips = ({ results, activeFilters }: FilterChipsProps) => {
   const categoryCount = (cat: string) => results.filter((l) => l.category === cat).length;
 
   const hasActiveFilters =
-    activeFilters.tags.length > 0 ||
-    activeFilters.severity.length > 0 ||
-    !!activeFilters.category;
+    activeFilters.tags.length > 0 || activeFilters.severity.length > 0 || !!activeFilters.category;
 
   const setFilter = (key: keyof FilterState, value: string[] | string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -89,7 +87,11 @@ export const FilterChips = ({ results, activeFilters }: FilterChipsProps) => {
                 key={tag}
                 asChild
                 variant={active ? "default" : "secondary"}
-                className={cn(chipBase, "font-mono", active && "bg-primary text-primary-foreground")}
+                className={cn(
+                  chipBase,
+                  "font-mono",
+                  active && "bg-primary text-primary-foreground"
+                )}
               >
                 <button
                   type="button"
@@ -119,11 +121,7 @@ export const FilterChips = ({ results, activeFilters }: FilterChipsProps) => {
               variant={active ? "default" : "secondary"}
               className={cn(chipBase, active && "bg-primary text-primary-foreground")}
             >
-              <button
-                type="button"
-                aria-pressed={active}
-                onClick={() => toggleSeverity(sev)}
-              >
+              <button type="button" aria-pressed={active} onClick={() => toggleSeverity(sev)}>
                 {sev} ({count})
               </button>
             </Badge>
