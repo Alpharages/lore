@@ -58,6 +58,10 @@ export interface Stats {
   };
 }
 
+export interface PropagationMetadata {
+  lastRunAt: string | null;
+}
+
 export interface Project {
   id: string;
   name: string;

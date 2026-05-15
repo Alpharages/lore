@@ -2,8 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useProject } from "@/hooks/use-project";
-import { fetchPropagations } from "@/lib/api";
+import { fetchPropagations, fetchPropagationMetadata } from "@/lib/api";
 import { InboxItem } from "@/components/app/inbox-item";
+import { EmptyState } from "@/components/app/empty-state";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +24,18 @@ const sortPropagations = (items: Propagation[]) =>
     return (b.createdAt ?? "").localeCompare(a.createdAt ?? "");
   });
 
+export const formatLastRun = (isoTimestamp: string | null | undefined): string => {
+  if (!isoTimestamp) return "recently";
+  const diffMs = Math.max(0, Date.now() - new Date(isoTimestamp).getTime());
+  const diffMins = Math.floor(diffMs / 60_000);
+  if (diffMins < 2) return "just now";
+  if (diffMins < 60) return `${diffMins} minutes ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours === 1 ? "1 hour" : `${diffHours} hours`} ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays === 1 ? "1 day" : `${diffDays} days`} ago`;
+};
+
 const InboxSkeleton = () => (
   <div className="rounded-lg border border-border bg-card p-4 shadow-sm space-y-3 h-[100px]">
     <div className="flex items-start gap-3">
@@ -41,14 +54,21 @@ const InboxPage = () => {
     queryFn: () => fetchPropagations(projectSlug === "all" ? undefined : projectSlug),
   });
 
+  const { data: metadata } = useQuery({
+    queryKey: ["propagations", "metadata", projectSlug],
+    queryFn: () => fetchPropagationMetadata(projectSlug === "all" ? undefined : projectSlug),
+    retry: false,
+  });
+
   const items = data ? sortPropagations(data) : [];
   const count = items.length;
+  const lastRan = formatLastRun(metadata?.lastRunAt);
 
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-3">
         <h1 className="text-xl font-semibold">Inbox</h1>
-        {!isLoading && (
+        {!isLoading && count > 0 && (
           <Badge variant="secondary" aria-live="polite" className="text-xs font-medium">
             {count === 1 ? "1 pending" : `${count} pending`}
           </Badge>
@@ -62,10 +82,10 @@ const InboxPage = () => {
           <InboxSkeleton />
         </div>
       ) : items.length === 0 ? (
-        <div className="py-12 text-center">
-          <p className="text-sm text-muted-foreground">All caught up</p>
-          <p className="text-xs text-muted-foreground mt-1">No pending suggestions.</p>
-        </div>
+        <EmptyState
+          title="All caught up"
+          description={`No pending suggestions. Propagation engine last ran ${lastRan}.`}
+        />
       ) : (
         <ScrollArea className="h-[calc(100vh-180px)]">
           <div className="space-y-3 pr-4">

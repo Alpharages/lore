@@ -82,3 +82,12 @@ export const fetchPropagationCount = async (projectSlug?: string): Promise<numbe
   });
   return (data.suggestions as Propagation[]).length;
 };
+
+export const fetchPropagationMetadata = async (
+  project?: string
+): Promise<{ lastRunAt: string | null }> => {
+  const { data } = await apiClient.get("/api/propagations/metadata", {
+    params: project ? { project } : undefined,
+  });
+  return data as { lastRunAt: string | null };
+};
