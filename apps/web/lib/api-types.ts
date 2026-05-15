@@ -73,6 +73,6 @@ export interface Project {
   name: string;
   slug: string;
   stackTags: string[];
-  lessonCount?: number;
-  createdAt?: string;
+  lessonCount: number;
+  createdAt: string;
 }
