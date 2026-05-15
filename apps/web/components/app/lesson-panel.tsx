@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { Suspense, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -124,7 +124,11 @@ export const LessonPanel = ({ searchBarRef }: LessonPanelProps) => {
 
                   {lesson.code ? (
                     <TabsContent value="code" className="mt-0">
-                      <CodeBlock code={lesson.code} language={lesson.language} />
+                      <Suspense
+                        fallback={<div className="h-24 rounded-md bg-muted animate-pulse" />}
+                      >
+                        <CodeBlock code={lesson.code} language={lesson.language} />
+                      </Suspense>
                     </TabsContent>
                   ) : null}
 

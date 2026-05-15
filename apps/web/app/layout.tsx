@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "@/styles/globals.css";
 import { Providers } from "@/components/providers";
+import { GlobalKeyboardHandler } from "@/components/app/global-keyboard-handler";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -37,7 +38,10 @@ const RootLayout = ({
         }}
       />
       <body className="min-h-full flex flex-col font-sans">
-        <Providers>{children}</Providers>
+        <Providers>
+          {children}
+          <GlobalKeyboardHandler />
+        </Providers>
       </body>
     </html>
   );
