@@ -1,61 +1,83 @@
 "use client";
 
+import { useCallback } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { SeverityBadge } from "./severity-badge";
+import { ProvenanceDot } from "./provenance-dot";
+import { cn } from "@/lib/utils";
 import type { Lesson } from "@/lib/api-types";
 
-interface LessonCardProps {
-  lesson: Lesson;
-  onClick?: () => void;
-}
+const MAX_VISIBLE_TAGS = 4;
+const FIX_PREVIEW_MAX = 120;
 
-const severityVariant = (severity: string): "default" | "destructive" | "secondary" | "outline" => {
-  switch (severity) {
-    case "critical":
-      return "destructive";
-    case "high":
-      return "default";
-    case "medium":
-      return "secondary";
-    default:
-      return "outline";
-  }
+const firstSentence = (text: string): string => {
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+  const match = trimmed.match(/^[^.!?]+[.!?]/);
+  const sentence = (match ? match[0] : trimmed).trim();
+  return sentence.length > FIX_PREVIEW_MAX
+    ? `${sentence.slice(0, FIX_PREVIEW_MAX).trimEnd()}…`
+    : sentence;
 };
 
-const fixPreview = (fix: string): string => {
-  const sentence = fix.split(/[.!?]/).filter(Boolean)[0] ?? fix;
-  return sentence.length > 120 ? sentence.slice(0, 120) + "..." : sentence;
-};
+export const LessonCard = ({ lesson }: { lesson: Lesson }) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-export const LessonCard = ({ lesson, onClick }: LessonCardProps) => {
+  const open = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("lesson", lesson.id);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [router, pathname, searchParams, lesson.id]);
+
+  const handleKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      open();
+    }
+  };
+
+  const fixPreview = firstSentence(lesson.fix);
+  const visibleTags = lesson.stackTags.slice(0, MAX_VISIBLE_TAGS);
+  const overflowCount = lesson.stackTags.length - visibleTags.length;
+
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={onClick}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") onClick?.();
-      }}
-      className="rounded-lg border bg-card p-4 shadow-sm transition-shadow hover:shadow-md cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      aria-label={lesson.title}
+      onClick={open}
+      onKeyDown={handleKey}
+      className={cn(
+        "group flex flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-sm",
+        "cursor-pointer transition-shadow duration-150 hover:shadow-md",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      )}
     >
-      <div className="flex items-start gap-3 mb-2">
-        <Badge variant={severityVariant(lesson.severity)} className="shrink-0 capitalize">
-          {lesson.severity}
-        </Badge>
-        <h3 className="text-sm font-medium leading-snug">{lesson.title}</h3>
+      <div className="flex items-start gap-2">
+        <SeverityBadge severity={lesson.severity} />
+        <h3 className="flex-1 truncate text-sm font-medium text-foreground">{lesson.title}</h3>
+        <ProvenanceDot provenance={lesson.provenance} />
       </div>
-
-      <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{fixPreview(lesson.fix)}</p>
-
-      <div className="flex flex-wrap items-center gap-2">
-        {lesson.stackTags.slice(0, 4).map((tag) => (
-          <Badge key={tag} variant="outline" className="text-xs font-mono">
-            {tag}
-          </Badge>
-        ))}
-        {lesson.stackTags.length > 4 && (
-          <span className="text-xs text-muted-foreground">+{lesson.stackTags.length - 4} more</span>
-        )}
-      </div>
+      {fixPreview ? (
+        <p className="text-xs text-muted-foreground line-clamp-2">{fixPreview}</p>
+      ) : null}
+      {lesson.stackTags.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1">
+          {visibleTags.map((tag) => (
+            <Badge key={tag} variant="outline" className="font-mono text-[10px]">
+              {tag}
+            </Badge>
+          ))}
+          {overflowCount > 0 ? (
+            <Badge variant="secondary" className="text-[10px]">
+              +{overflowCount} more
+            </Badge>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 };
