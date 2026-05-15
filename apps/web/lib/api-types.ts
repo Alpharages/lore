@@ -38,11 +38,10 @@ export interface Propagation {
   severity: Severity;
   stackTags: string[];
   occurrenceCount: number;
-  whySuggested?: string;
-  sharedStackTags?: string[];
-  sourceProject?: string;
-  trustTier?: string;
-  createdAt?: string;
+  sharedStackTags: string[];
+  sourceProject: string;
+  trustTier: "high" | "medium" | "low";
+  createdAt: string;
   targetProject?: string;
 }
 

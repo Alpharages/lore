@@ -44,6 +44,14 @@ const InboxPage = () => {
   const items = data ? sortPropagations(data) : [];
   const count = items.length;
 
+  const handleAccept = (_id: string) => {
+    // Wired in Story 9.3 — optimistic UI + undo toast
+  };
+
+  const handleReject = (_id: string) => {
+    // Wired in Story 9.3 — optimistic UI + undo toast
+  };
+
   return (
     <section className="space-y-4">
       <div className="flex items-center gap-3">
@@ -74,6 +82,8 @@ const InboxPage = () => {
                 key={propagation.id}
                 propagation={propagation}
                 showProject={projectSlug === "all"}
+                onAccept={handleAccept}
+                onReject={handleReject}
               />
             ))}
           </div>
