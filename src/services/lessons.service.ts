@@ -7,12 +7,16 @@ import {
   queryLessons as repoQueryLessons,
   findLessonsForTask,
   findPatternsForTask,
+  searchSimilarLessonsAdmin,
+  findFullLessonById,
   type LessonsTx,
   type LessonRow,
+  type FullLessonRow,
 } from "../repositories/lessons.repository.js";
 import { generateEmbeddingText, generateEmbedding } from "./embedding.js";
 import { findDuplicate } from "./deduplication.js";
 import { validationError } from "../utils/errors.js";
+import { findProjectBySlug } from "./projects.service.js";
 
 export interface SaveLessonInput {
   title: string;
@@ -345,6 +349,149 @@ const semanticBonus = (similarity: number): number => {
   if (similarity >= 0.7) return 0.1;
   return 0;
 };
+
+export interface SearchLessonsForUiInput {
+  q?: string;
+  projectSlug?: string;
+  tags?: string[];
+  severity?: string[];
+  category?: string;
+  limit?: number;
+}
+
+export interface SearchLessonsForUiResult {
+  id: string;
+  title: string;
+  problem: string;
+  root_cause: string | null;
+  fix: string;
+  prevention_rule: string;
+  stack_tags: string[];
+  category: string | null;
+  severity: string | null;
+  occurrence_count: number;
+  last_seen_at: string | null;
+  relevance_score: number;
+  provenance: Record<string, unknown> | null;
+}
+
+export const searchLessonsForUi = async (
+  db: LessonsTx,
+  input: SearchLessonsForUiInput
+): Promise<{ lessons: SearchLessonsForUiResult[] }> => {
+  const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
+
+  let projectId: string | undefined;
+  if (input.projectSlug && input.projectSlug !== "all") {
+    const project = await findProjectBySlug(db, input.projectSlug);
+    if (project) {
+      projectId = project.id;
+    }
+  }
+
+  const hasQuery = input.q && input.q.trim().length >= 2;
+
+  let rows: Array<{
+    id: string;
+    title: string;
+    problem: string;
+    rootCause: string | null;
+    fix: string;
+    preventionRule: string;
+    stackTags: string[] | null;
+    category: string | null;
+    severity: string | null;
+    occurrenceCount: number | null;
+    lastSeenAt: Date | null;
+    firstSeenAt: Date | null;
+    projectId: string | null;
+    provenance?: unknown;
+    similarity?: number;
+  }> = [];
+
+  if (hasQuery) {
+    const embedding = await generateEmbedding(input.q!.trim());
+    if (embedding) {
+      const similar = await searchSimilarLessonsAdmin(db, embedding, 0.55, limit * 4, projectId);
+      rows = similar.map((s) => ({
+        id: s.id,
+        title: s.title,
+        problem: s.problem,
+        rootCause: null,
+        fix: s.fix,
+        preventionRule: s.preventionRule,
+        stackTags: s.stackTags ?? [],
+        category: s.category,
+        severity: s.severity,
+        occurrenceCount: s.occurrenceCount ?? 1,
+        lastSeenAt: null,
+        firstSeenAt: null,
+        projectId: null,
+        provenance: null,
+        similarity: s.similarity,
+      }));
+    }
+  } else {
+    const repoRows = await repoQueryLessons(db, {
+      stackTags: input.tags,
+      category: input.category,
+      severity: input.severity?.[0] as "critical" | "high" | "medium" | "low" | undefined,
+      limit: limit * 4,
+    });
+    rows = repoRows;
+  }
+
+  // Apply filters post-query (tags, severity, category)
+  let filtered = rows;
+
+  if (input.tags && input.tags.length > 0) {
+    filtered = filtered.filter((r) => input.tags!.some((tag) => (r.stackTags ?? []).includes(tag)));
+  }
+
+  if (input.severity && input.severity.length > 0) {
+    filtered = filtered.filter((r) => input.severity!.includes(r.severity ?? ""));
+  }
+
+  if (input.category) {
+    filtered = filtered.filter((r) => r.category === input.category);
+  }
+
+  // Sort: relevance (similarity) desc for search, lastSeen desc for empty query
+  const scored = filtered
+    .map((row) => {
+      const score =
+        row.similarity ??
+        (row.lastSeenAt ? 1 / (1 + (Date.now() - row.lastSeenAt.getTime()) / 86_400_000) : 0);
+      return { row, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit);
+
+  const lessons = scored.map(({ row, score }) => ({
+    id: row.id,
+    title: row.title,
+    problem: row.problem,
+    root_cause: row.rootCause,
+    fix: row.fix,
+    prevention_rule: row.preventionRule,
+    stack_tags: row.stackTags ?? [],
+    category: row.category,
+    severity: row.severity,
+    occurrence_count: row.occurrenceCount ?? 1,
+    last_seen_at: row.lastSeenAt?.toISOString() ?? null,
+    relevance_score: Math.round(score * 1000) / 1000,
+    provenance: (row.provenance as Record<string, unknown> | null) ?? null,
+  }));
+
+  return { lessons };
+};
+
+export { type FullLessonRow };
+
+export const findLessonByIdForUi = async (
+  db: LessonsTx,
+  id: string
+): Promise<FullLessonRow | undefined> => findFullLessonById(db, id);
 
 export const queryLessonsForTask = async (
   db: LessonsTx,

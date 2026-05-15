@@ -1,5 +1,14 @@
+import { Suspense } from "react";
+import { LessonsPageClient } from "./lessons-page-client";
+
 const LessonsPage = () => {
-  return <h1>Lessons</h1>;
+  return (
+    <Suspense
+      fallback={<div className="py-12 text-center text-sm text-muted-foreground">Loading...</div>}
+    >
+      <LessonsPageClient />
+    </Suspense>
+  );
 };
 
 export default LessonsPage;

@@ -219,6 +219,45 @@ export const searchSimilarLessons = async (
   }));
 };
 
+export const searchSimilarLessonsAdmin = async (
+  db: LessonsTx,
+  embedding: number[],
+  threshold: number,
+  limit: number,
+  projectId?: string
+): Promise<SimilarLessonResult[]> => {
+  const vectorParam = `[${embedding.join(",")}]`;
+
+  const result = await db.execute(
+    sql`
+      SELECT id, title, problem, fix, prevention_rule, stack_tags,
+             category, severity, occurrence_count,
+             1 - (embedding <=> ${vectorParam}::vector) AS similarity
+      FROM ${schema.lessons}
+      WHERE ${projectId ? sql`project_id = ${projectId}::uuid` : sql`1 = 1`}
+        AND embedding IS NOT NULL
+        AND 1 - (embedding <=> ${vectorParam}::vector) >= ${threshold}
+      ORDER BY similarity DESC
+      LIMIT ${limit}
+    `
+  );
+
+  const rows = (result as any).rows ?? (Array.isArray(result) ? result : []);
+
+  return rows.map((row: Record<string, unknown>) => ({
+    id: String(row.id),
+    title: String(row.title),
+    problem: String(row.problem),
+    fix: String(row.fix),
+    preventionRule: String(row.prevention_rule),
+    stackTags: Array.isArray(row.stack_tags) ? (row.stack_tags as string[]) : null,
+    category: row.category ? String(row.category) : null,
+    severity: row.severity ? String(row.severity) : null,
+    occurrenceCount: row.occurrence_count ? Number(row.occurrence_count) : null,
+    similarity: Number(row.similarity),
+  }));
+};
+
 // Acquires a transaction-scoped advisory lock keyed by project_id so that
 // concurrent save_lesson calls within the same project serialise around the
 // dedup-check + insert path. The lock is automatically released on COMMIT or

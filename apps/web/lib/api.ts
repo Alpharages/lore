@@ -1,4 +1,4 @@
-import { apiClient } from "./axios";
+import { apiClient, internalApiClient } from "./axios";
 import type { Lesson, Propagation, Stats, Project } from "./api-types";
 
 export const login = async (password: string): Promise<void> => {
@@ -23,13 +23,14 @@ export const fetchLessons = async (params: {
   tags?: string[];
   severity?: string[];
   category?: string;
+  limit?: number;
 }): Promise<Lesson[]> => {
-  const { data } = await apiClient.get("/api/lessons/search", { params });
+  const { data } = await internalApiClient.get("/api/lessons/search", { params });
   return data.lessons as Lesson[];
 };
 
 export const fetchLesson = async (id: string): Promise<Lesson> => {
-  const { data } = await apiClient.get(`/api/lessons/${id}`);
+  const { data } = await internalApiClient.get(`/api/lessons/${id}`);
   return data as Lesson;
 };
 

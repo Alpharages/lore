@@ -12,13 +12,7 @@ export class ApiError extends Error {
   }
 }
 
-const createApiClient = (): AxiosInstance => {
-  const client = axios.create({
-    baseURL: LORE_API_URL,
-    withCredentials: true,
-    headers: { "Content-Type": "application/json" },
-  });
-
+const applyInterceptors = (client: AxiosInstance): AxiosInstance => {
   client.interceptors.response.use(
     (response) => response,
     (error) => {
@@ -32,8 +26,20 @@ const createApiClient = (): AxiosInstance => {
       return Promise.reject(new ApiError(status, message));
     }
   );
-
   return client;
 };
 
-export const apiClient = createApiClient();
+export const apiClient = applyInterceptors(
+  axios.create({
+    baseURL: LORE_API_URL,
+    withCredentials: true,
+    headers: { "Content-Type": "application/json" },
+  })
+);
+
+export const internalApiClient = applyInterceptors(
+  axios.create({
+    withCredentials: true,
+    headers: { "Content-Type": "application/json" },
+  })
+);

@@ -23,7 +23,14 @@ export const requireAdminSecret = async (
     throw rateLimited(60);
   }
 
-  const header = request.headers["x-admin-secret"];
+  let header = request.headers["x-admin-secret"];
+  if (typeof header !== "string") {
+    const authHeader = request.headers.authorization;
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      header = authHeader.slice(7);
+    }
+  }
+
   if (typeof header !== "string") {
     recordFailure(ip);
     log.warn({
