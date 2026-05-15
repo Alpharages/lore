@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery, keepPreviousData } from "@tanstack/react-query";
 import { useDebounce } from "@/hooks/use-debounce";
 import { useProject } from "@/hooks/use-project";
 import { fetchLessons } from "@/lib/api";
 import { SearchBar } from "@/components/app/search-bar";
+import { FilterChips } from "@/components/app/filter-chips";
 import { LessonCard } from "@/components/app/lesson-card";
 import { LessonCardSkeletonList } from "@/components/app/lesson-card-skeleton";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { FilterState } from "@/lib/api-types";
 
 export const LessonsPageClient = () => {
   const searchParams = useSearchParams();
@@ -20,8 +22,17 @@ export const LessonsPageClient = () => {
   const [inputValue, setInputValue] = useState(initialQ);
   const debouncedQuery = useDebounce(inputValue, 250);
 
+  const tags = searchParams.get("tags")?.split(",").filter(Boolean) ?? [];
+  const severity = searchParams.get("severity")?.split(",").filter(Boolean) ?? [];
+  const category = searchParams.get("category") ?? "";
+  const activeFilters: FilterState = { tags, severity, category };
+
+  // Ref so the debounce effect always reads the latest params without re-firing on every chip click.
+  const searchParamsRef = useRef(searchParams);
+  searchParamsRef.current = searchParams;
+
   useEffect(() => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(searchParamsRef.current.toString());
     if (debouncedQuery) {
       params.set("q", debouncedQuery);
     } else {
@@ -29,16 +40,19 @@ export const LessonsPageClient = () => {
     }
     const qs = params.toString();
     router.replace(qs ? `/lessons?${qs}` : "/lessons", { scroll: false });
-  }, [debouncedQuery, searchParams, router]);
+  }, [debouncedQuery, router]);
 
   const enabled = debouncedQuery.length >= 2 || debouncedQuery.length === 0;
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["lessons", debouncedQuery, projectSlug],
+    queryKey: ["lessons", debouncedQuery, activeFilters, projectSlug],
     queryFn: () =>
       fetchLessons({
         q: debouncedQuery || undefined,
         project: projectSlug === "all" ? undefined : projectSlug,
+        tags: activeFilters.tags.length > 0 ? activeFilters.tags : undefined,
+        severity: activeFilters.severity.length > 0 ? activeFilters.severity : undefined,
+        category: activeFilters.category || undefined,
         limit: debouncedQuery ? undefined : 20,
       }),
     enabled,
@@ -57,6 +71,10 @@ export const LessonsPageClient = () => {
         isError={isError}
         onRetry={refetch}
       />
+
+      {data !== undefined && (
+        <FilterChips results={lessons} activeFilters={activeFilters} />
+      )}
 
       {isLoading ? (
         <LessonCardSkeletonList count={debouncedQuery ? 5 : 20} />

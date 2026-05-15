@@ -25,7 +25,13 @@ export const fetchLessons = async (params: {
   category?: string;
   limit?: number;
 }): Promise<Lesson[]> => {
-  const { data } = await internalApiClient.get("/api/lessons/search", { params });
+  const { data } = await internalApiClient.get("/api/lessons/search", {
+    params: {
+      ...params,
+      tags: params.tags?.join(","),
+      severity: params.severity?.join(","),
+    },
+  });
   return data.lessons as Lesson[];
 };
 

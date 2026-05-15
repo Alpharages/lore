@@ -23,7 +23,9 @@ const LoginPage = () => {
       router.push("/lessons");
     } catch (err) {
       const msg = err instanceof Error ? err.message : "";
-      setError(msg === "Network error" ? "Network error. Please try again." : "Incorrect password.");
+      setError(
+        msg === "Network error" ? "Network error. Please try again." : "Incorrect password."
+      );
       setLoading(false);
     }
   };

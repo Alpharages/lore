@@ -2,6 +2,14 @@ export type Severity = "critical" | "high" | "medium" | "low";
 
 export type Provenance = "code_review" | "manual" | "propagated";
 
+export type FilterState = {
+  tags: string[];
+  severity: string[];
+  category: string;
+};
+
+export const EMPTY_FILTERS: FilterState = { tags: [], severity: [], category: "" };
+
 export interface Lesson {
   id: string;
   title: string;
