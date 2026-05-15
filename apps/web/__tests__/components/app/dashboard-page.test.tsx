@@ -16,6 +16,16 @@ vi.mock("@/lib/api", () => ({
   fetchStats: (...args: unknown[]) => mockFetchStats(...args),
 }));
 
+vi.mock("recharts", async () => {
+  const actual = await vi.importActual<typeof import("recharts")>("recharts");
+  return {
+    ...actual,
+    ResponsiveContainer: ({ children }: { children: React.ReactNode }) => (
+      <div style={{ width: 400, height: 300 }}>{children}</div>
+    ),
+  };
+});
+
 const createQueryClient = () =>
   new QueryClient({
     defaultOptions: {
@@ -194,7 +204,7 @@ describe("DashboardPage", () => {
     expect(screen.queryByText(/this month/)).not.toBeInTheDocument();
   });
 
-  it("renders empty state when sessionsRun is 0", async () => {
+  it("renders empty state when sessionsRun is 0 and no trend data", async () => {
     mockFetchStats.mockResolvedValue({
       totalLessons: 0,
       sessionsRun: 0,
@@ -227,10 +237,86 @@ describe("DashboardPage", () => {
     expect(zeros).toHaveLength(4);
   });
 
-  it("does not show empty state when sessionsRun > 0", async () => {
+  it("does not show empty state when weeklyLessonCounts has 2+ entries", async () => {
     mockFetchStats.mockResolvedValue({
       totalLessons: 10,
       sessionsRun: 1,
+      propagationsSent: 0,
+      propagationsAccepted: 0,
+      weeklyLessonCounts: [
+        { week: "May 5", count: 5 },
+        { week: "May 12", count: 5 },
+      ],
+    });
+    setup();
+
+    await waitFor(() => {
+      expect(screen.getByText("10")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText("Memory starts here")).not.toBeInTheDocument();
+  });
+
+  it("renders chart when weeklyLessonCounts has 2+ entries", async () => {
+    mockFetchStats.mockResolvedValue({
+      totalLessons: 247,
+      sessionsRun: 84,
+      propagationsSent: 12,
+      propagationsAccepted: 5,
+      weeklyLessonCounts: [
+        { week: "May 5", count: 10 },
+        { week: "May 12", count: 15 },
+        { week: "May 19", count: 20 },
+      ],
+    });
+    setup();
+
+    await waitFor(() => {
+      expect(screen.getByText("247")).toBeInTheDocument();
+    });
+
+    const chartWrapper = document.querySelector(".recharts-wrapper");
+    expect(chartWrapper).toBeInTheDocument();
+    expect(screen.queryByText("Memory starts here")).not.toBeInTheDocument();
+  });
+
+  it("shows empty state when weeklyLessonCounts has < 2 entries", async () => {
+    mockFetchStats.mockResolvedValue({
+      totalLessons: 0,
+      sessionsRun: 0,
+      propagationsSent: 0,
+      propagationsAccepted: 0,
+      weeklyLessonCounts: [{ week: "May 5", count: 0 }],
+    });
+    setup();
+
+    await waitFor(() => {
+      expect(screen.getByText("Memory starts here")).toBeInTheDocument();
+    });
+
+    expect(document.querySelector(".recharts-wrapper")).not.toBeInTheDocument();
+  });
+
+  it("shows empty state when weeklyLessonCounts is undefined", async () => {
+    mockFetchStats.mockResolvedValue({
+      totalLessons: 0,
+      sessionsRun: 0,
+      propagationsSent: 0,
+      propagationsAccepted: 0,
+    });
+    setup();
+
+    await waitFor(() => {
+      expect(screen.getByText("Memory starts here")).toBeInTheDocument();
+    });
+
+    expect(document.querySelector(".recharts-wrapper")).not.toBeInTheDocument();
+  });
+
+  it("shows empty state when sessionsRun > 0 but no trend data", async () => {
+    mockFetchStats.mockResolvedValue({
+      totalLessons: 10,
+      sessionsRun: 5,
       propagationsSent: 0,
       propagationsAccepted: 0,
     });
@@ -240,7 +326,8 @@ describe("DashboardPage", () => {
       expect(screen.getByText("10")).toBeInTheDocument();
     });
 
-    expect(screen.queryByText("Memory starts here")).not.toBeInTheDocument();
+    expect(document.querySelector(".recharts-wrapper")).not.toBeInTheDocument();
+    expect(screen.getByText("Memory starts here")).toBeInTheDocument();
   });
 
   it("does not crash on API error", async () => {

@@ -5,6 +5,7 @@ import { fetchStats } from "@/lib/api";
 import { useProject } from "@/hooks/use-project";
 import { StatCard } from "@/components/app/stat-card";
 import { EmptyState } from "@/components/app/empty-state";
+import { MemoryGrowthChart } from "@/components/app/memory-growth-chart";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Stats } from "@/lib/api-types";
 
@@ -34,7 +35,8 @@ const DashboardPage = () => {
     queryFn: () => fetchStats(projectSlug === "all" ? undefined : projectSlug),
   });
 
-  const zeroState = stats !== undefined && stats.sessionsRun === 0;
+  const trendData = stats?.weeklyLessonCounts;
+  const hasTrendData = trendData !== undefined && trendData.length >= 2;
 
   return (
     <section>
@@ -67,7 +69,9 @@ const DashboardPage = () => {
             />
           </div>
 
-          {zeroState && (
+          {hasTrendData ? (
+            <MemoryGrowthChart data={trendData} />
+          ) : (
             <div className="mt-8">
               <EmptyState
                 title="Memory starts here"

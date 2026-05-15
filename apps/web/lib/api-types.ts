@@ -45,6 +45,11 @@ export interface Propagation {
   targetProject?: string;
 }
 
+export interface LessonTrendPoint {
+  week: string;
+  count: number;
+}
+
 export interface Stats {
   totalLessons: number;
   sessionsRun: number;
@@ -56,6 +61,7 @@ export interface Stats {
     propagationsSent?: number;
     propagationsAccepted?: number;
   };
+  weeklyLessonCounts?: LessonTrendPoint[];
 }
 
 export interface PropagationMetadata {
