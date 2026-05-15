@@ -20,8 +20,9 @@ export const ProvenanceDot = ({ provenance }: { provenance: Provenance }) => (
   <Tooltip>
     <TooltipTrigger asChild>
       <span
+        tabIndex={0}
         aria-label={dotLabels[provenance]}
-        className={cn("inline-block size-1.5 rounded-full", dotClasses[provenance])}
+        className={cn("inline-block size-1.5 rounded-full cursor-default", dotClasses[provenance])}
       />
     </TooltipTrigger>
     <TooltipContent side="top">{dotLabels[provenance]}</TooltipContent>

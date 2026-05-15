@@ -14,7 +14,7 @@ const FIX_PREVIEW_MAX = 120;
 const firstSentence = (text: string): string => {
   const trimmed = text.trim();
   if (!trimmed) return "";
-  const match = trimmed.match(/^[^.!?]+[.!?]/);
+  const match = trimmed.match(/^.+?[.!?](?=\s|$)/);
   const sentence = (match ? match[0] : trimmed).trim();
   return sentence.length > FIX_PREVIEW_MAX
     ? `${sentence.slice(0, FIX_PREVIEW_MAX).trimEnd()}…`
@@ -32,12 +32,15 @@ export const LessonCard = ({ lesson }: { lesson: Lesson }) => {
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   }, [router, pathname, searchParams, lesson.id]);
 
-  const handleKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      open();
-    }
-  };
+  const handleKey = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        open();
+      }
+    },
+    [open]
+  );
 
   const fixPreview = firstSentence(lesson.fix);
   const visibleTags = lesson.stackTags.slice(0, MAX_VISIBLE_TAGS);
@@ -51,7 +54,7 @@ export const LessonCard = ({ lesson }: { lesson: Lesson }) => {
       onClick={open}
       onKeyDown={handleKey}
       className={cn(
-        "group flex flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-sm",
+        "flex flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-sm",
         "cursor-pointer transition-shadow duration-150 hover:shadow-md",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
       )}
@@ -59,25 +62,23 @@ export const LessonCard = ({ lesson }: { lesson: Lesson }) => {
       <div className="flex items-start gap-2">
         <SeverityBadge severity={lesson.severity} />
         <h3 className="flex-1 truncate text-sm font-medium text-foreground">{lesson.title}</h3>
-        <ProvenanceDot provenance={lesson.provenance} />
       </div>
       {fixPreview ? (
         <p className="text-xs text-muted-foreground line-clamp-2">{fixPreview}</p>
       ) : null}
-      {lesson.stackTags.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-1">
-          {visibleTags.map((tag) => (
-            <Badge key={tag} variant="outline" className="font-mono text-[10px]">
-              {tag}
-            </Badge>
-          ))}
-          {overflowCount > 0 ? (
-            <Badge variant="secondary" className="text-[10px]">
-              +{overflowCount} more
-            </Badge>
-          ) : null}
-        </div>
-      ) : null}
+      <div className="flex flex-wrap items-center gap-1">
+        {visibleTags.map((tag) => (
+          <Badge key={tag} variant="outline" className="font-mono text-[10px]">
+            {tag}
+          </Badge>
+        ))}
+        {overflowCount > 0 ? (
+          <Badge variant="secondary" className="text-[10px]">
+            +{overflowCount} more
+          </Badge>
+        ) : null}
+        <ProvenanceDot provenance={lesson.provenance} />
+      </div>
     </div>
   );
 };
