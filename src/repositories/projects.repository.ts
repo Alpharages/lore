@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../db/schema.js";
 
@@ -6,7 +6,13 @@ export type DrizzleClient = NodePgDatabase<typeof schema>;
 
 export const insertProject = async (
   db: DrizzleClient,
-  values: { slug: string; name: string; apiKeyHash: string; stackTags: string[] }
+  values: {
+    slug: string;
+    name: string;
+    apiKeyId: string;
+    apiKeyHash: string;
+    stackTags: string[];
+  }
 ): Promise<{ id: string }> => {
   const [project] = await db
     .insert(schema.projects)
@@ -30,6 +36,7 @@ export const selectProjects = async (db: DrizzleClient) => {
       name: schema.projects.name,
       stackTags: schema.projects.stackTags,
       createdAt: schema.projects.createdAt,
+      keyId: schema.projects.apiKeyId,
       lessonCount: sql<number>`COUNT(${schema.lessons.id})::int`,
     })
     .from(schema.projects)
@@ -50,7 +57,7 @@ export const deleteProjectBySlug = async (db: DrizzleClient, slug: string): Prom
 export const findProjectBySlug = async (
   db: DrizzleClient,
   slug: string
-): Promise<{ id: string; slug: string; apiKeyHash: string } | undefined> => {
+): Promise<{ id: string; slug: string; apiKeyHash: string | null } | undefined> => {
   const rows = await db
     .select({
       id: schema.projects.id,
@@ -62,6 +69,49 @@ export const findProjectBySlug = async (
     .limit(1);
 
   return rows[0];
+};
+
+export const findProjectKeyBySlug = async (
+  db: DrizzleClient,
+  slug: string
+): Promise<{ keyId: string | null } | undefined> => {
+  const rows = await db
+    .select({
+      keyId: schema.projects.apiKeyId,
+    })
+    .from(schema.projects)
+    .where(eq(schema.projects.slug, slug))
+    .limit(1);
+
+  return rows[0];
+};
+
+export const updateProjectKey = async (
+  db: DrizzleClient,
+  slug: string,
+  values: { apiKeyId: string | null; apiKeyHash: string | null }
+): Promise<boolean> => {
+  const result = await db
+    .update(schema.projects)
+    .set(values)
+    .where(eq(schema.projects.slug, slug))
+    .returning({ id: schema.projects.id });
+
+  return result.length > 0;
+};
+
+export const revokeProjectKey = async (
+  db: DrizzleClient,
+  slug: string,
+  keyId: string
+): Promise<boolean> => {
+  const result = await db
+    .update(schema.projects)
+    .set({ apiKeyId: null, apiKeyHash: null })
+    .where(and(eq(schema.projects.slug, slug), eq(schema.projects.apiKeyId, keyId)))
+    .returning({ id: schema.projects.id });
+
+  return result.length > 0;
 };
 
 export const findRepositoryBySlug = async (

@@ -4,10 +4,14 @@ import {
   registerProject,
   listProjects,
   deleteProjectBySlug,
+  getProjectKeyReference,
+  revokeProjectKey,
+  regenerateProjectKey,
 } from "../../services/projects.service.js";
-import { validationError, conflictError } from "../../utils/errors.js";
+import { validationError, conflictError, notFoundError } from "../../utils/errors.js";
 
 const slugRegex = /^[a-z0-9-]{2,40}$/;
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface RouteConfig {
   db: DrizzleClient;
@@ -78,6 +82,7 @@ export const list = async (request: FastifyRequest, reply: FastifyReply) => {
       stackTags: p.stackTags ?? [],
       createdAt: p.createdAt,
       lessonCount: p.lessonCount ?? 0,
+      keyId: p.keyId ?? null,
     })),
   };
 };
@@ -94,4 +99,63 @@ export const remove = async (
   }
   reply.status(204);
   return;
+};
+
+export const getKey = async (
+  request: FastifyRequest<{ Params: { slug: string } }>,
+  reply: FastifyReply
+) => {
+  const db = getDb(request);
+  const { slug } = request.params;
+  if (!slugRegex.test(slug)) {
+    throw validationError("Invalid slug format");
+  }
+
+  const reference = await getProjectKeyReference(db, slug);
+  if (!reference) {
+    throw notFoundError(`Project '${slug}' not found`);
+  }
+
+  return reference;
+};
+
+export const revokeKey = async (
+  request: FastifyRequest<{ Params: { slug: string; keyId: string } }>,
+  reply: FastifyReply
+) => {
+  const db = getDb(request);
+  const { slug, keyId } = request.params;
+  if (!slugRegex.test(slug)) {
+    throw validationError("Invalid slug format");
+  }
+  if (!uuidRegex.test(keyId)) {
+    throw validationError("Invalid keyId format");
+  }
+
+  const revoked = await revokeProjectKey(db, slug, keyId);
+  if (!revoked) {
+    reply.status(404);
+    return { error: "not_found" };
+  }
+
+  reply.status(204);
+  return;
+};
+
+export const regenerateKey = async (
+  request: FastifyRequest<{ Params: { slug: string } }>,
+  reply: FastifyReply
+) => {
+  const db = getDb(request);
+  const { slug } = request.params;
+  if (!slugRegex.test(slug)) {
+    throw validationError("Invalid slug format");
+  }
+
+  const result = await regenerateProjectKey(db, slug);
+  if (!result) {
+    throw notFoundError(`Project '${slug}' not found`);
+  }
+
+  return { key: result.key, keyId: result.keyId };
 };

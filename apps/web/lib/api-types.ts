@@ -77,3 +77,8 @@ export interface Project {
   createdAt: string;
   keyId: string | null;
 }
+
+export interface ProjectKeyReference {
+  keyId: string | null;
+  maskedKey: string | null;
+}

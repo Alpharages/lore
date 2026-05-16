@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Copy, KeyRound, RefreshCw, Trash2 } from "lucide-react";
-import { revokeApiKey, regenerateApiKey } from "@/lib/api";
+import { fetchProjectKey, revokeApiKey, regenerateApiKey } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +14,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 
 interface ApiKeyManagerProps {
   slug: string;
@@ -22,24 +28,45 @@ interface ApiKeyManagerProps {
   projectName: string;
 }
 
+const MASKED_BULLETS = "•".repeat(24);
+
 export const ApiKeyManager = ({ slug, keyId, projectName }: ApiKeyManagerProps) => {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [revokeOpen, setRevokeOpen] = useState(false);
-  const [regenerateOpen, setRegenerateOpen] = useState(false);
+  const [regenerateConfirmOpen, setRegenerateConfirmOpen] = useState(false);
+  const [newKeyOpen, setNewKeyOpen] = useState(false);
   const [newKey, setNewKey] = useState<string | null>(null);
+  const [copying, setCopying] = useState(false);
 
-  const maskedKey = keyId ? `lore_${slug}_••••••••••••••••••••••••` : null;
+  const maskedKey = keyId ? `lore_${slug}_${MASKED_BULLETS}` : null;
 
   const handleCopy = async () => {
-    if (!keyId) return;
-    await navigator.clipboard.writeText(keyId);
-    toast("Copied to clipboard.");
+    if (copying) return;
+    setCopying(true);
+    try {
+      const reference = await fetchProjectKey(slug);
+      if (!reference.maskedKey) {
+        toast("No active key to copy.");
+        return;
+      }
+      await navigator.clipboard.writeText(reference.maskedKey);
+      toast("Copied to clipboard.");
+    } catch {
+      toast("Action failed. Please try again.");
+    } finally {
+      setCopying(false);
+    }
   };
 
   const revokeMutation = useMutation({
-    mutationFn: () => revokeApiKey(slug, keyId!),
+    mutationFn: () => {
+      if (!keyId) {
+        return Promise.reject(new Error("No key to revoke"));
+      }
+      return revokeApiKey(slug, keyId);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       setRevokeOpen(false);
@@ -57,9 +84,11 @@ export const ApiKeyManager = ({ slug, keyId, projectName }: ApiKeyManagerProps) 
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       setNewKey(data.key);
-      setRegenerateOpen(true);
+      setRegenerateConfirmOpen(false);
+      setNewKeyOpen(true);
     },
     onError: () => {
+      setRegenerateConfirmOpen(false);
       toast("Action failed. Please try again.");
     },
   });
@@ -68,7 +97,7 @@ export const ApiKeyManager = ({ slug, keyId, projectName }: ApiKeyManagerProps) 
     if (!newKey) return;
     await navigator.clipboard.writeText(newKey);
     toast("Copied to clipboard.");
-    setRegenerateOpen(false);
+    setNewKeyOpen(false);
     setNewKey(null);
   };
 
@@ -89,6 +118,10 @@ export const ApiKeyManager = ({ slug, keyId, projectName }: ApiKeyManagerProps) 
         <SheetContent>
           <SheetHeader>
             <SheetTitle>API Key — {projectName}</SheetTitle>
+            <SheetDescription>
+              View, copy, regenerate, or revoke the API key for {projectName}. Revoking immediately
+              invalidates the key; regenerating replaces it with a new one.
+            </SheetDescription>
           </SheetHeader>
 
           <div className="mt-6 space-y-6 px-4">
@@ -107,20 +140,20 @@ export const ApiKeyManager = ({ slug, keyId, projectName }: ApiKeyManagerProps) 
               <Button
                 variant="outline"
                 size="sm"
-                disabled={!keyId}
+                disabled={copying}
                 onClick={handleCopy}
-                aria-label={`Copy API key identifier for ${projectName}`}
+                aria-label={`Copy API key reference for ${projectName}`}
                 className="w-full justify-start focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Copy className="mr-2 size-3.5" />
-                Copy key identifier
+                {copying ? "Copying..." : "Copy key reference"}
               </Button>
 
               <Button
                 variant="outline"
                 size="sm"
                 disabled={regenerateMutation.isPending}
-                onClick={() => regenerateMutation.mutate()}
+                onClick={() => setRegenerateConfirmOpen(true)}
                 aria-label={`Regenerate API key for ${projectName}`}
                 className="w-full justify-start focus-visible:ring-2 focus-visible:ring-ring"
               >
@@ -169,11 +202,36 @@ export const ApiKeyManager = ({ slug, keyId, projectName }: ApiKeyManagerProps) 
         </DialogContent>
       </Dialog>
 
+      <Dialog open={regenerateConfirmOpen} onOpenChange={setRegenerateConfirmOpen}>
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Regenerate API key?</DialogTitle>
+            <DialogDescription>
+              This will replace the active key for {projectName}. Agents using the current key will
+              lose access until they are updated with the new key.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setRegenerateConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={regenerateMutation.isPending}
+              onClick={() => regenerateMutation.mutate()}
+              aria-label={`Confirm regenerate API key for ${projectName}`}
+            >
+              {regenerateMutation.isPending ? "Regenerating..." : "Regenerate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog
-        open={regenerateOpen}
+        open={newKeyOpen}
         onOpenChange={(open) => {
           if (!open) setNewKey(null);
-          setRegenerateOpen(open);
+          setNewKeyOpen(open);
         }}
       >
         <DialogContent showCloseButton={false}>

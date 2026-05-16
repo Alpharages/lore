@@ -17,6 +17,7 @@ const makeProject = (overrides: Partial<Project> = {}): Project => ({
   stackTags: ["typescript", "nextjs"],
   lessonCount: 42,
   createdAt: "2026-05-10T10:00:00Z",
+  keyId: null,
   ...overrides,
 });
 
@@ -62,6 +63,26 @@ describe("AdminProjectsTable", () => {
     expect(screen.getByText("Stack Tags")).toBeInTheDocument();
     expect(screen.getByText("Lesson Count")).toBeInTheDocument();
     expect(screen.getByText("Created Date")).toBeInTheDocument();
+    expect(screen.getByText("Keys")).toBeInTheDocument();
+  });
+
+  it("renders an ApiKeyManager trigger button in each project row", async () => {
+    mockFetchProjects.mockResolvedValue([
+      makeProject({ name: "Lore Platform", slug: "lore", keyId: "key-1" }),
+      makeProject({ id: "proj-002", name: "StaffedUp", slug: "staffedup", keyId: null }),
+    ]);
+    setup();
+
+    await waitFor(() => {
+      expect(screen.getByText("Lore Platform")).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByRole("button", { name: "Manage API keys for Lore Platform" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Manage API keys for StaffedUp" })
+    ).toBeInTheDocument();
   });
 
   it("renders project rows after data loads", async () => {

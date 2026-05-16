@@ -112,6 +112,19 @@ export const createRequireProjectAuth = (pool: Pool, db: DrizzleClient) => {
       throw unauthorized();
     }
 
+    if (!project.apiKeyHash) {
+      recordFailure(ip);
+      log.warn({
+        tool: "auth:bearer",
+        project_id: maskProjectId(project.id),
+        success: false,
+        reason: "key_revoked",
+        ip: maskIp(ip),
+        token_prefix: `lore_${slug}_***`,
+      });
+      throw unauthorized();
+    }
+
     const match = await compareApiKey(token, project.apiKeyHash);
     if (!match) {
       recordFailure(ip);

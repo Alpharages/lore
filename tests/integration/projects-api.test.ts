@@ -51,7 +51,7 @@ describe("Project API — Security", () => {
       expect(body.projects.length).toBe(1);
 
       const project = body.projects[0];
-      const allowedKeys = ["id", "slug", "name", "stackTags", "createdAt", "lessonCount"];
+      const allowedKeys = ["id", "slug", "name", "stackTags", "createdAt", "lessonCount", "keyId"];
       const actualKeys = Object.keys(project);
 
       for (const key of actualKeys) {
@@ -64,6 +64,11 @@ describe("Project API — Security", () => {
       expect(project).not.toHaveProperty("apiKey");
       expect(project).not.toHaveProperty("hash");
       expect(project).not.toHaveProperty("key");
+
+      // keyId is a UUID, not the secret. Confirm it is shaped like a UUID and not a bcrypt hash.
+      expect(project.keyId).toMatch(
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+      );
 
       // No bcrypt signature anywhere in the JSON response
       expect(JSON.stringify(body)).not.toMatch(/\$2[aby]\$/);

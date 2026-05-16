@@ -1,5 +1,5 @@
 import { apiClient, internalApiClient } from "./axios";
-import type { Lesson, Propagation, Stats, Project } from "./api-types";
+import type { Lesson, Propagation, Stats, Project, ProjectKeyReference } from "./api-types";
 
 export const login = async (password: string): Promise<void> => {
   let res: Response;
@@ -67,13 +67,22 @@ export const fetchProjects = async (): Promise<Project[]> => {
   return data.projects as Project[];
 };
 
-export const revokeApiKey = async (slug: string, keyId: string): Promise<void> => {
-  await apiClient.delete(`/api/projects/${slug}/keys/${keyId}`);
+export const fetchProjectKey = async (slug: string): Promise<ProjectKeyReference> => {
+  const { data } = await internalApiClient.get(`/api/projects/${encodeURIComponent(slug)}/key`);
+  return data as ProjectKeyReference;
 };
 
-export const regenerateApiKey = async (slug: string): Promise<{ key: string }> => {
-  const { data } = await apiClient.post(`/api/projects/${slug}/keys/regenerate`);
-  return data as { key: string };
+export const revokeApiKey = async (slug: string, keyId: string): Promise<void> => {
+  await internalApiClient.delete(
+    `/api/projects/${encodeURIComponent(slug)}/keys/${encodeURIComponent(keyId)}`
+  );
+};
+
+export const regenerateApiKey = async (slug: string): Promise<{ key: string; keyId: string }> => {
+  const { data } = await internalApiClient.post(
+    `/api/projects/${encodeURIComponent(slug)}/keys/regenerate`
+  );
+  return data as { key: string; keyId: string };
 };
 
 export const fetchPropagationCount = async (projectSlug?: string): Promise<number> => {
