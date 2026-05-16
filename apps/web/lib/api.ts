@@ -63,7 +63,7 @@ export const fetchStats = async (project?: string): Promise<Stats> => {
 };
 
 export const fetchProjects = async (): Promise<Project[]> => {
-  const { data } = await apiClient.get("/api/projects");
+  const { data } = await internalApiClient.get("/api/projects");
   return data.projects as Project[];
 };
 

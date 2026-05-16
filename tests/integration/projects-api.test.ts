@@ -46,11 +46,12 @@ describe("Project API — Security", () => {
 
       expect(listRes.statusCode).toBe(200);
       const body = JSON.parse(listRes.payload);
-      expect(Array.isArray(body)).toBe(true);
-      expect(body.length).toBe(1);
+      expect(body).toHaveProperty("projects");
+      expect(Array.isArray(body.projects)).toBe(true);
+      expect(body.projects.length).toBe(1);
 
-      const project = body[0];
-      const allowedKeys = ["id", "slug", "name", "stack_tags", "created_at"];
+      const project = body.projects[0];
+      const allowedKeys = ["id", "slug", "name", "stackTags", "createdAt", "lessonCount"];
       const actualKeys = Object.keys(project);
 
       for (const key of actualKeys) {
@@ -68,7 +69,7 @@ describe("Project API — Security", () => {
       expect(JSON.stringify(body)).not.toMatch(/\$2[aby]\$/);
     });
 
-    it("returns an empty array when no projects exist", async () => {
+    it("returns an empty projects array when no projects exist", async () => {
       const app = buildTestApp(pool, db);
       const res = await app.inject({
         method: "GET",
@@ -77,7 +78,7 @@ describe("Project API — Security", () => {
       });
 
       expect(res.statusCode).toBe(200);
-      expect(JSON.parse(res.payload)).toEqual([]);
+      expect(JSON.parse(res.payload)).toEqual({ projects: [] });
     });
   });
 

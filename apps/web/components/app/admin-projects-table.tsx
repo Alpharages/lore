@@ -119,7 +119,7 @@ export const AdminProjectsTable = () => {
               Add Project
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg" showCloseButton={false}>
             <DialogHeader>
               <DialogTitle>Register a New Project</DialogTitle>
             </DialogHeader>
@@ -131,9 +131,7 @@ export const AdminProjectsTable = () => {
                 <code>{CURL_SNIPPET}</code>
               </pre>
             </ScrollArea>
-            <DialogFooter showCloseButton>
-              <span />
-            </DialogFooter>
+            <DialogFooter showCloseButton />
           </DialogContent>
         </Dialog>
       </div>

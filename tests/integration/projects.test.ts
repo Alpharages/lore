@@ -121,14 +121,16 @@ describe("Project Registration & Admin Routes", () => {
 
       expect(res.statusCode).toBe(200);
       const body = JSON.parse(res.payload);
-      expect(Array.isArray(body)).toBe(true);
-      expect(body.length).toBe(1);
-      const project = body[0];
+      expect(Array.isArray(body.projects)).toBe(true);
+      expect(body.projects.length).toBe(1);
+      const project = body.projects[0];
       expect(project).toHaveProperty("id");
       expect(project).toHaveProperty("slug");
       expect(project).toHaveProperty("name");
-      expect(project).toHaveProperty("stack_tags");
-      expect(project).toHaveProperty("created_at");
+      expect(project).toHaveProperty("stackTags");
+      expect(project).toHaveProperty("createdAt");
+      expect(project).toHaveProperty("lessonCount");
+      expect(typeof project.lessonCount).toBe("number");
       expect(project).not.toHaveProperty("api_key_hash");
       expect(project).not.toHaveProperty("api_key");
       expect(JSON.stringify(body)).not.toMatch(/\$2[aby]\$/);
@@ -177,7 +179,7 @@ describe("Project Registration & Admin Routes", () => {
         url: "/api/projects",
         headers: { "x-admin-secret": ADMIN_SECRET },
       });
-      expect(JSON.parse(listRes.payload).length).toBe(0);
+      expect(JSON.parse(listRes.payload).projects).toEqual([]);
 
       // Verify ON DELETE CASCADE removed all child rows
       const repoCount = await pool.query<{ count: string }>(

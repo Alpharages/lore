@@ -70,13 +70,16 @@ export const register = async (
 export const list = async (request: FastifyRequest, reply: FastifyReply) => {
   const db = getDb(request);
   const projects = await listProjects(db);
-  return projects.map((p) => ({
-    id: p.id,
-    slug: p.slug,
-    name: p.name,
-    stack_tags: p.stackTags,
-    created_at: p.createdAt,
-  }));
+  return {
+    projects: projects.map((p) => ({
+      id: p.id,
+      slug: p.slug,
+      name: p.name,
+      stackTags: p.stackTags ?? [],
+      createdAt: p.createdAt,
+      lessonCount: p.lessonCount ?? 0,
+    })),
+  };
 };
 
 export const remove = async (

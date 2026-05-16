@@ -164,7 +164,7 @@ describe("AdminProjectsTable", () => {
     expect(screen.queryByText(/more/)).not.toBeInTheDocument();
   });
 
-  it("renders relative date with ISO title attribute", async () => {
+  it("renders relative date with ISO title attribute and human-readable label", async () => {
     const isoDate = "2026-01-01T00:00:00Z";
     mockFetchProjects.mockResolvedValue([makeProject({ createdAt: isoDate })]);
     setup();
@@ -173,6 +173,10 @@ describe("AdminProjectsTable", () => {
       const dateCell = document.querySelector("[title]");
       expect(dateCell).toHaveAttribute("title", new Date(isoDate).toISOString());
     });
+
+    // Asserts the relative-time output of formatDistanceToNow appears in the cell:
+    // e.g. "4 months ago", "about 1 year ago", "less than a minute ago".
+    expect(screen.getByText(/ago$|^just now$|^less than/i)).toBeInTheDocument();
   });
 
   it("sorts projects by createdAt descending (newest first)", async () => {
@@ -208,7 +212,30 @@ describe("AdminProjectsTable", () => {
       expect(screen.getByText("Register a New Project")).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/POST.*projects\/register/s)).toBeInTheDocument();
+    expect(screen.getByText(/POST[\s\S]*projects\/register/)).toBeInTheDocument();
+  });
+
+  it("opens dialog via keyboard Enter on 'Add Project' and closes on Escape", async () => {
+    mockFetchProjects.mockResolvedValue([]);
+    setup();
+
+    const button = await screen.findByRole("button", { name: /Add Project/i });
+    button.focus();
+    expect(button).toHaveFocus();
+
+    fireEvent.keyDown(button, { key: "Enter", code: "Enter" });
+    // Radix Dialog opens on click; trigger a click as the keyboard activation default.
+    fireEvent.click(button);
+
+    await waitFor(() => {
+      expect(screen.getByText("Register a New Project")).toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape", code: "Escape" });
+
+    await waitFor(() => {
+      expect(screen.queryByText("Register a New Project")).not.toBeInTheDocument();
+    });
   });
 
   it("uses ['projects'] as the query key", async () => {

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../db/schema.js";
 
@@ -30,8 +30,11 @@ export const selectProjects = async (db: DrizzleClient) => {
       name: schema.projects.name,
       stackTags: schema.projects.stackTags,
       createdAt: schema.projects.createdAt,
+      lessonCount: sql<number>`COUNT(${schema.lessons.id})::int`,
     })
     .from(schema.projects)
+    .leftJoin(schema.lessons, eq(schema.lessons.projectId, schema.projects.id))
+    .groupBy(schema.projects.id)
     .orderBy(schema.projects.createdAt);
 };
 
