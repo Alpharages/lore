@@ -75,4 +75,5 @@ export interface Project {
   stackTags: string[];
   lessonCount: number;
   createdAt: string;
+  keyId: string | null;
 }

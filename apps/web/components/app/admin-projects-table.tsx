@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { PlusIcon } from "lucide-react";
 import { fetchProjects } from "@/lib/api";
+import { ApiKeyManager } from "@/components/app/api-key-manager";
 import {
   Table,
   TableBody,
@@ -87,6 +88,9 @@ const SkeletonRow = () => (
     <TableCell>
       <Skeleton className="h-4 w-20" />
     </TableCell>
+    <TableCell>
+      <Skeleton className="h-8 w-16" />
+    </TableCell>
   </TableRow>
 );
 
@@ -144,6 +148,7 @@ export const AdminProjectsTable = () => {
             <TableHead>Stack Tags</TableHead>
             <TableHead>Lesson Count</TableHead>
             <TableHead>Created Date</TableHead>
+            <TableHead>Keys</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -151,7 +156,7 @@ export const AdminProjectsTable = () => {
             Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
           ) : projects.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
+              <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
                 No projects registered yet.
               </TableCell>
             </TableRow>
@@ -168,6 +173,13 @@ export const AdminProjectsTable = () => {
                 <TableCell>{project.lessonCount}</TableCell>
                 <TableCell>
                   <RelativeDate isoDate={project.createdAt} />
+                </TableCell>
+                <TableCell>
+                  <ApiKeyManager
+                    slug={project.slug}
+                    keyId={project.keyId}
+                    projectName={project.name}
+                  />
                 </TableCell>
               </TableRow>
             ))
