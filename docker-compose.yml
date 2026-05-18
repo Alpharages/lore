@@ -35,7 +35,7 @@ services:
   mcp-server:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: apps/server/Dockerfile
     restart: unless-stopped
     env_file:
       - .env

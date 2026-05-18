@@ -20,7 +20,7 @@ const runMigrations = async () => {
     console.log("✅ Extensions ensured (vector, uuid-ossp)");
 
     // Run Drizzle migrations
-    await migrate(db, { migrationsFolder: "./src/db/migrations" });
+    await migrate(db, { migrationsFolder: "./apps/server/src/db/migrations" });
     console.log("✅ Drizzle migrations applied");
   } catch (error) {
     console.error("❌ Migration failed:", error);
