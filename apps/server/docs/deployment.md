@@ -3,7 +3,8 @@
 ## Prerequisites
 
 - Docker & Docker Compose
-- A populated `.env` file (copy from `.env.example`)
+- Per-app env files: `apps/server/.env` (copy from `apps/server/.env.example`)
+  and `apps/web/.env` (copy from `apps/web/.env.example`)
 - TLS certificates for HTTPS (see cert setup below)
 
 ## Quick Start
@@ -11,11 +12,12 @@
 ```bash
 # 1. Clone and enter the repo
 git clone <repo-url>
-cd lore-memory-mcp
+cd lore
 
-# 2. Fill in environment variables
-cp .env.example .env
-$EDITOR .env
+# 2. Fill in environment variables — per app
+cp apps/server/.env.example apps/server/.env
+cp apps/web/.env.example apps/web/.env
+$EDITOR apps/server/.env apps/web/.env
 
 # 3. Add TLS certificates for nginx
 #    See "TLS Certificate Setup" below.
@@ -36,7 +38,8 @@ curl -fsS http://localhost:3100/metrics | head -20
 ```bash
 # Install mkcert first: https://github.com/FiloSottile/mkcert
 mkcert -install
-mkcert -cert-file nginx/certs/fullchain.pem -key-file nginx/certs/privkey.pem localhost
+mkcert -cert-file apps/server/nginx/certs/fullchain.pem \
+       -key-file apps/server/nginx/certs/privkey.pem localhost
 ```
 
 ### Production
@@ -44,8 +47,8 @@ mkcert -cert-file nginx/certs/fullchain.pem -key-file nginx/certs/privkey.pem lo
 Drop in certificates from your organization CA or Let's Encrypt:
 
 ```bash
-cp /path/to/fullchain.pem nginx/certs/
-cp /path/to/privkey.pem nginx/certs/
+cp /path/to/fullchain.pem apps/server/nginx/certs/
+cp /path/to/privkey.pem apps/server/nginx/certs/
 ```
 
 > **Note:** Automated renewal is planned for post-v1.0. Cipher-list curation, TLS 1.2-only enforcement, and HSTS are deferred to Story 6.4.
@@ -78,7 +81,8 @@ cp /path/to/privkey.pem nginx/certs/
 ## Troubleshooting
 
 **Postgres fails to start:**
-Check `docker compose logs postgres`. Ensure `POSTGRES_PASSWORD` is set in `.env`.
+Check `docker compose logs postgres`. Ensure `POSTGRES_PASSWORD` is set in
+`apps/server/.env`.
 
 **MCP server exits immediately:**
 Check `docker compose logs mcp-server`. Likely `DATABASE_URL` or `ADMIN_SECRET` is missing.
@@ -87,4 +91,5 @@ Check `docker compose logs mcp-server`. Likely `DATABASE_URL` or `ADMIN_SECRET` 
 The Dockerfile entrypoint runs `dist/db/migrate.js` before starting the server. If it fails, the container exits non-zero. Fix the DB connectivity and restart.
 
 **Nginx returns 502:**
-Ensure `mcp-server` is healthy (`docker compose ps`) and certificates exist in `nginx/certs/`.
+Ensure `mcp-server` is healthy (`docker compose ps`) and certificates exist in
+`apps/server/nginx/certs/`.

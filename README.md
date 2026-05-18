@@ -116,12 +116,16 @@ them by convention; you can also call them directly from any MCP client.
 git clone https://github.com/Alpharages/lore.git
 cd lore
 
-# 2. Configure
-cp .env.example .env
-# Edit .env — set POSTGRES_PASSWORD, OPENAI_API_KEY, ADMIN_SECRET
+# 2. Configure — per-app env files
+cp apps/server/.env.example apps/server/.env
+# Edit apps/server/.env — set DATABASE_URL, ADMIN_SECRET, OPENAI_API_KEY,
+# POSTGRES_PASSWORD
+cp apps/web/.env.example apps/web/.env
+# Edit apps/web/.env — set WEB_UI_SECRET, NEXT_PUBLIC_LORE_API_URL
 
 # 3. TLS
-# Place your cert and key at nginx/certs/server.crt and nginx/certs/server.key
+# Place your cert and key at apps/server/nginx/certs/fullchain.pem
+# and apps/server/nginx/certs/privkey.pem
 
 # 4. Start
 docker compose up -d
