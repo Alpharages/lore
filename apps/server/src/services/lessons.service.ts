@@ -5,6 +5,7 @@ import {
   incrementOccurrence as repoIncrementOccurrence,
   acquireSaveLessonLock,
   queryLessons as repoQueryLessons,
+  countLessons,
   findLessonsForTask,
   findPatternsForTask,
   searchSimilarLessonsAdmin,
@@ -378,7 +379,7 @@ export interface SearchLessonsForUiResult {
 export const searchLessonsForUi = async (
   db: LessonsTx,
   input: SearchLessonsForUiInput
-): Promise<{ lessons: SearchLessonsForUiResult[] }> => {
+): Promise<{ lessons: SearchLessonsForUiResult[]; total: number }> => {
   const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
 
   let projectId: string | undefined;
@@ -441,6 +442,13 @@ export const searchLessonsForUi = async (
     rows = repoRows;
   }
 
+  // Project scoping. The repository read goes through the admin connection
+  // (no RLS, no app.current_project_id), so we must filter by projectId here.
+  // When projectId is undefined (the "All Projects" view) skip the filter.
+  if (projectId) {
+    rows = rows.filter((r) => r.projectId === projectId);
+  }
+
   // Apply filters post-query (tags, severity, category)
   let filtered = rows;
 
@@ -483,7 +491,19 @@ export const searchLessonsForUi = async (
     provenance: (row.provenance as Record<string, unknown> | null) ?? null,
   }));
 
-  return { lessons };
+  // Real total comes from a COUNT(*) query for the browse path. Semantic search
+  // does not have a meaningful "total above threshold" without re-running the
+  // similarity search, so we fall back to filtered.length there.
+  const total = hasQuery
+    ? filtered.length
+    : await countLessons(db, {
+        projectId: projectId ?? null,
+        stackTags: input.tags,
+        category: input.category,
+        severity: input.severity?.[0] as "critical" | "high" | "medium" | "low" | undefined,
+      });
+
+  return { lessons, total };
 };
 
 export { type FullLessonRow };

@@ -1,4 +1,4 @@
-import { apiClient, internalApiClient } from "./axios";
+import { internalApiClient } from "./axios";
 import type { Lesson, Propagation, Stats, Project, ProjectKeyReference } from "./api-types";
 
 export const login = async (password: string): Promise<void> => {
@@ -24,7 +24,7 @@ export const fetchLessons = async (params: {
   severity?: string[];
   category?: string;
   limit?: number;
-}): Promise<Lesson[]> => {
+}): Promise<{ lessons: Lesson[]; total: number }> => {
   const { data } = await internalApiClient.get("/api/lessons/search", {
     params: {
       ...params,
@@ -32,7 +32,10 @@ export const fetchLessons = async (params: {
       severity: params.severity?.join(","),
     },
   });
-  return data.lessons as Lesson[];
+  return {
+    lessons: data.lessons as Lesson[],
+    total: typeof data.total === "number" ? data.total : data.lessons.length,
+  };
 };
 
 export const fetchLesson = async (id: string): Promise<Lesson> => {
@@ -41,22 +44,22 @@ export const fetchLesson = async (id: string): Promise<Lesson> => {
 };
 
 export const fetchPropagations = async (project?: string): Promise<Propagation[]> => {
-  const { data } = await apiClient.get("/api/propagations/pending", {
+  const { data } = await internalApiClient.get("/api/propagations/pending", {
     params: project ? { project } : undefined,
   });
   return data.suggestions as Propagation[];
 };
 
 export const acceptPropagation = async (id: string): Promise<void> => {
-  await apiClient.post(`/api/propagations/${id}/accept`);
+  await internalApiClient.post(`/api/propagations/${id}/accept`);
 };
 
 export const rejectPropagation = async (id: string): Promise<void> => {
-  await apiClient.post(`/api/propagations/${id}/reject`);
+  await internalApiClient.post(`/api/propagations/${id}/reject`);
 };
 
 export const fetchStats = async (project?: string): Promise<Stats> => {
-  const { data } = await apiClient.get("/api/stats", {
+  const { data } = await internalApiClient.get("/api/stats", {
     params: project ? { project } : undefined,
   });
   return data as Stats;
@@ -86,7 +89,7 @@ export const regenerateApiKey = async (slug: string): Promise<{ key: string; key
 };
 
 export const fetchPropagationCount = async (projectSlug?: string): Promise<number> => {
-  const { data } = await apiClient.get("/api/propagations/pending", {
+  const { data } = await internalApiClient.get("/api/propagations/pending", {
     params: projectSlug ? { project: projectSlug } : undefined,
   });
   return (data.suggestions as Propagation[]).length;
@@ -95,7 +98,7 @@ export const fetchPropagationCount = async (projectSlug?: string): Promise<numbe
 export const fetchPropagationMetadata = async (
   project?: string
 ): Promise<{ lastRunAt: string | null }> => {
-  const { data } = await apiClient.get("/api/propagations/metadata", {
+  const { data } = await internalApiClient.get("/api/propagations/metadata", {
     params: project ? { project } : undefined,
   });
   return data as { lastRunAt: string | null };

@@ -32,11 +32,13 @@ const RootLayout = ({
       suppressHydrationWarning
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `(function(){var t=localStorage.getItem('lore-theme')||'system';var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');})();`,
-        }}
-      />
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){var t=localStorage.getItem('lore-theme')||'system';var d=t==='dark'||(t==='system'&&matchMedia('(prefers-color-scheme: dark)').matches);if(d)document.documentElement.classList.add('dark');})();`,
+          }}
+        />
+      </head>
       <body className="min-h-full flex flex-col font-sans">
         <Providers>
           {children}

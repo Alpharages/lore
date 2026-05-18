@@ -72,7 +72,7 @@ export const searchLessonsHandler = async (request: FastifyRequest, reply: Fasti
   });
 
   reply.status(200);
-  return { lessons: result.lessons.map(toCamelLesson) };
+  return { lessons: result.lessons.map(toCamelLesson), total: result.total };
 };
 
 export const getLessonHandler = async (request: FastifyRequest, reply: FastifyReply) => {

@@ -402,6 +402,50 @@ export const queryLessons = async (
     .limit(params.limit);
 };
 
+export const countLessons = async (
+  db: LessonsTx,
+  params: Omit<QueryLessonsParams, "limit"> & { projectId?: string | null }
+): Promise<number> => {
+  const conditions: SQL[] = [];
+
+  if (params.projectId) {
+    conditions.push(eq(schema.lessons.projectId, params.projectId));
+  }
+
+  if (params.stackTags && params.stackTags.length > 0) {
+    const tagsLiteral = sql.raw(
+      `ARRAY[${params.stackTags.map((tag) => `'${tag.replace(/'/g, "''")}'`).join(",")}]::text[]`
+    );
+    conditions.push(sql`${schema.lessons.stackTags} && ${tagsLiteral}`);
+  }
+
+  if (params.category) {
+    conditions.push(eq(schema.lessons.category, params.category));
+  }
+
+  if (params.severity) {
+    conditions.push(eq(schema.lessons.severity, params.severity));
+  }
+
+  if (params.lastNDays) {
+    const cutoff = new Date(Date.now() - params.lastNDays * 86_400_000);
+    conditions.push(gte(schema.lessons.lastSeenAt, cutoff));
+  }
+
+  if (params.repoId) {
+    conditions.push(eq(schema.lessons.repoId, params.repoId));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const rows = await db
+    .select({ count: sql<number>`COUNT(*)::int` })
+    .from(schema.lessons)
+    .where(whereClause);
+
+  return Number(rows[0]?.count ?? 0);
+};
+
 /* ------------------------------------------------------------------
  * query_lessons_for_task — repository layer
  * ------------------------------------------------------------------ */

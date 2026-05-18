@@ -1,7 +1,5 @@
 import axios, { type AxiosInstance } from "axios";
 
-const LORE_API_URL = process.env.NEXT_PUBLIC_LORE_API_URL ?? "";
-
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -28,14 +26,6 @@ const applyInterceptors = (client: AxiosInstance): AxiosInstance => {
   );
   return client;
 };
-
-export const apiClient = applyInterceptors(
-  axios.create({
-    baseURL: LORE_API_URL,
-    withCredentials: true,
-    headers: { "Content-Type": "application/json" },
-  })
-);
 
 export const internalApiClient = applyInterceptors(
   axios.create({
