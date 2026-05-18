@@ -1,5 +1,9 @@
 # IDE
 .idea
+# macOS
+.DS_Store
+# Turbo cache
+.turbo
 # Logs
 logs
 *.log
