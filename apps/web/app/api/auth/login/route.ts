@@ -37,7 +37,7 @@ export const POST = async (req: Request): Promise<Response> => {
     serialize("session", token, {
       httpOnly: true,
       sameSite: "strict",
-      secure: process.env.NODE_ENV === "production",
+      secure: config.cookieSecure,
       maxAge: 60 * 60 * 24 * 7,
       path: "/",
     })

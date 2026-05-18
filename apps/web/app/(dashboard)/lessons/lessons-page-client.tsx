@@ -61,7 +61,8 @@ export const LessonsPageClient = () => {
     placeholderData: keepPreviousData,
   });
 
-  const lessons = data ?? [];
+  const lessons = data?.lessons ?? [];
+  const total = data?.total ?? lessons.length;
 
   return (
     <section className="space-y-4">
@@ -70,7 +71,7 @@ export const LessonsPageClient = () => {
         ref={searchBarRef}
         value={inputValue}
         onChange={setInputValue}
-        count={!isLoading && data !== undefined ? lessons.length : undefined}
+        count={!isLoading && data !== undefined ? total : undefined}
         isError={isError}
         onRetry={refetch}
       />

@@ -1,0 +1,69 @@
+{
+  "name": "@alpharages/lore",
+  "version": "1.0.2",
+  "description": "Lore CLI — institutional memory for BMAD-driven AI development",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "lore": "dist/index.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "README.md"
+  ],
+  "packageManager": "pnpm@11.0.8",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "oxlint src/",
+    "lint:fix": "oxlint src/ --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "publish:cli": "node scripts/publish-cli.mjs"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=11.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "lore",
+    "mcp",
+    "bmad",
+    "ai",
+    "memory",
+    "cli"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@inquirer/checkbox": "^5.1.5",
+    "commander": "^14.0.3",
+    "handlebars": "^4.7.9",
+    "semver": "^7.8.0",
+    "yaml": "^2.8.4",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.17",
+    "@types/semver": "^7.7.1",
+    "oxlint": "^0.16.12",
+    "prettier": "^3.8.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.5"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": [
+      "oxlint",
+      "prettier --check"
+    ],
+    "*.{json,md,yaml,yml}": [
+      "prettier --check"
+    ]
+  }
+}

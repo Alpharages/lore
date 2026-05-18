@@ -1,5 +1,9 @@
 # IDE
 .idea
+# macOS
+.DS_Store
+# Turbo cache
+.turbo
 # Logs
 logs
 *.log
@@ -82,8 +86,8 @@ web_modules/
 .env.local
 
 # TLS certificates
-nginx/certs/*.pem
-nginx/certs/*.key
+**/nginx/certs/*.pem
+**/nginx/certs/*.key
 
 # Postgres data (bind mount fallback)
 postgres_data/

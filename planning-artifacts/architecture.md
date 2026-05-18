@@ -141,10 +141,10 @@ exclusively through the MCP protocol using project-scoped API keys.
 └── package.json
 ```
 
-### 3.2 `lore-memory-mcp` Internal Structure
+### 3.2 `apps/server/` Internal Structure
 
 ```
-lore-memory-mcp/
+apps/server/
 ├── src/
 │   ├── index.ts              ← Server entry (Fastify + MCP)
 │   ├── mcp/
@@ -785,7 +785,7 @@ export const registerProject = async (db: DrizzleClient, input: Input) => { ... 
 export function buildApp(...) { ... }
 ```
 
-### 10.4 Source Layer Architecture (`lore-memory-mcp`)
+### 10.4 Source Layer Architecture (`apps/server`)
 
 The server uses a strict **Route → Controller → Service → Repository** four-layer pattern.
 
@@ -794,7 +794,7 @@ route → controller → service → repository
 ```
 
 ```
-src/
+apps/server/src/
 ├── api/
 │   ├── routes/          Fastify plugins — URL paths, JSON schema, preHandlers
 │   ├── controllers/     Plain handler fns (request, reply) — no Fastify plugin boilerplate

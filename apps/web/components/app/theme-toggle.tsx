@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/hooks/use-theme";
@@ -24,6 +25,23 @@ const themeLabel = {
 
 export const ThemeToggle = () => {
   const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Render a stable placeholder on the server and first client render —
+  // localStorage isn't available during SSR, so the real theme value can
+  // only be trusted after mount. Avoids hydration mismatch (story 12.6 F4).
+  if (!mounted) {
+    return (
+      <Button variant="ghost" size="icon" aria-label="Toggle theme" suppressHydrationWarning>
+        <Monitor className="size-4" />
+      </Button>
+    );
+  }
+
   const Icon = themeIcon[theme];
 
   return (

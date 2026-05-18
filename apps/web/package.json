@@ -49,5 +49,14 @@
     "tailwindcss": "^4.3.0",
     "typescript": "^5.8.3",
     "vitest": "^4.1.5"
+  },
+  "lint-staged": {
+    "{app,components,lib,hooks}/**/*.{ts,tsx}": [
+      "oxlint",
+      "prettier --check"
+    ],
+    "*.{json,md,yaml,yml}": [
+      "prettier --check"
+    ]
   }
 }

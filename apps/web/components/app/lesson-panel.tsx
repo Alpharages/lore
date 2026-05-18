@@ -5,7 +5,13 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
-import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -68,16 +74,27 @@ export const LessonPanel = ({ searchBarRef }: LessonPanelProps) => {
         className="w-[420px] sm:max-w-[420px] bg-card [&[data-state=open]]:duration-200 [&[data-state=closed]]:duration-200 p-0"
       >
         {isError ? (
-          <PanelError onClose={handleClose} />
+          <>
+            <SheetTitle className="sr-only">Lesson detail</SheetTitle>
+            <SheetDescription className="sr-only">Failed to load lesson detail.</SheetDescription>
+            <PanelError onClose={handleClose} />
+          </>
         ) : isLoading || !lesson ? (
-          <PanelSkeleton />
+          <>
+            <SheetTitle className="sr-only">Loading lesson</SheetTitle>
+            <SheetDescription className="sr-only">Lesson detail is loading.</SheetDescription>
+            <PanelSkeleton />
+          </>
         ) : (
           <>
             <SheetHeader className="border-b border-border p-4 pb-3">
               <div className="flex items-start gap-2 pr-8">
                 <SeverityBadge severity={lesson.severity} />
-                <h2 className="text-sm font-semibold leading-tight">{lesson.title}</h2>
+                <SheetTitle className="text-sm font-semibold leading-tight">
+                  {lesson.title}
+                </SheetTitle>
               </div>
+              <SheetDescription className="sr-only">{lesson.problem}</SheetDescription>
             </SheetHeader>
 
             <Tabs defaultValue="fix" className="flex flex-col flex-1 min-h-0">
@@ -150,12 +167,14 @@ export const LessonPanel = ({ searchBarRef }: LessonPanelProps) => {
                           <p className="text-sm">{lesson.trustTier}</p>
                         </div>
                       ) : null}
-                      <div>
-                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-                          Occurrences
-                        </p>
-                        <p className="text-sm">{lesson.occurrenceCount}</p>
-                      </div>
+                      {typeof lesson.occurrenceCount === "number" ? (
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                            Occurrences
+                          </p>
+                          <p className="text-sm">{lesson.occurrenceCount}</p>
+                        </div>
+                      ) : null}
                     </div>
 
                     {lesson.sessionId ? (

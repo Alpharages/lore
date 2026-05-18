@@ -67,6 +67,7 @@ export const FilterChips = ({ results, activeFilters }: FilterChipsProps) => {
     params.delete("tags");
     params.delete("severity");
     params.delete("category");
+    params.delete("q");
     const qs = params.toString();
     router.replace(qs ? `/lessons?${qs}` : "/lessons", { scroll: false });
   };

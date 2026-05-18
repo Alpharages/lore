@@ -57,11 +57,11 @@ export const CommandPalette = ({ open, onOpenChange }: CommandPaletteProps) => {
             {isError && (
               <div className="py-6 text-center text-sm text-red-500">Search unavailable.</div>
             )}
-            {!isError && debouncedQuery.length >= 2 && data?.length === 0 && (
+            {!isError && debouncedQuery.length >= 2 && data?.lessons.length === 0 && (
               <CommandEmpty>No lessons found.</CommandEmpty>
             )}
             {!isError &&
-              data?.map((lesson) => (
+              data?.lessons.map((lesson) => (
                 <CommandItem
                   key={lesson.id}
                   onSelect={() => handleSelect(lesson)}

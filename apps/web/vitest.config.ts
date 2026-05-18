@@ -12,6 +12,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./"),
+      // `server-only`'s default export throws under any non-RSC bundler. In a
+      // vitest jsdom run we want server modules to import cleanly, so we
+      // resolve the marker to its empty entry.
+      "server-only": path.resolve(__dirname, "./node_modules/server-only/empty.js"),
     },
   },
 });

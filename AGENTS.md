@@ -7,7 +7,7 @@ All agents must follow these conventions without exception.
 
 ## Arrow Functions — Mandatory
 
-Never use `function` declarations in `src/`. All functions must be arrow functions.
+Never use `function` declarations in `apps/server/src/` or `apps/cli/src/`. All functions must be arrow functions.
 
 ```typescript
 // ✅
@@ -26,10 +26,10 @@ route → controller → service → repository
 ```
 
 ```
-src/api/routes/        → Fastify plugins (URL, schema, preHandlers) only
-src/api/controllers/   → Plain handler functions (request, reply) — calls services
-src/services/          → Business logic only — no DB, no Fastify
-src/repositories/      → Database (Drizzle ORM) only
+apps/server/src/api/routes/        → Fastify plugins (URL, schema, preHandlers) only
+apps/server/src/api/controllers/   → Plain handler functions (request, reply) — calls services
+apps/server/src/services/          → Business logic only — no DB, no Fastify
+apps/server/src/repositories/      → Database (Drizzle ORM) only
 ```
 
 **Strict import rules:**
