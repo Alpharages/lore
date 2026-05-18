@@ -8,7 +8,7 @@ import { detectStackStandards } from "../utils/stack-standards.js";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export const generateClaudeMd = (answers: WizardAnswers): string => {
-  const templatePath = path.resolve(__dirname, "../../..", "templates", "CLAUDE.md.hbs");
+  const templatePath = path.resolve(__dirname, "../..", "templates", "CLAUDE.md.hbs");
   if (!fs.existsSync(templatePath)) {
     throw new Error(`Template not found: ${templatePath}`);
   }
