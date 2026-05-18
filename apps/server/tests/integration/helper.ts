@@ -59,5 +59,7 @@ export async function createAppRole(pool: Pool): Promise<string> {
   const currentUser = await pool.query<{ current_user: string }>("SELECT current_user");
   await pool.query(`GRANT lore_app TO "${currentUser.rows[0].current_user.replace(/"/g, '""')}"`);
 
+  dbUrl.username = "lore_app";
+  dbUrl.password = "lore_app";
   return dbUrl.toString();
 }
