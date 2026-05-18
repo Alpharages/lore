@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { warnIfInsecureUrl } from "../../../src/cli/utils/init-prompts.js";
+import { warnIfInsecureUrl } from "./init-prompts.js";
 
 describe("warnIfInsecureUrl", () => {
   beforeEach(() => {

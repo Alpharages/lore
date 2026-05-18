@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { toKebabCase } from "../../../src/cli/utils/init-prompts.js";
+import { toKebabCase } from "./init-prompts.js";
 
 describe("toKebabCase", () => {
   it("converts simple name to kebab-case", () => {

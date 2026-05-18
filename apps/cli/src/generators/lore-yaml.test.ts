@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { buildLoreYaml, generateLoreYaml } from "../../../src/cli/generators/lore-yaml.js";
-import type { WizardAnswers } from "../../../src/cli/utils/init-prompts.js";
+import { buildLoreYaml, generateLoreYaml } from "./lore-yaml.js";
+import type { WizardAnswers } from "../utils/init-prompts.js";
 
 const baseAnswers: WizardAnswers = {
   projectName: "My Project",

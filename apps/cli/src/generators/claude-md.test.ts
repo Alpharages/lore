@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { generateClaudeMd } from "../../../src/cli/generators/claude-md.js";
-import type { WizardAnswers } from "../../../src/cli/utils/init-prompts.js";
+import { generateClaudeMd } from "./claude-md.js";
+import type { WizardAnswers } from "../utils/init-prompts.js";
 
 const base: WizardAnswers = {
   projectName: "Test Project",

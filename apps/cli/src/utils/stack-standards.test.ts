@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { detectStackStandards } from "../../../src/cli/utils/stack-standards.js";
+import { detectStackStandards } from "./stack-standards.js";
 
 describe("detectStackStandards", () => {
   describe("TypeScript / JavaScript", () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { checkHealth, registerProject } from "../../../src/cli/api/register.js";
+import { checkHealth, registerProject } from "./register.js";
 
 describe("checkHealth", () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
