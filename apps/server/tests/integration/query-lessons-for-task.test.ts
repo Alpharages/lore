@@ -10,6 +10,7 @@ import {
 } from "./helper.js";
 import { clearFailures } from "../../src/api/middleware/rate-limit.js";
 import { generateEmbedding } from "../../src/services/embedding.js";
+import { EMBEDDING_DIMENSIONS } from "../helpers/embedding-dim.js";
 
 vi.mock("../../src/services/embedding.js", () => ({
   generateEmbedding: vi.fn(),
@@ -18,9 +19,9 @@ vi.mock("../../src/services/embedding.js", () => ({
 const ADMIN_SECRET = "test_admin_secret_do_not_ship";
 process.env.ADMIN_SECRET = ADMIN_SECRET;
 
-/** Unit vector (dimension 1536) for deterministic pgvector cosine tests. */
+/** Unit vector matching the active embedding-provider dim for deterministic pgvector cosine tests. */
 const TEST_EMBEDDING_1536 = (() => {
-  const v = new Array<number>(1536).fill(0);
+  const v = new Array<number>(EMBEDDING_DIMENSIONS).fill(0);
   v[0] = 1;
   return v;
 })();

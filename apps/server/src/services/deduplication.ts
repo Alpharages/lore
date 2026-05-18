@@ -1,7 +1,7 @@
 import { findSimilarLesson, type LessonsTx } from "../repositories/lessons.repository.js";
 import { logger } from "../utils/logger.js";
 
-const DEFAULT_THRESHOLD = parseFloat(process.env.SIMILARITY_THRESHOLD ?? "0.90");
+const DEFAULT_THRESHOLD = parseFloat(process.env.SIMILARITY_THRESHOLD ?? "0.85");
 
 export const findDuplicate = async (
   db: LessonsTx,

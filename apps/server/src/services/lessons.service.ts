@@ -43,7 +43,8 @@ export interface SaveLessonOutput {
 // Architectural note (resolves D1, D2, D3 from the M2 code review):
 //
 // D1 — Embedding is intentionally SYNCHRONOUS in the request path. PRD FR-26
-//   mandates pre-insert semantic dedup (cosine ≥ 0.90) and dedup needs the
+//   mandates pre-insert semantic dedup (default cosine ≥ 0.85, env-tunable via
+//   SIMILARITY_THRESHOLD) and dedup needs the
 //   embedding before the INSERT can decide between create vs increment. The
 //   original Story 2.1 ACs ("async, returns embedding_status: pending") are
 //   superseded by FR-26. Trade-off: P95 now blocks on OpenAI (~100–500ms).
@@ -427,8 +428,8 @@ export const searchLessonsForUi = async (
         occurrenceCount: s.occurrenceCount ?? 1,
         lastSeenAt: null,
         firstSeenAt: null,
-        projectId: null,
-        provenance: null,
+        projectId: s.projectId,
+        provenance: s.provenance,
         similarity: s.similarity,
       }));
     }

@@ -256,6 +256,188 @@ they block credible end-to-end QA and should be cleaned up together.
 
 ---
 
+## Epic 13 — Patterns subsystem (`save_pattern` / `get_patterns`)
+
+**Goal:** Ship the writer side of the `patterns` table so the two MCP tools
+specified in PRD §7.7 (FR-36 / FR-37 / FR-38) become available to clients, and
+the `patterns: []` slot in the existing `query_lessons_for_task` response stops
+silently no-opping for lack of data.
+
+**Out of scope:**
+
+- Migrating the `patterns` table — the schema already exists in
+  `apps/server/src/db/schema.ts:165` and RLS policies already cover it
+  (architecture §5.4). No DDL changes.
+- Semantic deduplication on `save_pattern`. Lessons dedup (FR-26) because
+  two captures of "same bug" are noise; patterns are constructive — two
+  different `code_example` snippets for the same problem are independently
+  valuable. Document this asymmetry in the service header comment.
+- A web UI surface for patterns. The dashboard / lesson views stay
+  lesson-centric in this epic. Patterns are consumed by BMAD skills via MCP.
+- Backfilling patterns from existing architecture documents. Capture begins
+  prospectively; historical pattern mining is a separate epic.
+
+**Motivation:** PRD §7.7 and `lore-bmad-ecosystem.md §5.3` define patterns as
+the constructive counterpart to lessons — "this is how we do X in this
+codebase," with `code_example`, intended to originate from BMAD
+architecture-workflow outputs. The schema, RLS, and the read path inside
+`query_lessons_for_task` (see `apps/server/src/repositories/lessons.repository.ts:695`)
+are all already built; only the public write/read tools are missing. Two
+downstream BMAD skills already call them (per `lore-bmad-ecosystem.md §8.1`):
+
+- `clickup-create-story` step-04 → `get_patterns` to inject proven patterns
+  into story descriptions
+- `bmad architect-workflow` → `get_patterns(stack_tags=current_stack)` so
+  architects write decisions informed by what's already worked
+
+Both currently silently return nothing useful. This epic unblocks both and
+closes the loop: BMAD execution captures lessons, BMAD planning consumes
+patterns, the two compound over time (the §8.2 "reverse-loop seam").
+
+**Acceptance (epic-level):**
+
+- `save_pattern` and `get_patterns` are callable through both the per-tool
+  REST routes (`POST /mcp/tools/save_pattern`, `POST /mcp/tools/get_patterns`)
+  and the JSON-RPC streamable HTTP transport (`POST /mcp`).
+- A `get_patterns` call increments `usage_count` and updates `last_used_at`
+  for every returned pattern, transactionally with the read.
+- An end-to-end smoke: register project → `save_pattern` → `get_patterns`
+  with matching `stack_tags` → returned pattern has `usage_count = 2`
+  (initial 1 from insert plus the one bump from the get).
+- `query_lessons_for_task` returns a non-empty `patterns` array when patterns
+  exist for the requested stack — verified against a seeded fixture.
+- 233+ existing tests still pass; new integration tests cover the create,
+  filter, sort-by-usage, usage-bump, and RLS-isolation paths.
+- PRD §7.7 FR-36, FR-37, FR-38 are satisfied.
+
+---
+
+### Story 13.1 — Implement `save_pattern` and `get_patterns` MCP tools
+
+**As a** BMAD planning agent (Architect, Analyst) and execution agent
+(Implementer, Reviewer),
+**I want** to write proven code patterns into the shared memory and read them
+back filtered by stack and category,
+**so that** new stories and architecture documents can reuse what already
+works on the team's stack, instead of re-deriving conventions every time.
+
+**Acceptance Criteria:**
+
+- [ ] **AC-1 — Repository layer.** A new `apps/server/src/repositories/patterns.repository.ts`
+      exposes:
+      a) `insertPattern(db, values)` returning the new id, embedding column set
+         from the caller (so the service can choose `pending` on embedding
+         failure, mirroring the lessons fallback in `lessons.service.ts:50`),
+      b) `getPatternsFiltered(db, { stackTags, category, projectId, limit })`
+         returning rows ordered by `usage_count DESC NULLS LAST, last_used_at DESC NULLS LAST`,
+      c) `bumpPatternUsage(db, ids)` performing `UPDATE patterns SET usage_count = usage_count + 1, last_used_at = NOW() WHERE id = ANY($1)`
+         in a single statement, returning the updated rows.
+      All three respect the per-request transaction (`request.txDb`) so RLS
+      policies fire under `app.current_project_id`.
+
+- [ ] **AC-2 — Service layer.** A new `apps/server/src/services/patterns.service.ts`
+      exposes `savePattern(db, input)` and `getPatterns(db, input)`. `savePattern`
+      generates an embedding via `generateEmbedding(text)` where `text` is
+      `title + "\n" + description + "\n" + (code_example ?? "")`, then inserts
+      with `embedding_status = 'complete'` (or `'pending'` on embedding failure
+      — same fallback policy as lessons). `getPatterns` calls
+      `getPatternsFiltered` then `bumpPatternUsage(ids of returned)` inside
+      the same transaction so an aborted response rolls back the bump. The
+      service file header documents the "no semantic dedup" decision.
+
+- [ ] **AC-3 — Controllers + REST routes.** Add
+      `apps/server/src/api/controllers/save-pattern.controller.ts` and
+      `apps/server/src/api/controllers/get-patterns.controller.ts`. Register
+      `POST /mcp/tools/save_pattern` and `POST /mcp/tools/get_patterns` in
+      `apps/server/src/api/routes/mcp.route.ts`, both behind `requireProjectAuth`,
+      wrapped in `withMcpRouteLogging`, with Fastify Ajv body schemas
+      mirroring the existing tool schemas (snake_case wire fields, strict
+      `additionalProperties: false`).
+
+      `save_pattern` body schema:
+      `{ title (≥1), description (≥1), code_example?, stack_tags: string[], category?, external_task_id?, external_task_ref?, external_tracker_type?: 'clickup'|'jira'|'asana' }`.
+
+      `get_patterns` body schema:
+      `{ stack_tags?: string[], category?, limit?: 1..20 (default 5) }`.
+      Empty body returns the most-used patterns scoped to the caller's
+      project (plus global rows where `project_id IS NULL`).
+
+- [ ] **AC-4 — JSON-RPC tool registration.** `apps/server/src/mcp/mcp-protocol-server.ts`
+      registers `save_pattern` and `get_patterns` with Zod input schemas
+      matching the REST shape. Tool descriptions follow the existing style.
+      Both go through the `wrap()` helper so errors flip `state.errored` and
+      the route's commit/rollback decision is honored.
+
+- [ ] **AC-5 — `get_patterns` is in the `listTools` set for log metrics.**
+      `apps/server/src/mcp/server.ts:8` already lists `get_patterns` in the
+      list-returning set; verify `extractResultCount` reads
+      `output.patterns.length` correctly under the actual response shape.
+
+- [ ] **AC-6 — Wire patterns into `query_lessons_for_task`.** The read path
+      at `lessons.repository.ts:695` (`queryPatternsForTask`) already exists
+      and is wired into the response. Verify it surfaces seeded patterns
+      end-to-end. If the service layer is currently passing an empty array
+      or skipping the call, fix it. Apply the same FR-38 `bumpPatternUsage`
+      to whatever ids it returns, so consultation through the task path also
+      counts as usage.
+
+- [ ] **AC-7 — RLS isolation.** A pattern inserted under project A must not
+      appear in project B's `get_patterns` or `query_lessons_for_task`
+      response. Add a test mirroring
+      `apps/server/tests/integration/rls-isolation.test.ts` for patterns.
+
+- [ ] **AC-8 — Integration tests.** Add
+      `apps/server/tests/integration/save-pattern.test.ts` and
+      `apps/server/tests/integration/get-patterns.test.ts`. Use the
+      shared `tests/helpers/embedding-dim.ts` for the seed-vector dim.
+      Cover: create, validation failures, stack-tag filter, category filter,
+      `usage_count` ordering, `usage_count` bump on read, RLS isolation,
+      and that `query_lessons_for_task` returns the pattern.
+
+- [ ] **AC-9 — Structured logging envelope.** Both tools emit the §8.1
+      log shape (`tool`, `project_id` masked, `duration_ms`, `success`,
+      and `result_count` for `get_patterns`). The existing
+      `withMcpRouteLogging` + `extractResultCount` machinery handles this
+      automatically once the route uses them.
+
+- [ ] **AC-10 — Migration check.** Confirm `0000_small_champions.sql`
+      already creates the `patterns` table with the right columns
+      (it does — lines 43–60). No new migration. If a column we need is
+      missing (e.g. for tracker linkage), add a fresh `0005_*.sql`
+      migration rather than editing existing files.
+
+**Technical notes:**
+
+- The lessons service uses an advisory-lock pattern (`acquireSaveLessonLock`)
+  to serialise the dedup+insert path per project. Patterns do NOT need this
+  because there is no dedup — the lock is only there to make the
+  similarity-check window race-safe. Skip it.
+- `code_example` is stored as plain text. Do NOT add file-content storage —
+  PRD NFR-08 explicitly limits the system to natural-language metadata and
+  code pointers; an inline `code_example` snippet is the natural-language
+  representation, not a code blob.
+- The MCP SDK catches handler exceptions and converts them to
+  `isError: true` content (see comment in `mcp-protocol-server.ts:35`). The
+  same `wrap()` wrapper that lesson tools use sets `state.errored` on
+  exception so the route's transaction rolls back — reuse it verbatim for
+  the pattern tools.
+
+**Smoke test (manual, post-merge):**
+
+```bash
+# After deploy, against prod:
+curl -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"title":"Fastify route handler shape","description":"All route plugins take (app, opts, done) and return void","code_example":"const route = (app, opts, done) => { app.get(\"/\", h); done(); }","stack_tags":["typescript","fastify"]}' \
+  https://lore.smartsolutionspro.com/mcp/tools/save_pattern
+
+curl -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+  -d '{"stack_tags":["fastify"]}' \
+  https://lore.smartsolutionspro.com/mcp/tools/get_patterns
+# Expect: patterns[0].usage_count === 2 (1 from insert + 1 from get)
+```
+
+---
+
 ## Story Dependency Order
 
 ```
@@ -267,8 +449,11 @@ they block credible end-to-end QA and should be cleaned up together.
                        │                   └── 12.5 Docs + planning artifacts
                        │                           │
                        │                           └── 12.6 QA bug cleanup
+
+13.1 Patterns subsystem  (independent of Epic 12; can ship anytime after 12.6)
 ```
 
 12.1 and 12.2 can proceed in parallel on separate branches; 12.3 merges them.
 12.4 and 12.5 follow 12.3. 12.6 follows 12.5 and can be split into per-AC
-sub-PRs (F4, F5, S1, S2 are independent).
+sub-PRs (F4, F5, S1, S2 are independent). 13.1 has no dependency on Epic 12
+beyond living in the three-app layout it produced.

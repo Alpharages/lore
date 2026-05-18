@@ -1,4 +1,4 @@
-import { and, gte, inArray, sql, eq } from "drizzle-orm";
+import { and, gte, sql, eq, or } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../db/schema.js";
 
@@ -10,6 +10,10 @@ export interface QualifyingLesson {
   stackTags: string[] | null;
 }
 
+// Propagation gate: critical lessons propagate on first sighting (occurrence >= 1)
+// because the cost of NOT sharing a critical finding outweighs the noise of a
+// single occurrence; high-severity lessons still need a repeat (occurrence >= 2)
+// to filter out one-off noise.
 export const findQualifyingLessons = async (db: PropagationTx): Promise<QualifyingLesson[]> => {
   return db
     .select({
@@ -19,9 +23,9 @@ export const findQualifyingLessons = async (db: PropagationTx): Promise<Qualifyi
     })
     .from(schema.lessons)
     .where(
-      and(
-        gte(schema.lessons.occurrenceCount, 2),
-        inArray(schema.lessons.severity, ["critical", "high"])
+      or(
+        and(eq(schema.lessons.severity, "critical"), gte(schema.lessons.occurrenceCount, 1)),
+        and(eq(schema.lessons.severity, "high"), gte(schema.lessons.occurrenceCount, 2))
       )
     );
 };

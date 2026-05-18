@@ -11,6 +11,7 @@ import {
 import { clearFailures } from "../../src/api/middleware/rate-limit.js";
 import * as embedding from "../../src/services/embedding.js";
 import { lessonPropagations } from "../../src/db/schema.js";
+import { EMBEDDING_DIMENSIONS } from "../helpers/embedding-dim.js";
 
 const ADMIN_SECRET = "test_admin_secret_do_not_ship";
 process.env.ADMIN_SECRET = ADMIN_SECRET;
@@ -28,7 +29,7 @@ const registerProject = async (app: any, slug: string) => {
   return JSON.parse(res.payload);
 };
 
-const makeVector = (value: number, dim = 1536): number[] => {
+const makeVector = (value: number, dim = EMBEDDING_DIMENSIONS): number[] => {
   const arr = new Array(dim).fill(0);
   arr[0] = value;
   return arr;

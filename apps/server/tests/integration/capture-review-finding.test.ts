@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { Pool } from "pg";
 import { createTestPool, createTestDb, buildTestApp, resetDatabase } from "./helper.js";
+import { EMBEDDING_DIMENSIONS } from "../helpers/embedding-dim.js";
 import * as embedding from "../../src/services/embedding.js";
 
 const ADMIN_SECRET = "test_admin_secret_do_not_ship";
@@ -396,13 +397,13 @@ describe("POST /mcp/tools/capture_review_finding", () => {
   });
 
   describe("semantic deduplication", () => {
-    const makeVector = (value: number, dim = 1536): number[] => {
+    const makeVector = (value: number, dim = EMBEDDING_DIMENSIONS): number[] => {
       const arr = new Array(dim).fill(0);
       arr[0] = value;
       return arr;
     };
 
-    it("increments occurrence when a similar lesson exists (cosine >= 0.90)", async () => {
+    it("increments occurrence when a similar lesson exists (cosine >= 0.85)", async () => {
       const vec = makeVector(1);
       vi.spyOn(embedding, "generateEmbedding").mockResolvedValue(vec);
 
@@ -437,7 +438,7 @@ describe("POST /mcp/tools/capture_review_finding", () => {
       expect(row.rows[0].occurrence_count).toBe(2);
     });
 
-    it("creates a new lesson when no similar lesson exists (cosine < 0.90)", async () => {
+    it("creates a new lesson when no similar lesson exists (cosine < 0.85)", async () => {
       const existingVec = makeVector(1);
       const newVec = makeVector(0);
       newVec[0] = 0;

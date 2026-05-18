@@ -43,7 +43,8 @@ const parseProvenance = (provenance: Record<string, unknown> | null): string => 
   if (!provenance) return "manual";
   const source = provenance.source;
   if (source === "bmad-code-review") return "code_review";
-  if (source === "propagated") return "propagated";
+  // The propagation service writes "propagation"; the web API contract is "propagated".
+  if (source === "propagation" || source === "propagated") return "propagated";
   return "manual";
 };
 

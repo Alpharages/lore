@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vitest";
 import { Pool } from "pg";
 import { createTestPool, createTestDb, buildTestApp, resetDatabase } from "./helper.js";
+import { EMBEDDING_DIMENSIONS } from "../helpers/embedding-dim.js";
 import * as embedding from "../../src/services/embedding.js";
 
 const ADMIN_SECRET = "test_admin_secret_do_not_ship";
@@ -19,7 +20,7 @@ async function registerProject(app: any, slug: string) {
   return JSON.parse(res.payload);
 }
 
-const makeVector = (value: number, dim = 1536): number[] => {
+const makeVector = (value: number, dim = EMBEDDING_DIMENSIONS): number[] => {
   const arr = new Array(dim).fill(0);
   arr[0] = value;
   return arr;

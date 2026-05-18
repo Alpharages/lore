@@ -178,6 +178,8 @@ export interface SimilarLessonResult {
   severity: string | null;
   occurrenceCount: number | null;
   similarity: number;
+  provenance: Record<string, unknown> | null;
+  projectId: string | null;
 }
 
 export const searchSimilarLessons = async (
@@ -192,7 +194,7 @@ export const searchSimilarLessons = async (
   const result = await db.execute(
     sql`
       SELECT id, title, problem, fix, prevention_rule, stack_tags,
-             category, severity, occurrence_count,
+             category, severity, occurrence_count, provenance, project_id,
              1 - (embedding <=> ${vectorParam}::vector) AS similarity
       FROM ${schema.lessons}
       WHERE (project_id = ${projectId}::uuid OR project_id IS NULL)
@@ -216,6 +218,8 @@ export const searchSimilarLessons = async (
     severity: row.severity ? String(row.severity) : null,
     occurrenceCount: row.occurrence_count ? Number(row.occurrence_count) : null,
     similarity: Number(row.similarity),
+    provenance: (row.provenance as Record<string, unknown> | null) ?? null,
+    projectId: row.project_id ? String(row.project_id) : null,
   }));
 };
 
@@ -231,7 +235,7 @@ export const searchSimilarLessonsAdmin = async (
   const result = await db.execute(
     sql`
       SELECT id, title, problem, fix, prevention_rule, stack_tags,
-             category, severity, occurrence_count,
+             category, severity, occurrence_count, provenance, project_id,
              1 - (embedding <=> ${vectorParam}::vector) AS similarity
       FROM ${schema.lessons}
       WHERE ${projectId ? sql`project_id = ${projectId}::uuid` : sql`1 = 1`}
@@ -255,6 +259,8 @@ export const searchSimilarLessonsAdmin = async (
     severity: row.severity ? String(row.severity) : null,
     occurrenceCount: row.occurrence_count ? Number(row.occurrence_count) : null,
     similarity: Number(row.similarity),
+    provenance: (row.provenance as Record<string, unknown> | null) ?? null,
+    projectId: row.project_id ? String(row.project_id) : null,
   }));
 };
 
@@ -346,6 +352,7 @@ export interface LessonRow {
   lastSeenAt: Date | null;
   firstSeenAt: Date | null;
   projectId: string | null;
+  provenance: unknown;
 }
 
 export const queryLessons = async (
@@ -395,6 +402,7 @@ export const queryLessons = async (
       lastSeenAt: schema.lessons.lastSeenAt,
       firstSeenAt: schema.lessons.firstSeenAt,
       projectId: schema.lessons.projectId,
+      provenance: schema.lessons.provenance,
     })
     .from(schema.lessons)
     .where(whereClause)
