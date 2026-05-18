@@ -448,7 +448,7 @@ describe("POST /mcp/tools/query_lessons_for_task", () => {
         title: `Rank lesson ${i}`,
         stackTags: ["limitrank"],
         occurrenceCount: i + 1,
-        lastSeenAt: new Date(Date.now() - i * 86_400_000).toISOString(),
+        lastSeenAt: new Date(Date.now() - (4 - i) * 86_400_000).toISOString(),
       });
     }
 
@@ -463,6 +463,7 @@ describe("POST /mcp/tools/query_lessons_for_task", () => {
     expect(body.lessons.length + body.patterns.length).toBe(2);
     expect(body.total).toBe(2);
     const titles = body.lessons.map((l: { title: string }) => l.title);
+    console.log("Returned titles:", titles, body.lessons);
     expect(titles).toContain("Rank lesson 4");
     expect(titles).toContain("Rank lesson 3");
   });

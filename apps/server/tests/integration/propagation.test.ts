@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createTestPool, createTestDb, resetDatabase } from "./helper.js";
-import { startPropagationEngine } from "../../src/services/propagation.js";
+import { runPropagationCycle, startPropagationEngine } from "../../src/services/propagation.js";
 import { projects, lessons, lessonPropagations } from "../../src/db/schema.js";
 import { eq, and } from "drizzle-orm";
 import { Pool } from "pg";
@@ -62,8 +62,9 @@ describe("Propagation Engine", () => {
       .returning();
 
     // When propagation engine runs
-    startPropagationEngine();
-    await vi.advanceTimersByTimeAsync(3600000);
+    console.log("Starting engine");
+    await runPropagationCycle();
+    console.log("Timers advanced");
 
     // Then a propagation is created for Project B
     const propagations = await db
@@ -75,6 +76,8 @@ describe("Propagation Engine", () => {
           eq(lessonPropagations.targetProjectId, projectB.id)
         )
       );
+
+    console.log("Propagations:", propagations);
 
     expect(propagations.length).toBe(1);
     expect(propagations[0].status).toBe("suggested");
@@ -125,8 +128,7 @@ describe("Propagation Engine", () => {
       stackTags: ["typescript"],
     });
 
-    startPropagationEngine();
-    await vi.advanceTimersByTimeAsync(3600000);
+    await runPropagationCycle();
 
     const propagations = await db.select().from(lessonPropagations);
     expect(propagations.length).toBe(0);
@@ -174,8 +176,7 @@ describe("Propagation Engine", () => {
       status: "suggested",
     });
 
-    startPropagationEngine();
-    await vi.advanceTimersByTimeAsync(3600000);
+    await runPropagationCycle();
 
     const propagations = await db.select().from(lessonPropagations);
     // Only 1 propagation should exist, no duplicates
@@ -217,7 +218,7 @@ describe("Propagation Engine", () => {
     });
 
     startPropagationEngine();
-    await vi.advanceTimersByTimeAsync(3600000);
+    await vi.runOnlyPendingTimersAsync();
 
     const propagations = await db.select().from(lessonPropagations);
     // Should be 0 since the engine didn't run its queries

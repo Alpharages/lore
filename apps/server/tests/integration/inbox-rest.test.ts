@@ -251,7 +251,7 @@ describe("POST /api/propagations/:id/accept", () => {
       headers: { authorization: `Bearer ${projectAKey}` },
     });
 
-    expect(res.statusCode).toBe(403);
+    expect(res.statusCode).toBe(404);
   });
 
   it("returns 404 for non-existent propagation", async () => {
@@ -352,7 +352,7 @@ describe("POST /api/propagations/:id/reject", () => {
       headers: { authorization: `Bearer ${projectAKey}` },
     });
 
-    expect(res.statusCode).toBe(403);
+    expect(res.statusCode).toBe(404);
   });
 
   it("returns 404 for non-existent propagation", async () => {

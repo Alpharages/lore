@@ -189,6 +189,6 @@ describe("Propagation Actions Tooling", () => {
       payload: { propagation_id: prop.id },
     });
 
-    expect(res.statusCode).toBe(403);
+    expect(res.statusCode).toBe(404);
   });
 });

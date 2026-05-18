@@ -102,6 +102,12 @@ describe("POST /mcp/tools/search_similar", () => {
       ["11111111-1111-1111-1111-111111111111", project_id, `[${vec.join(",")}]`]
     );
 
+    // Provide a different vector for the irrelevant query
+    const vec2 = makeVector(1);
+    vec2[0] = 0;
+    vec2[1] = 1; // Orthogonal to vec[0]=1, similarity will be 0
+    vi.spyOn(embedding, "generateEmbedding").mockResolvedValue(vec2);
+
     const res = await app.inject({
       method: "POST",
       url: "/mcp/tools/search_similar",

@@ -19,6 +19,52 @@ import {
 import { generateEmbeddingText, generateEmbedding } from "./embedding.js";
 import { validationError, notFoundError } from "../utils/errors.js";
 
+export const runPropagationCycle = async (): Promise<void> => {
+  const admin = await createAdminDb();
+  try {
+    logger.info({
+      tool: "propagation_engine",
+      message: "Running propagation evaluation",
+    });
+
+    const qualifyingLessons = await findQualifyingLessons(admin.db);
+
+    let evaluatedCount = 0;
+    let suggestionsCreated = 0;
+
+    for (const lesson of qualifyingLessons) {
+      if (!lesson.projectId || !lesson.stackTags || lesson.stackTags.length === 0) continue;
+      evaluatedCount++;
+
+      const candidateProjects = await findCandidateProjects(
+        admin.db,
+        lesson.projectId,
+        lesson.stackTags
+      );
+
+      for (const project of candidateProjects) {
+        const inserted = await insertPropagation(admin.db, lesson.id, project.id);
+        suggestionsCreated += inserted.length;
+      }
+    }
+
+    logger.info({
+      tool: "propagation_engine",
+      message: "Propagation evaluation completed",
+      lessons_evaluated: evaluatedCount,
+      suggestions_created: suggestionsCreated,
+    });
+  } catch (error) {
+    logger.error({
+      tool: "propagation_engine",
+      message: "Error during propagation evaluation",
+      error: error instanceof Error ? error.message : String(error),
+    });
+  } finally {
+    await admin.release();
+  }
+};
+
 export const startPropagationEngine = (): void => {
   const enabled = process.env.PROPAGATION_ENABLED === "true";
   if (!enabled) {
@@ -37,50 +83,14 @@ export const startPropagationEngine = (): void => {
     message: `Starting propagation engine with interval ${intervalMs}ms`,
   });
 
-  setInterval(async () => {
-    const admin = await createAdminDb();
-    try {
-      logger.info({
-        tool: "propagation_engine",
-        message: "Running propagation evaluation",
-      });
-
-      const qualifyingLessons = await findQualifyingLessons(admin.db);
-
-      let evaluatedCount = 0;
-      let suggestionsCreated = 0;
-
-      for (const lesson of qualifyingLessons) {
-        if (!lesson.projectId || !lesson.stackTags || lesson.stackTags.length === 0) continue;
-        evaluatedCount++;
-
-        const candidateProjects = await findCandidateProjects(
-          admin.db,
-          lesson.projectId,
-          lesson.stackTags
-        );
-
-        for (const project of candidateProjects) {
-          const inserted = await insertPropagation(admin.db, lesson.id, project.id);
-          suggestionsCreated += inserted.length;
-        }
-      }
-
-      logger.info({
-        tool: "propagation_engine",
-        message: "Propagation evaluation completed",
-        lessons_evaluated: evaluatedCount,
-        suggestions_created: suggestionsCreated,
-      });
-    } catch (error) {
+  setInterval(() => {
+    runPropagationCycle().catch((err) => {
       logger.error({
         tool: "propagation_engine",
-        message: "Error during propagation evaluation",
-        error: error instanceof Error ? error.message : String(error),
+        message: "Unhandled error in propagation cycle",
+        error: String(err),
       });
-    } finally {
-      await admin.release();
-    }
+    });
   }, intervalMs);
 };
 
@@ -97,7 +107,7 @@ export const acceptPropagation = async (
   projectId: string
 ): Promise<{ newLessonId: string }> => {
   const propagation = await getPropagationById(dbClient, propagationId);
-  if (!propagation) {
+  if (!propagation || propagation.targetProjectId !== projectId) {
     throw notFoundError(`Propagation ${propagationId} not found`);
   }
 
@@ -177,10 +187,10 @@ export const acceptPropagation = async (
 export const rejectPropagation = async (
   dbClient: PropagationTx,
   propagationId: string,
-  _projectId: string
+  projectId: string
 ): Promise<{ action: "rejected" }> => {
   const propagation = await getPropagationById(dbClient, propagationId);
-  if (!propagation) {
+  if (!propagation || propagation.targetProjectId !== projectId) {
     throw notFoundError(`Propagation ${propagationId} not found`);
   }
 

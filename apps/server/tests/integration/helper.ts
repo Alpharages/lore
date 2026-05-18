@@ -47,9 +47,10 @@ export async function createAppRole(pool: Pool): Promise<string> {
     DO $$ BEGIN
       CREATE ROLE lore_app LOGIN PASSWORD 'lore_app';
     EXCEPTION WHEN duplicate_object THEN
-      -- Role already exists
+      NULL;
     END $$;
   `);
+  await pool.query(`ALTER ROLE lore_app PASSWORD 'lore_app';`);
   await pool.query(`GRANT USAGE ON SCHEMA public TO lore_app;`);
   await pool.query(
     `GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO lore_app;`

@@ -205,9 +205,9 @@ describe("RLS Isolation Audit", () => {
       payload: { propagation_id: prop.id },
     });
 
-    expect(res.statusCode).toBe(403);
+    expect(res.statusCode).toBe(404);
     const body = JSON.parse(res.payload);
-    expect(body.error).toBe("forbidden");
+    expect(body.error).toBe("not_found");
   });
 
   it("global lessons (project_id IS NULL) are visible to Project B", async () => {
