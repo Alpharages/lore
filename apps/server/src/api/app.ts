@@ -1,5 +1,7 @@
 import Fastify from "fastify";
 import sensible from "@fastify/sensible";
+import helmet from "@fastify/helmet";
+import cors from "@fastify/cors";
 import { Pool } from "pg";
 import type { Logger } from "pino";
 import { DrizzleClient } from "../repositories/projects.repository.js";
@@ -23,7 +25,7 @@ export const buildApp = (deps: BuildAppDeps) => {
   const appLogger = deps.logger ?? logger;
 
   const app = Fastify({
-    logger: appLogger as any,
+    loggerInstance: appLogger as any,
     trustProxy: true,
     disableRequestLogging: true,
     // Fastify's default Ajv config strips unknown properties when a schema sets
@@ -40,6 +42,46 @@ export const buildApp = (deps: BuildAppDeps) => {
   });
 
   app.register(sensible);
+
+  // Defense-in-depth: nginx remains the primary TLS/header surface in production,
+  // but the app must not be naked if it is ever exposed directly. Helmet sets a
+  // conservative CSP + standard hardening headers; /health and /metrics skip the
+  // CSP (they are probe endpoints with no HTML).
+  app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        baseUri: ["'self'"],
+        objectSrc: ["'none'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'"],
+        imgSrc: ["'self'", "data:"],
+      },
+    },
+    crossOriginResourcePolicy: { policy: "same-site" },
+  });
+  app.addHook("onRoute", (routeOptions) => {
+    if (routeOptions.url === "/health" || routeOptions.url === "/metrics") {
+      const existing = routeOptions.config as Record<string, unknown> | undefined;
+      routeOptions.config = { ...(existing ?? {}), helmet: { contentSecurityPolicy: false } };
+    }
+  });
+
+  // CORS is restricted to the deployed web UI origin. WEB_UI_ORIGIN may be a
+  // comma-separated list (e.g. "https://lore.example.com,http://localhost:3001").
+  // When unset, CORS is disabled (same-origin only) — the safer default.
+  const webUiOrigin = process.env.WEB_UI_ORIGIN?.trim();
+  const corsOrigins = webUiOrigin
+    ? webUiOrigin
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : false;
+  app.register(cors, {
+    origin: corsOrigins,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  });
 
   // Commit or rollback before the response is sent so inject-based tests can
   // query the DB immediately after the inject promise resolves (onResponse fires
@@ -103,12 +145,13 @@ export const buildApp = (deps: BuildAppDeps) => {
 
   app.setErrorHandler(async (error, request, reply) => {
     const appError = error as any;
+    const message = appError?.message ?? String(error);
 
     // Fastify schema validation errors (body, params, querystring, headers).
     // Normalise to the same { error: "validation_error" } shape used by AppError.
     if (appError.validation) {
       reply.status(400);
-      return { error: "validation_error", message: error.message };
+      return { error: "validation_error", message };
     }
 
     if (appError.statusCode) {
@@ -118,7 +161,7 @@ export const buildApp = (deps: BuildAppDeps) => {
           reply.header(key, value);
         }
       }
-      return { error: appError.code || "error", message: error.message };
+      return { error: appError.code || "error", message };
     }
 
     request.log.error(error);

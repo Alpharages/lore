@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteSession } from "@/lib/session-store";
+import { config } from "@/lib/config";
 
 export const POST = async (request: NextRequest): Promise<NextResponse> => {
   const token = request.cookies.get("session")?.value;
@@ -9,7 +10,7 @@ export const POST = async (request: NextRequest): Promise<NextResponse> => {
   response.cookies.set("session", "", {
     httpOnly: true,
     sameSite: "strict",
-    secure: process.env.NODE_ENV === "production",
+    secure: config.cookieSecure,
     maxAge: 0,
     path: "/",
   });

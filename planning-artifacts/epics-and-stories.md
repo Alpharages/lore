@@ -206,7 +206,7 @@ they block credible end-to-end QA and should be cleaned up together.
 
 **Acceptance Criteria:**
 
-- [ ] **F4 — login cookie `Secure` flag is environment-aware.**
+- [x] **F4 — login cookie `Secure` flag is environment-aware.**
       `apps/web/app/api/auth/login/route.ts` currently sets
       `Secure: process.env.NODE_ENV === "production"`. Next.js standalone
       forces `NODE_ENV=production`, so any plain-HTTP local instance
@@ -218,7 +218,7 @@ they block credible end-to-end QA and should be cleaned up together.
          `localhost`/`127.0.0.1`.
       Production behind nginx (TLS-terminated) must still issue `Secure`.
 
-- [ ] **F5 — session store is shared across runtimes.**
+- [x] **F5 — session store is shared across runtimes.**
       `apps/web/lib/session-store.ts` is a module-scoped `Map<string, number>`.
       In `next dev`, the middleware runtime and API route runtime are loaded
       as separate module contexts, so a session created by `POST /api/auth/login`
@@ -230,14 +230,14 @@ they block credible end-to-end QA and should be cleaned up together.
       Verification: full login → `/lessons` → `/api/projects` flow works in
       both `next dev` and `next start` against the production build.
 
-- [ ] **S1 — high-severity dependency vulnerabilities resolved.**
+- [x] **S1 — high-severity dependency vulnerabilities resolved.**
       `pnpm audit --prod` reports 10 high / 2 moderate / 1 low. Upgrade
       `fastify` to the current major (5.x, observe breaking-change notes),
       `drizzle-orm` to ≥ 0.45.2 (SQLi advisory), `postcss` ≥ 8.5.10 via Next
       bump if needed, and refresh `bcrypt` so its transitive `tar` chain
       reaches ≥ 7.5.11. `pnpm audit --prod` should exit clean.
 
-- [ ] **S2 — app-level security headers on Fastify.**
+- [x] **S2 — app-level security headers on Fastify.**
       `apps/server/src/api/app.ts` only registers `@fastify/sensible`. Add
       `@fastify/helmet` (CSP for `/health` and `/metrics` exemptions is fine)
       and `@fastify/cors` configured to the deployed web UI origin. Document

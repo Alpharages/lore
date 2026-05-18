@@ -64,7 +64,11 @@ export const register = async (
       message: "Project registered. Store API key securely.",
     };
   } catch (err: any) {
-    if (err.code === "23505" || err.message?.includes("unique constraint")) {
+    // drizzle 0.45+ wraps the driver error in DrizzleQueryError; the original
+    // pg error (with `.code === "23505"` for unique_violation) lives at `.cause`.
+    const code = err?.code ?? err?.cause?.code;
+    const message = err?.message ?? err?.cause?.message ?? "";
+    if (code === "23505" || message.includes("unique constraint")) {
       throw conflictError(`Slug '${slug}' is already registered`);
     }
     throw err;
