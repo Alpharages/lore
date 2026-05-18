@@ -403,7 +403,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"session_id\": \"{{sessionId}}\",\n  \"decisions\": [\n    {\n      \"what\": \"Used zod for UUID validation instead of manual regex\",\n      \"why\": \"Zod provides type inference in addition to runtime validation\"\n    }\n  ],\n  \"lessons_applied\": [\n    \"{{lessonId}}\"\n  ],\n  \"files_touched\": [\n    \"src/services/lessons.service.ts\",\n    \"src/repositories/lessons.repository.ts\"\n  ]\n}",
+              "raw": "{\n  \"session_id\": \"{{sessionId}}\",\n  \"decisions\": [\n    {\n      \"what\": \"Used zod for UUID validation instead of manual regex\",\n      \"why\": \"Zod provides type inference in addition to runtime validation\"\n    }\n  ],\n  \"lessons_applied\": [\n    \"{{lessonId}}\"\n  ],\n  \"files_touched\": [\n    \"apps/server/src/services/lessons.service.ts\",\n    \"apps/server/src/repositories/lessons.repository.ts\"\n  ]\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -529,7 +529,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"external_task_id\": \"abc123xyz\",\n  \"external_tracker_type\": \"clickup\",\n  \"external_task_ref\": \"https://app.clickup.com/t/abc123xyz\",\n  \"severity\": \"high\",\n  \"reviewer\": \"khakan.ali\",\n  \"workflow\": \"pr-review\",\n  \"finding\": {\n    \"title\": \"Missing input sanitization in lesson title\",\n    \"problem\": \"Lesson titles are stored without sanitizing HTML entities, enabling XSS in the UI.\",\n    \"root_cause\": \"The service layer does not strip or escape HTML before persisting the title.\",\n    \"fix\": \"Added DOMPurify sanitization in the service before passing data to the repository.\",\n    \"prevention_rule\": \"Always sanitize user-supplied string fields that will be rendered as HTML.\",\n    \"stack_tags\": [\"typescript\", \"security\"],\n    \"category\": \"security\",\n    \"code_pointer\": {\n      \"file\": \"src/services/lessons.service.ts\",\n      \"line_start\": 42,\n      \"line_end\": 55\n    }\n  }\n}",
+              "raw": "{\n  \"external_task_id\": \"abc123xyz\",\n  \"external_tracker_type\": \"clickup\",\n  \"external_task_ref\": \"https://app.clickup.com/t/abc123xyz\",\n  \"severity\": \"high\",\n  \"reviewer\": \"khakan.ali\",\n  \"workflow\": \"pr-review\",\n  \"finding\": {\n    \"title\": \"Missing input sanitization in lesson title\",\n    \"problem\": \"Lesson titles are stored without sanitizing HTML entities, enabling XSS in the UI.\",\n    \"root_cause\": \"The service layer does not strip or escape HTML before persisting the title.\",\n    \"fix\": \"Added DOMPurify sanitization in the service before passing data to the repository.\",\n    \"prevention_rule\": \"Always sanitize user-supplied string fields that will be rendered as HTML.\",\n    \"stack_tags\": [\"typescript\", \"security\"],\n    \"category\": \"security\",\n    \"code_pointer\": {\n      \"file\": \"apps/server/src/services/lessons.service.ts\",\n      \"line_start\": 42,\n      \"line_end\": 55\n    }\n  }\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {

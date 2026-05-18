@@ -33,22 +33,20 @@ The Fastify server remains headless — the Web UI does not add SSR concerns to 
 
 ### 1.2 Monorepo Structure
 
-The repo is a pnpm workspace. The existing server code **stays at the
-repository root** — nothing moves. `apps/web` is added as a new workspace
-package alongside it.
+The repo is a pnpm workspace organized into a clean three-app layout under the `apps/` directory.
 
 ```
 / (repo root)
-├── package.json           # lore-memory-mcp server (unchanged)
-├── src/                   # Fastify server source (unchanged)
-├── pnpm-workspace.yaml    # updated: packages: ['apps/*']
-├── turbo.json             # added
+├── package.json           # Workspace configuration and root tasks
+├── pnpm-workspace.yaml    # Monorepo workspaces definition
+├── turbo.json             # Turbo pipeline configuration
 └── apps/
-    └── web/               # new — Next.js 15 App Router
-        └── package.json   # name: @lore/web
+    ├── server/            # @lore/server (Fastify backend)
+    ├── cli/               # @alpharages/lore (Developer CLI)
+    └── web/               # @lore/web (Next.js 15 Web UI)
 ```
 
-`pnpm-workspace.yaml` after update:
+`pnpm-workspace.yaml`:
 
 ```yaml
 packages:
@@ -59,7 +57,7 @@ allowBuilds:
   esbuild: true
 ```
 
-### 1.2 Deployment Strategy
+### 1.3 Deployment Strategy
 
 | Environment | Web UI hosting       | API hosting          |
 |---|---|---|

@@ -1,6 +1,6 @@
 ---
 description: Lore platform engineering standards — arrow functions, layer boundaries, tooling
-globs: src/**/*.ts
+globs: apps/server/src/**/*.ts
 alwaysApply: true
 ---
 
@@ -8,7 +8,7 @@ alwaysApply: true
 
 ## Arrow Functions — Mandatory
 
-All functions in `src/` MUST use arrow function syntax. `function` declarations are not allowed.
+All functions in `apps/server/src/` or `apps/cli/src/` MUST use arrow function syntax. `function` declarations are not allowed.
 
 ```typescript
 // ✅ CORRECT
@@ -33,10 +33,10 @@ route → controller → service → repository
 
 | Layer | Location | Responsibility | May Import | Must NOT Import |
 |-------|----------|---------------|-----------|----------------|
-| Route | `src/api/routes/` | Fastify plugin, URL, schema, preHandlers | Controllers | Services, Repositories, `drizzle-orm` |
-| Controller | `src/api/controllers/` | Plain handler `(req, reply)`, response shaping | Services | Repositories, `drizzle-orm`, `pg` |
-| Service | `src/services/` | Business logic, orchestration | Repositories | `fastify`, Fastify types |
-| Repository | `src/repositories/` | Drizzle ORM queries only | `db/schema`, `db/client`, `drizzle-orm` | Services, Fastify |
+| Route | `apps/server/src/api/routes/` | Fastify plugin, URL, schema, preHandlers | Controllers | Services, Repositories, `drizzle-orm` |
+| Controller | `apps/server/src/api/controllers/` | Plain handler `(req, reply)`, response shaping | Services | Repositories, `drizzle-orm`, `pg` |
+| Service | `apps/server/src/services/` | Business logic, orchestration | Repositories | `fastify`, Fastify types |
+| Repository | `apps/server/src/repositories/` | Drizzle ORM queries only | `db/schema`, `db/client`, `drizzle-orm` | Services, Fastify |
 
 ```typescript
 // ✅ Route — Fastify plugin wiring only
@@ -67,10 +67,10 @@ import { FastifyRequest } from 'fastify'  // only allowed in routes/controllers/
 
 ## File Naming
 
-- Routes: `<resource>.route.ts` in `src/api/routes/`
-- Controllers: `<resource>.controller.ts` in `src/api/controllers/` — export named handler functions
-- Services: `<resource>.service.ts` in `src/services/`
-- Repositories: `<resource>.repository.ts` in `src/repositories/`
+- Routes: `<resource>.route.ts` in `apps/server/src/api/routes/`
+- Controllers: `<resource>.controller.ts` in `apps/server/src/api/controllers/` — export named handler functions
+- Services: `<resource>.service.ts` in `apps/server/src/services/`
+- Repositories: `<resource>.repository.ts` in `apps/server/src/repositories/`
 
 ## Tooling
 
@@ -106,7 +106,7 @@ All `POST`/`PUT`/`PATCH` routes **MUST** declare a `schema: { body: ... }` JSON 
 
 ```typescript
 // ✅ CORRECT — schema on the route, clean controller
-// src/api/routes/mcp.route.ts
+// apps/server/src/api/routes/mcp.route.ts
 const myToolBodySchema = {
   type: "object",
   required: ["title", "value"],
@@ -122,7 +122,7 @@ app.post("/tools/my_tool", {
   schema: { body: myToolBodySchema },
 }, handler);
 
-// src/api/controllers/my-tool.controller.ts
+// apps/server/src/api/controllers/my-tool.controller.ts
 export const myToolHandler = async (request: FastifyRequest, reply: FastifyReply) => {
   const { title, value, tag } = request.body as MyToolBody; // already validated
   // ... call service directly, no guards needed
@@ -138,6 +138,6 @@ export const myToolHandler = async (request, reply) => {
 ```
 
 - Fastify's built-in Ajv validates the body **before** `preHandler` runs, returning `400` automatically.
-- The `setErrorHandler` in `src/api/app.ts` normalises Ajv errors into `{ error: "validation_error" }`.
+- The `setErrorHandler` in `apps/server/src/api/app.ts` normalises Ajv errors into `{ error: "validation_error" }`.
 - Use `default:` in the schema for optional fields with fallback values (`severity: { ..., default: "medium" }`); Ajv injects them so the controller always receives a fully-typed body.
-- Inline schemas in the route file are preferred while there are ≤ 5 tools. Extract to `src/api/schemas/mcp.schemas.ts` only when schemas grow large or are shared across routes.
+- Inline schemas in the route file are preferred while there are ≤ 5 tools. Extract to `apps/server/src/api/schemas/mcp.schemas.ts` only when schemas grow large or are shared across routes.

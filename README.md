@@ -66,10 +66,10 @@ Memory is **team-shared and project-isolated** — all developers benefit, no pr
 
 ## Components
 
-| Component          | Description                                                                           |
-| ------------------ | ------------------------------------------------------------------------------------- |
-| `lore-memory-mcp`  | The server (this repo). Fastify + PostgreSQL 16 + pgvector + MCP protocol over HTTPS. |
-| `@alpharages/lore` | npm package. Wires the MCP server into Cursor / Claude Code on developer machines.    |
+| Component          | Description                                                                                                 |
+| ------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `@lore/server`     | The server workspace package (apps/server). Fastify + PostgreSQL 16 + pgvector + MCP protocol over HTTPS.   |
+| `@alpharages/lore` | The CLI workspace package (apps/cli). Wires the MCP server into Cursor / Claude Code on developer machines. |
 
 ---
 
@@ -127,7 +127,7 @@ cp .env.example .env
 docker compose up -d
 
 # 5. Run migrations
-pnpm run db:migrate
+pnpm --filter @lore/server db:migrate
 
 # 6. Create your first project
 curl -X POST https://your-host/api/projects/register \
@@ -264,12 +264,16 @@ A ready-to-import Postman collection is included at the root of this repo:
 ## Development
 
 ```bash
-pnpm install        # install dependencies
-pnpm run build      # compile TypeScript
-pnpm run test       # run tests (vitest)
-pnpm run lint       # lint (oxlint)
-pnpm run format     # format (prettier)
-pnpm run db:migrate # apply Drizzle migrations
+pnpm install                     # install all monorepo dependencies
+pnpm build                       # compile all packages using Turbo
+pnpm test                        # run tests for all packages (vitest)
+pnpm lint                        # lint all packages (oxlint)
+pnpm format                      # format all packages (prettier)
+
+# Workspace-specific commands:
+pnpm --filter @lore/server dev   # run memory server in dev mode
+pnpm --filter @lore/web dev      # run web UI in dev mode
+pnpm --filter @lore/server db:migrate # run Drizzle migrations for server
 ```
 
 ---

@@ -7,7 +7,7 @@ must follow these conventions without exception.
 
 ## 1. Arrow Functions — Mandatory
 
-**Never use `function` declarations in `src/`.** All functions must be arrow functions
+**Never use `function` declarations in `apps/server/src/` or `apps/cli/src/`.** All functions must be arrow functions
 assigned to `const`.
 
 ```typescript
@@ -20,24 +20,31 @@ export async function doThing(input: Input): Promise<Output> { ... }
 
 ---
 
-## 2. Project Structure — Four Layers
+## 2. Project Structure — Three-App Layout
 
 ```
 route → controller → service → repository
 ```
 
 ```
-src/
-├── api/
-│   ├── routes/          Fastify plugins — URL, schema, preHandlers → delegates to controllers
-│   ├── controllers/     Plain handler fns (request, reply) → calls services
-│   ├── middleware/      Auth, rate-limit, admin-auth
-│   └── app.ts           Fastify factory — registers routes/
-├── services/            Business logic — no DB imports, no Fastify imports
-├── repositories/        Drizzle ORM queries only
-├── db/                  Schema, migrations, client
-├── mcp/                 MCP server wiring
-└── utils/               Logger, errors
+apps/
+├── server/              ← API Memory Server (@lore/server)
+│   └── src/
+│       ├── api/
+│       │   ├── routes/          Fastify plugins — URL, schema, preHandlers → delegates to controllers
+│       │   ├── controllers/     Plain handler fns (request, reply) → calls services
+│       │   ├── middleware/      Auth, rate-limit, admin-auth
+│       │   └── app.ts           Fastify factory — registers routes/
+│       ├── services/            Business logic — no DB imports, no Fastify imports
+│       ├── repositories/        Drizzle ORM queries only
+│       ├── db/                  Schema, migrations, client
+│       ├── mcp/                 MCP server wiring
+│       └── utils/               Logger, errors
+├── cli/                 ← Developer CLI (@alpharages/lore)
+│   └── src/
+│       ├── commands/            CLI commands (install, init, update, inbox)
+│       └── core/                Configuration, generators, state, hooks
+└── web/                 ← Next.js 15 Web UI Dashboard (@lore/web)
 ```
 
 **Layer import rules (hard — violations are bugs):**
@@ -54,11 +61,18 @@ src/
 Always use **pnpm**. Never run `npm install`. Never commit `package-lock.json`.
 
 ```bash
-pnpm install          # install
-pnpm run build        # compile
-pnpm run test         # test
-pnpm run lint         # oxlint
-pnpm run format       # prettier
+pnpm install                                # install all monorepo dependencies
+pnpm dev                                    # run all apps in development mode (Turbo)
+pnpm build                                  # build all packages (Turbo)
+pnpm test                                   # run tests across all workspaces (Turbo)
+pnpm lint                                   # lint all workspaces (oxlint)
+pnpm format                                 # format all workspaces (prettier)
+
+# Workspace-specific commands:
+pnpm --filter @lore/server dev              # run memory server in dev
+pnpm --filter @lore/server db:migrate       # run server migrations
+pnpm --filter @lore/web dev                 # run web UI in dev
+pnpm --filter @alpharages/lore build        # build CLI package
 ```
 
 ---
