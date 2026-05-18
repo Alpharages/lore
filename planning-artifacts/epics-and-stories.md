@@ -188,6 +188,74 @@ locations.
 
 ---
 
+### Story 12.6 — Address bug findings surfaced by post-restructure QA
+
+**As a** maintainer,
+**I want** the bugs and security gaps surfaced by the Epic 12 QA pass cleaned
+up,
+**so that** the three-app layout is genuinely production-ready and not just
+"builds and tests pass."
+
+**Context:** A post-restructure QA pass on the three-app layout (`apps/server`,
+`apps/cli`, `apps/web`) ran builds, automated tests, smoke tests, and manual
+flows against the live API + web UI. Three issues were fixed in the QA session
+itself (nginx-test upstream resolution, `.gitignore` cert path, migration
+`migrationsFolder` path); these four remain. F4 and F5 are pre-existing and
+were not introduced by Epic 12 — they were just discovered by the QA — but
+they block credible end-to-end QA and should be cleaned up together.
+
+**Acceptance Criteria:**
+
+- [ ] **F4 — login cookie `Secure` flag is environment-aware.**
+      `apps/web/app/api/auth/login/route.ts` currently sets
+      `Secure: process.env.NODE_ENV === "production"`. Next.js standalone
+      forces `NODE_ENV=production`, so any plain-HTTP local instance
+      (`node apps/web/server.js` on `localhost`) issues a `Secure` cookie that
+      the browser silently drops, breaking login. Replace with either:
+      a) explicit `COOKIE_SECURE` env var (default `true`, override to `false`
+         for local HTTP), or
+      b) heuristic that drops `Secure` when `request.headers.host` is
+         `localhost`/`127.0.0.1`.
+      Production behind nginx (TLS-terminated) must still issue `Secure`.
+
+- [ ] **F5 — session store is shared across runtimes.**
+      `apps/web/lib/session-store.ts` is a module-scoped `Map<string, number>`.
+      In `next dev`, the middleware runtime and API route runtime are loaded
+      as separate module contexts, so a session created by `POST /api/auth/login`
+      is not visible to `validateSession()` in `middleware.ts` — users are
+      bounced back to `/login` after a successful login. Replace with one of:
+      a) signed/encrypted JWT carried in the cookie (no server state),
+      b) Postgres-backed sessions table reusing the existing pool, or
+      c) Redis if a session-cache layer is acceptable.
+      Verification: full login → `/lessons` → `/api/projects` flow works in
+      both `next dev` and `next start` against the production build.
+
+- [ ] **S1 — high-severity dependency vulnerabilities resolved.**
+      `pnpm audit --prod` reports 10 high / 2 moderate / 1 low. Upgrade
+      `fastify` to the current major (5.x, observe breaking-change notes),
+      `drizzle-orm` to ≥ 0.45.2 (SQLi advisory), `postcss` ≥ 8.5.10 via Next
+      bump if needed, and refresh `bcrypt` so its transitive `tar` chain
+      reaches ≥ 7.5.11. `pnpm audit --prod` should exit clean.
+
+- [ ] **S2 — app-level security headers on Fastify.**
+      `apps/server/src/api/app.ts` only registers `@fastify/sensible`. Add
+      `@fastify/helmet` (CSP for `/health` and `/metrics` exemptions is fine)
+      and `@fastify/cors` configured to the deployed web UI origin. Document
+      that nginx is still the primary TLS/header surface, but the app must
+      not be naked if it ends up exposed directly.
+
+**Notes:**
+
+- F4/F5 are pre-existing — they predate Epic 12. They land here because the
+  QA pass that validated Epic 12 surfaced them, and they should be cleaned up
+  before the three-app layout is considered "done."
+- The S1 upgrade may surface CLAUDE.md §3a "current major" violations that
+  were not enforced before — that is intended.
+- Out of scope: switching the embedding provider, changing the MCP transport
+  shape, or restructuring further. Cleanup only.
+
+---
+
 ## Story Dependency Order
 
 ```
@@ -197,7 +265,10 @@ locations.
                        │           └── 12.4 Docker + CI
                        │                   │
                        │                   └── 12.5 Docs + planning artifacts
+                       │                           │
+                       │                           └── 12.6 QA bug cleanup
 ```
 
 12.1 and 12.2 can proceed in parallel on separate branches; 12.3 merges them.
-12.4 and 12.5 follow 12.3.
+12.4 and 12.5 follow 12.3. 12.6 follows 12.5 and can be split into per-AC
+sub-PRs (F4, F5, S1, S2 are independent).
