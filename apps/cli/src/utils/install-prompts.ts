@@ -1,14 +1,9 @@
-import * as readline from "readline";
 import checkbox from "@inquirer/checkbox";
 import { IdeProfile } from "../core/ide-config.js";
+import { ask, createReadline as sharedCreateReadline } from "./line-reader.js";
 
-export const createReadline = (): readline.Interface =>
-  readline.createInterface({ input: process.stdin, output: process.stdout });
-
-export const ask = (rl: readline.Interface, prompt: string): Promise<string> =>
-  new Promise((resolve) => {
-    rl.question(prompt, resolve);
-  });
+export const createReadline = sharedCreateReadline;
+export { ask };
 
 export const promptIdeSelection = async (
   profiles: IdeProfile[],
@@ -41,16 +36,4 @@ export const promptIdeSelection = async (
     }
     throw err;
   }
-};
-
-export const promptClaudeInclude = async (
-  rl: readline.Interface,
-  detected: boolean
-): Promise<boolean> => {
-  const detectedLabel = detected ? " [detected]" : "";
-  const answer = await ask(
-    rl,
-    `\nConfigure Claude Code context includes?${detectedLabel} [Y/n] › `
-  );
-  return answer.trim().toLowerCase() !== "n";
 };

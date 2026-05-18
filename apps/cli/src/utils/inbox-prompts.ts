@@ -1,5 +1,6 @@
 import * as readline from "readline";
 import type { InboxSuggestion } from "../api/client.js";
+import { ask, createReadline as sharedCreateReadline } from "./line-reader.js";
 
 export type InboxAction = "accept" | "reject" | "skip" | "quit";
 
@@ -21,22 +22,16 @@ export const formatSuggestion = (
   ].join("\n");
 };
 
-export const promptAction = (rl: readline.Interface): Promise<InboxAction> => {
-  return new Promise((resolve) => {
-    const ask = (): void => {
-      rl.question("  [a]ccept | [r]eject | [s]kip | [q]uit › ", (answer) => {
-        const key = answer.trim().toLowerCase();
-        if (key === "a" || key === "accept") return resolve("accept");
-        if (key === "r" || key === "reject") return resolve("reject");
-        if (key === "s" || key === "skip") return resolve("skip");
-        if (key === "q" || key === "quit") return resolve("quit");
-        console.log("  Please enter a, r, s, or q.");
-        ask();
-      });
-    };
-    ask();
-  });
+export const promptAction = async (rl: readline.Interface): Promise<InboxAction> => {
+  while (true) {
+    const answer = await ask(rl, "  [a]ccept | [r]eject | [s]kip | [q]uit › ");
+    const key = answer.trim().toLowerCase();
+    if (key === "a" || key === "accept") return "accept";
+    if (key === "r" || key === "reject") return "reject";
+    if (key === "s" || key === "skip") return "skip";
+    if (key === "q" || key === "quit") return "quit";
+    console.log("  Please enter a, r, s, or q.");
+  }
 };
 
-export const createReadline = (): readline.Interface =>
-  readline.createInterface({ input: process.stdin, output: process.stdout });
+export const createReadline = sharedCreateReadline;

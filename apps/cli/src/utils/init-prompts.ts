@@ -1,4 +1,5 @@
 import * as readline from "readline";
+import { ask as sharedAsk, createReadline as sharedCreateReadline } from "./line-reader.js";
 
 export interface WizardAnswers {
   projectName: string;
@@ -30,13 +31,8 @@ export interface WizardTracker {
   customFieldIds?: Record<string, string>;
 }
 
-export const createReadline = (): readline.Interface =>
-  readline.createInterface({ input: process.stdin, output: process.stdout });
-
-export const ask = (rl: readline.Interface, prompt: string): Promise<string> =>
-  new Promise((resolve) => {
-    rl.question(prompt, resolve);
-  });
+export const createReadline = sharedCreateReadline;
+export const ask = sharedAsk;
 
 export const toKebabCase = (input: string): string =>
   input

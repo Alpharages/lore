@@ -1,6 +1,7 @@
 import { findLoreYaml } from "../core/config-finder.js";
 import { parseLoreConfig, LoreConfig } from "../core/config-parser.js";
 import { LoreClient } from "../api/client.js";
+import { getApiKey } from "../core/credentials.js";
 import { formatSuggestion, promptAction, createReadline } from "../utils/inbox-prompts.js";
 
 export const inboxCommand = async (): Promise<void> => {
@@ -15,9 +16,12 @@ export const inboxCommand = async (): Promise<void> => {
   const slug = config.project.slug;
   const serverUrl = config.mcp.server;
 
-  const apiKey = process.env.LORE_API_KEY;
+  const apiKey = getApiKey(slug) ?? process.env.LORE_API_KEY;
   if (!apiKey) {
-    console.error("Error: LORE_API_KEY environment variable is not set.");
+    console.error(
+      `Error: no API key found for project "${slug}". ` +
+        "Run `lore init` first, or set LORE_API_KEY."
+    );
     process.exit(1);
   }
 

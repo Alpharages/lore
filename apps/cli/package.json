@@ -7,6 +7,11 @@
   "bin": {
     "lore": "dist/index.js"
   },
+  "files": [
+    "dist",
+    "templates",
+    "README.md"
+  ],
   "packageManager": "pnpm@11.0.8",
   "scripts": {
     "build": "tsc",

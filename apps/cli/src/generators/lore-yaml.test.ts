@@ -16,7 +16,7 @@ const baseAnswers: WizardAnswers = {
 describe("buildLoreYaml", () => {
   it("builds minimal doc without methodology", () => {
     const doc = buildLoreYaml(baseAnswers);
-    expect(doc.lore.version).toBe("1.0.0");
+    expect(doc.lore.version).toBe("^1.0.0");
     expect(doc.project.name).toBe("My Project");
     expect(doc.project.slug).toBe("my-project");
     expect(doc.mcp.server).toBe("http://localhost:3100");
@@ -54,7 +54,7 @@ describe("buildLoreYaml", () => {
 describe("generateLoreYaml", () => {
   it("produces valid YAML string", () => {
     const yaml = generateLoreYaml(baseAnswers);
-    expect(yaml).toContain("version: 1.0.0");
+    expect(yaml).toContain("version: ^1.0.0");
     expect(yaml).toContain("name: My Project");
     expect(yaml).toContain("slug: my-project");
     expect(yaml).toContain("repos:");

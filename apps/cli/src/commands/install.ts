@@ -4,7 +4,6 @@ import * as os from "os";
 import { findLoreYaml } from "../core/config-finder.js";
 import { parseLoreConfig, LoreConfig, LoreRepo } from "../core/config-parser.js";
 import { checkVersionCompatibility } from "../core/version-check.js";
-import { appendClaudeMdInclude } from "../core/claude-config.js";
 import { installGitHooks } from "../core/git-hooks.js";
 import { analyzeAllRepos } from "../core/gitnexus.js";
 import { readInstallState, writeInstallState, clearInstallState } from "../core/state.js";
@@ -15,11 +14,7 @@ import {
   configureIdeMcp,
 } from "../core/ide-config.js";
 import { getApiKey } from "../core/credentials.js";
-import {
-  createReadline,
-  promptIdeSelection,
-  promptClaudeInclude,
-} from "../utils/install-prompts.js";
+import { promptIdeSelection } from "../utils/install-prompts.js";
 
 const getRepoSlug = (repo: LoreRepo, repoPath: string): string =>
   repo.slug || path.basename(repoPath);
@@ -32,10 +27,27 @@ const resolveIdeIds = async (options: { ide?: string; force?: boolean }): Promis
     if (options.ide === "detected") {
       return detectInstalledIdes();
     }
-    return options.ide
+    const requested = options.ide
       .split(",")
       .map((s) => s.trim())
-      .filter((s) => getProfileById(s) !== undefined);
+      .filter((s) => s.length > 0);
+    const valid: string[] = [];
+    const unknown: string[] = [];
+    for (const id of requested) {
+      if (getProfileById(id) !== undefined) {
+        valid.push(id);
+      } else {
+        unknown.push(id);
+      }
+    }
+    if (unknown.length > 0) {
+      const knownIds = IDE_PROFILES.map((p) => p.id).join(", ");
+      console.warn(
+        `⚠ Unknown --ide value${unknown.length === 1 ? "" : "s"}: ${unknown.join(", ")}. ` +
+          `Known IDE ids: ${knownIds}, or 'all', 'detected'.`
+      );
+    }
+    return valid;
   }
 
   const detected = detectInstalledIdes();
@@ -47,22 +59,6 @@ const resolveIdeIds = async (options: { ide?: string; force?: boolean }): Promis
 
   // Non-TTY: fall back to detected profiles only (configure nothing if none found)
   return detected;
-};
-
-const resolveClaudeInclude = async (): Promise<boolean> => {
-  const claudeDir = path.join(os.homedir(), ".claude");
-  const detected = fs.existsSync(claudeDir);
-
-  if (process.stdin.isTTY) {
-    const rl = createReadline();
-    try {
-      return await promptClaudeInclude(rl, detected);
-    } finally {
-      rl.close();
-    }
-  }
-
-  return true;
 };
 
 export const installCommand = async (
@@ -94,7 +90,6 @@ export const installCommand = async (
 
   const homeDir = os.homedir();
   const selectedIdeIds = await resolveIdeIds(options);
-  const configureClaude = await resolveClaudeInclude();
 
   const apiKey = getApiKey(config.project.slug) ?? process.env.LORE_API_KEY;
   if (!apiKey) {
@@ -123,25 +118,7 @@ export const installCommand = async (
     }
   }
 
-  // --- Claude Code context includes ---
-  const claudeMdPath = path.join(homeDir, ".claude", "CLAUDE.md");
-  const claudeExisted = fs.existsSync(claudeMdPath);
-  let claudeUpdated = false;
-
-  if (configureClaude) {
-    try {
-      const before = fs.existsSync(claudeMdPath) ? fs.readFileSync(claudeMdPath, "utf-8") : "";
-      appendClaudeMdInclude(loreYamlPath, homeDir);
-      const after = fs.existsSync(claudeMdPath) ? fs.readFileSync(claudeMdPath, "utf-8") : "";
-      claudeUpdated = before !== after;
-    } catch (err: any) {
-      console.error(`Error: ${err.message}`);
-      process.exit(1);
-    }
-  }
-
-  console.log("✓ Install complete.");
-  console.log("");
+  let hadWarnings = false;
 
   // Print IDE config summary
   if (ideUpdates.length > 0) {
@@ -168,19 +145,6 @@ export const installCommand = async (
     }
   } else {
     console.log("  No IDEs selected for MCP configuration.");
-  }
-
-  console.log("");
-
-  if (configureClaude) {
-    if (claudeUpdated) {
-      console.log(`  ${claudeExisted ? "Updated" : "Created"} ~/.claude/CLAUDE.md`);
-      console.log(`    • Include → @${path.join(path.dirname(loreYamlPath), "CLAUDE.md")}`);
-    } else {
-      console.log("  ~/.claude/CLAUDE.md — no changes needed (already up to date)");
-    }
-  } else {
-    console.log("  Claude Code context includes skipped.");
   }
 
   const loreYamlDir = path.dirname(loreYamlPath);
@@ -222,6 +186,7 @@ export const installCommand = async (
     for (const e of hookResults.errors) console.warn(`  ⚠ ${e}`);
 
     if (hookResults.errors.length > 0) {
+      hadWarnings = true;
       console.warn(
         "\n⚠️  Some hooks could not be installed (see above). Install completed with warnings."
       );
@@ -308,6 +273,7 @@ export const installCommand = async (
     }
 
     if (analysisResults.some((r) => !r.success)) {
+      hadWarnings = true;
       console.warn(
         "\n⚠️  Some repos could not be analyzed (see above). Install completed with warnings."
       );
@@ -329,5 +295,7 @@ export const installCommand = async (
     repos_analyzed: reposAnalyzed,
   });
 
-  console.log("✅ lore install complete");
+  console.log(
+    hadWarnings ? "\n⚠️  lore install complete (with warnings)" : "\n✅ lore install complete"
+  );
 };

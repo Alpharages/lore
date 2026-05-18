@@ -26,16 +26,22 @@ vi.mock("../utils/inbox-prompts.js", () => ({
   createReadline: vi.fn(),
 }));
 
+vi.mock("../core/credentials.js", () => ({
+  getApiKey: vi.fn(),
+}));
+
 import { inboxCommand } from "./inbox.js";
 import { findLoreYaml } from "../core/config-finder.js";
 import { parseLoreConfig } from "../core/config-parser.js";
 import { formatSuggestion, promptAction, createReadline } from "../utils/inbox-prompts.js";
+import { getApiKey } from "../core/credentials.js";
 
 const mockedFindLoreYaml = vi.mocked(findLoreYaml);
 const mockedParseLoreConfig = vi.mocked(parseLoreConfig);
 const mockedFormatSuggestion = vi.mocked(formatSuggestion);
 const mockedPromptAction = vi.mocked(promptAction);
 const mockedCreateReadline = vi.mocked(createReadline);
+const mockedGetApiKey = vi.mocked(getApiKey);
 
 describe("inboxCommand", () => {
   let consoleLogSpy: ReturnType<typeof vi.spyOn>;
@@ -68,6 +74,7 @@ describe("inboxCommand", () => {
     });
 
     process.env.LORE_API_KEY = "test-api-key";
+    mockedGetApiKey.mockReturnValue(undefined);
 
     mockedFindLoreYaml.mockReturnValue("/projects/myapp/lore.yaml");
     mockedParseLoreConfig.mockReturnValue(baseConfig as any);
@@ -87,14 +94,25 @@ describe("inboxCommand", () => {
     process.env.LORE_API_KEY = originalApiKey;
   });
 
-  it("exits with error when LORE_API_KEY is not set", async () => {
+  it("exits with error when no API key in credentials or env", async () => {
     delete process.env.LORE_API_KEY;
+    mockedGetApiKey.mockReturnValue(undefined);
 
     await expect(inboxCommand()).rejects.toThrow("process.exit");
     expect(exitSpy).toHaveBeenCalledWith(1);
     expect(consoleErrorSpy).toHaveBeenCalledWith(
-      "Error: LORE_API_KEY environment variable is not set."
+      expect.stringContaining('no API key found for project "my-project"')
     );
+  });
+
+  it("uses API key from credentials store when env is unset", async () => {
+    delete process.env.LORE_API_KEY;
+    mockedGetApiKey.mockReturnValue("key-from-credentials");
+    mockedPromptAction.mockResolvedValue("accept");
+
+    await inboxCommand();
+    expect(mockedGetApiKey).toHaveBeenCalledWith("my-project");
+    expect(mockGetInbox).toHaveBeenCalledWith("my-project");
   });
 
   it("exits with error when lore.yaml is not found", async () => {

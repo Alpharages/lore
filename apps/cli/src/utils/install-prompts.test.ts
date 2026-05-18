@@ -5,7 +5,7 @@ vi.mock("@inquirer/checkbox", () => ({
 }));
 
 import checkbox from "@inquirer/checkbox";
-import { promptIdeSelection, promptClaudeInclude, createReadline } from "./install-prompts.js";
+import { promptIdeSelection } from "./install-prompts.js";
 import { IDE_PROFILES } from "../core/ide-config.js";
 
 const mockedCheckbox = vi.mocked(checkbox);
@@ -87,41 +87,5 @@ describe("promptIdeSelection", () => {
     mockedCheckbox.mockRejectedValue(new Error("Unexpected failure"));
 
     await expect(promptIdeSelection(IDE_PROFILES, [])).rejects.toThrow("Unexpected failure");
-  });
-});
-
-describe("promptClaudeInclude", () => {
-  it("returns true for 'Y' answer", async () => {
-    const rl = createReadline();
-    const mockQuestion = (_prompt: string, callback: (answer: string) => void) => {
-      callback("Y");
-      return rl;
-    };
-    const questionSpy = vi
-      .spyOn(rl, "question")
-      .mockImplementation(mockQuestion as unknown as typeof rl.question);
-
-    const result = await promptClaudeInclude(rl, true);
-    expect(result).toBe(true);
-
-    questionSpy.mockRestore();
-    rl.close();
-  });
-
-  it("returns false for 'n' answer", async () => {
-    const rl = createReadline();
-    const mockQuestion = (_prompt: string, callback: (answer: string) => void) => {
-      callback("n");
-      return rl;
-    };
-    const questionSpy = vi
-      .spyOn(rl, "question")
-      .mockImplementation(mockQuestion as unknown as typeof rl.question);
-
-    const result = await promptClaudeInclude(rl, false);
-    expect(result).toBe(false);
-
-    questionSpy.mockRestore();
-    rl.close();
   });
 });

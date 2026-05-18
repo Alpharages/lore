@@ -14,7 +14,7 @@ import type {
 
 export const buildLoreYaml = (answers: WizardAnswers): LoreYaml => {
   const doc: LoreYaml = {
-    lore: { version: "1.0.0" },
+    lore: { version: "^1.0.0" },
     project: { name: answers.projectName, slug: answers.projectSlug },
     mcp: { server: answers.serverUrl },
     repos: answers.repos.map(mapRepo),

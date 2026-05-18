@@ -8,10 +8,6 @@ vi.mock("../core/config-parser.js", () => ({
   parseLoreConfig: vi.fn(),
 }));
 
-vi.mock("../core/claude-config.js", () => ({
-  appendClaudeMdInclude: vi.fn(),
-}));
-
 vi.mock("../core/git-hooks.js", () => ({
   installGitHooks: vi.fn(),
 }));
@@ -51,7 +47,6 @@ vi.mock("../core/ide-config.js", () => ({
 vi.mock("../utils/install-prompts.js", () => ({
   createReadline: vi.fn(),
   promptIdeSelection: vi.fn(),
-  promptClaudeInclude: vi.fn(),
 }));
 
 vi.mock("os", () => ({
@@ -66,20 +61,18 @@ vi.mock("fs", () => ({
 import { installCommand } from "./install.js";
 import { findLoreYaml } from "../core/config-finder.js";
 import { parseLoreConfig, LoreConfig } from "../core/config-parser.js";
-import { appendClaudeMdInclude } from "../core/claude-config.js";
 import { installGitHooks } from "../core/git-hooks.js";
 import { analyzeAllRepos } from "../core/gitnexus.js";
 import { readInstallState, writeInstallState, clearInstallState } from "../core/state.js";
 import { checkVersionCompatibility } from "../core/version-check.js";
 import { detectInstalledIdes, getProfileById, configureIdeMcp } from "../core/ide-config.js";
-import { promptIdeSelection, promptClaudeInclude } from "../utils/install-prompts.js";
+import { promptIdeSelection } from "../utils/install-prompts.js";
 import { getApiKey } from "../core/credentials.js";
 import * as os from "os";
 import * as fs from "fs";
 
 const mockedFindLoreYaml = vi.mocked(findLoreYaml);
 const mockedParseLoreConfig = vi.mocked(parseLoreConfig);
-const mockedAppendClaudeMdInclude = vi.mocked(appendClaudeMdInclude);
 const mockedInstallGitHooks = vi.mocked(installGitHooks);
 const mockedAnalyzeAllRepos = vi.mocked(analyzeAllRepos);
 const mockedWriteInstallState = vi.mocked(writeInstallState);
@@ -90,7 +83,6 @@ const mockedDetectInstalledIdes = vi.mocked(detectInstalledIdes);
 const mockedGetProfileById = vi.mocked(getProfileById);
 const mockedConfigureIdeMcp = vi.mocked(configureIdeMcp);
 const mockedPromptIdeSelection = vi.mocked(promptIdeSelection);
-const mockedPromptClaudeInclude = vi.mocked(promptClaudeInclude);
 const mockedGetApiKey = vi.mocked(getApiKey);
 const mockedHomedir = vi.mocked(os.homedir);
 const mockedExistsSync = vi.mocked(fs.existsSync);
@@ -120,7 +112,6 @@ describe("installCommand", () => {
     mockedHomedir.mockReturnValue("/home/user");
     mockedFindLoreYaml.mockReturnValue("/projects/myapp/lore.yaml");
     mockedParseLoreConfig.mockReturnValue(baseConfig);
-    mockedAppendClaudeMdInclude.mockImplementation(() => {});
     mockedInstallGitHooks.mockReturnValue({ installed: [], skipped: [], errors: [] });
     mockedAnalyzeAllRepos.mockResolvedValue([]);
     mockedCheckVersionCompatibility.mockResolvedValue("1.0.0");
@@ -128,7 +119,6 @@ describe("installCommand", () => {
     mockedGetApiKey.mockReturnValue(undefined);
     mockedDetectInstalledIdes.mockReturnValue(["cursor"]);
     mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
-    mockedPromptClaudeInclude.mockResolvedValue(true);
     mockedGetProfileById.mockImplementation((id: string) => {
       if (id === "cursor")
         return { id: "cursor", name: "Cursor", configPath: (h: string) => `${h}/.cursor/mcp.json` };
@@ -169,16 +159,12 @@ describe("installCommand", () => {
       "/home/user",
       undefined
     );
-    expect(mockedAppendClaudeMdInclude).toHaveBeenCalledWith(
-      "/projects/myapp/lore.yaml",
-      "/home/user"
-    );
 
     const logs = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(logs).toContain("Created Cursor MCP config");
-    expect(logs).toContain("Updated ~/.claude/CLAUDE.md");
     expect(logs).toContain("lore-memory");
     expect(logs).toContain("gitnexus");
+    expect(logs).not.toContain("~/.claude/CLAUDE.md");
   });
 
   it("installs git hooks for declared repos", async () => {
@@ -267,10 +253,6 @@ describe("installCommand", () => {
       "/home/user",
       undefined
     );
-    expect(mockedAppendClaudeMdInclude).toHaveBeenCalledWith(
-      "/projects/myapp/lore.yaml",
-      "/home/user"
-    );
 
     const logs = consoleLogSpy.mock.calls.map((c: unknown[]) => c[0]).join("\n");
     expect(logs).toContain("no changes needed");
@@ -352,22 +334,6 @@ describe("installCommand", () => {
 
     await expect(installCommand()).rejects.toThrow("process.exit");
     expect(consoleErrorSpy).toHaveBeenCalledWith("Error: Permission denied");
-  });
-
-  it("exits with error when appendClaudeMdInclude fails", async () => {
-    mockedExistsSync.mockImplementation((p) => {
-      if (p === "/home/user/.claude/CLAUDE.md") return true;
-      return false;
-    });
-    mockedReadFileSync.mockReturnValue("@/projects/myapp/CLAUDE.md\n");
-    mockedPromptIdeSelection.mockResolvedValue(["cursor"]);
-    mockedConfigureIdeMcp.mockReturnValue(false);
-    mockedAppendClaudeMdInclude.mockImplementation(() => {
-      throw new Error("Disk full");
-    });
-
-    await expect(installCommand()).rejects.toThrow("process.exit");
-    expect(consoleErrorSpy).toHaveBeenCalledWith("Error: Disk full");
   });
 
   it("runs gitnexus analysis for all repos and records state", async () => {
