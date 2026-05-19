@@ -16,7 +16,7 @@ export const GET = async (req: NextRequest): Promise<NextResponse> => {
 
   const res = await fetch(loreUrl.toString(), {
     headers: {
-      Authorization: `Bearer ${config.webUiSecret}`,
+      Authorization: `Bearer ${config.loreAdminSecret}`,
     },
   });
 
