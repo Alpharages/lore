@@ -10,6 +10,7 @@ COPY apps/web/package.json ./apps/web/
 RUN pnpm install --frozen-lockfile --filter @lore/web...
 
 COPY apps/web ./apps/web
+RUN mkdir -p ./apps/web/public
 ARG NEXT_PUBLIC_LORE_API_URL
 ENV NEXT_PUBLIC_LORE_API_URL=$NEXT_PUBLIC_LORE_API_URL
 RUN pnpm --filter @lore/web build
