@@ -10,6 +10,11 @@ if (!webUiSecret) {
   throw new Error("WEB_UI_SECRET is required");
 }
 
+const loreAdminSecret = process.env.LORE_ADMIN_SECRET;
+if (!loreAdminSecret) {
+  throw new Error("LORE_ADMIN_SECRET is required");
+}
+
 // Default Secure on. Local HTTP development must opt out explicitly via
 // COOKIE_SECURE=false — Next.js standalone forces NODE_ENV=production, so
 // keying off NODE_ENV silently drops the session cookie on plain-HTTP
@@ -18,4 +23,4 @@ const cookieSecure = process.env.COOKIE_SECURE !== "false";
 
 export const LORE_API_URL = apiUrl;
 
-export const config = { apiUrl, webUiSecret, cookieSecure } as const;
+export const config = { apiUrl, webUiSecret, loreAdminSecret, cookieSecure } as const;

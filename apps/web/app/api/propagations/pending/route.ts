@@ -13,7 +13,7 @@ export const GET = async (req: NextRequest): Promise<NextResponse> => {
   if (project) loreUrl.searchParams.set("project", project);
 
   const res = await fetch(loreUrl.toString(), {
-    headers: { Authorization: `Bearer ${config.webUiSecret}` },
+    headers: { Authorization: `Bearer ${config.loreAdminSecret}` },
   });
 
   const body = await res.json().catch(() => ({ error: "unknown" }));

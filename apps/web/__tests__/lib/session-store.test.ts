@@ -13,6 +13,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 beforeAll(() => {
   process.env.NEXT_PUBLIC_LORE_API_URL ||= "http://localhost:3100";
   process.env.WEB_UI_SECRET ||= "test-secret-do-not-use-in-prod";
+  process.env.LORE_ADMIN_SECRET ||= "test-admin-secret-do-not-use-in-prod";
 });
 
 describe("session-store (F5)", () => {

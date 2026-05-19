@@ -20,7 +20,7 @@ export const POST = async (
   const res = await fetch(loreUrl.toString(), {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${config.webUiSecret}`,
+      Authorization: `Bearer ${config.loreAdminSecret}`,
     },
   });
 

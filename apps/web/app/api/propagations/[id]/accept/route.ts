@@ -19,7 +19,7 @@ export const POST = async (
 
   const res = await fetch(loreUrl.toString(), {
     method: "POST",
-    headers: { Authorization: `Bearer ${config.webUiSecret}` },
+    headers: { Authorization: `Bearer ${config.loreAdminSecret}` },
   });
 
   const body = await res.json().catch(() => ({ error: "unknown" }));
