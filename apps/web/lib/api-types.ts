@@ -78,6 +78,20 @@ export interface Project {
   keyId: string | null;
 }
 
+export interface Pattern {
+  id: string;
+  title: string;
+  description: string;
+  codeExample?: string | null;
+  codeLanguage?: string | null;
+  stackTags: string[];
+  category?: string | null;
+  usageCount: number;
+  lastUsedAt?: string | null;
+  externalTaskRef?: string | null;
+  externalTrackerType?: string | null;
+}
+
 export interface ProjectKeyReference {
   keyId: string | null;
   maskedKey: string | null;

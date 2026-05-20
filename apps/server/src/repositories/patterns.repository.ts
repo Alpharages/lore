@@ -1,4 +1,4 @@
-import { and, or, eq, isNull, arrayOverlaps, inArray, sql } from "drizzle-orm";
+import { and, or, eq, isNull, arrayOverlaps, inArray, sql, count } from "drizzle-orm";
 import { NodePgDatabase } from "drizzle-orm/node-postgres";
 import * as schema from "../db/schema.js";
 
@@ -102,6 +102,85 @@ export const getPatternsFiltered = async (
 
 // Single UPDATE statement; ids are bound via `inArray` (parameterised IN-list).
 // No-op (and no statement issued) when the id list is empty.
+export interface FindPatternsForUiParams {
+  stackTags?: string[];
+  category?: string | null;
+  projectId?: string | null;
+  limit: number;
+}
+
+export const findPatternsForUi = async (
+  db: PatternsTx,
+  params: FindPatternsForUiParams
+): Promise<PatternRow[]> => {
+  const { stackTags, category, projectId, limit } = params;
+
+  const conditions: any[] = [];
+
+  if (projectId) {
+    conditions.push(
+      or(eq(schema.patterns.projectId, projectId), isNull(schema.patterns.projectId))
+    );
+  }
+
+  if (stackTags && stackTags.length > 0) {
+    conditions.push(arrayOverlaps(schema.patterns.stackTags, stackTags));
+  }
+
+  if (category) {
+    conditions.push(eq(schema.patterns.category, category));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  return db
+    .select()
+    .from(schema.patterns)
+    .where(whereClause)
+    .orderBy(
+      sql`${schema.patterns.usageCount} desc nulls last`,
+      sql`${schema.patterns.lastUsedAt} desc nulls last`
+    )
+    .limit(limit);
+};
+
+export const findPatternById = async (
+  db: PatternsTx,
+  id: string
+): Promise<PatternRow | undefined> => {
+  const rows = await db.select().from(schema.patterns).where(eq(schema.patterns.id, id)).limit(1);
+  return rows[0];
+};
+
+export const countPatternsForUi = async (
+  db: PatternsTx,
+  params: Omit<FindPatternsForUiParams, "limit">
+): Promise<number> => {
+  const { stackTags, category, projectId } = params;
+
+  const conditions: any[] = [];
+
+  if (projectId) {
+    conditions.push(
+      or(eq(schema.patterns.projectId, projectId), isNull(schema.patterns.projectId))
+    );
+  }
+
+  if (stackTags && stackTags.length > 0) {
+    conditions.push(arrayOverlaps(schema.patterns.stackTags, stackTags));
+  }
+
+  if (category) {
+    conditions.push(eq(schema.patterns.category, category));
+  }
+
+  const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [result] = await db.select({ count: count() }).from(schema.patterns).where(whereClause);
+
+  return result?.count ?? 0;
+};
+
 export const bumpPatternUsage = async (db: PatternsTx, ids: string[]): Promise<PatternRow[]> => {
   if (ids.length === 0) return [];
 

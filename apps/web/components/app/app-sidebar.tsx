@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, Inbox, BarChart2, Settings } from "lucide-react";
+import { BookOpen, Inbox, BarChart2, Settings, Sparkles } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useProject } from "@/hooks/use-project";
@@ -11,6 +11,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 
 const navItems = [
   { href: "/lessons", label: "Lessons", icon: BookOpen },
+  { href: "/patterns", label: "Patterns", icon: Sparkles },
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/dashboard", label: "Dashboard", icon: BarChart2 },
   { href: "/admin", label: "Admin", icon: Settings },

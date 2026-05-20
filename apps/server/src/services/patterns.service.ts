@@ -7,9 +7,13 @@ import {
   insertPattern,
   getPatternsFiltered,
   bumpPatternUsage,
+  findPatternsForUi,
+  countPatternsForUi,
+  findPatternById,
   type PatternsTx,
 } from "../repositories/patterns.repository.js";
 import { generateEmbedding } from "./embedding.js";
+import { findProjectBySlug } from "./projects.service.js";
 
 export interface SavePatternInput {
   title: string;
@@ -83,6 +87,91 @@ export const savePattern = async (
   return {
     patternId,
     embeddingStatus: embedding ? "complete" : "pending",
+  };
+};
+
+export interface SearchPatternsForUiInput {
+  projectSlug?: string;
+  tags?: string[];
+  category?: string | null;
+  limit?: number;
+}
+
+export interface SearchPatternsForUiResult {
+  id: string;
+  title: string;
+  description: string;
+  codeExample: string | null;
+  codeLanguage: string | null;
+  stackTags: string[];
+  category: string | null;
+  usageCount: number;
+  lastUsedAt: string | null;
+  externalTaskRef: string | null;
+  externalTrackerType: string | null;
+}
+
+export const searchPatternsForUi = async (
+  db: PatternsTx,
+  input: SearchPatternsForUiInput
+): Promise<{ patterns: SearchPatternsForUiResult[]; total: number }> => {
+  const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
+
+  let projectId: string | undefined;
+  if (input.projectSlug && input.projectSlug !== "all") {
+    const project = await findProjectBySlug(db, input.projectSlug);
+    if (!project) {
+      return { patterns: [], total: 0 };
+    }
+    projectId = project.id;
+  }
+
+  const filterParams = {
+    stackTags: input.tags,
+    category: input.category ?? null,
+    projectId: projectId ?? null,
+  };
+
+  const [rows, total] = await Promise.all([
+    findPatternsForUi(db, { ...filterParams, limit }),
+    countPatternsForUi(db, filterParams),
+  ]);
+
+  const patterns: SearchPatternsForUiResult[] = rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    codeExample: row.codeExample,
+    codeLanguage: null,
+    stackTags: row.stackTags ?? [],
+    category: row.category,
+    usageCount: row.usageCount ?? 1,
+    lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
+    externalTaskRef: row.externalTaskRef,
+    externalTrackerType: row.externalTrackerType,
+  }));
+
+  return { patterns, total };
+};
+
+export const findPatternByIdForUi = async (
+  db: PatternsTx,
+  id: string
+): Promise<SearchPatternsForUiResult | undefined> => {
+  const row = await findPatternById(db, id);
+  if (!row) return undefined;
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    codeExample: row.codeExample,
+    codeLanguage: null,
+    stackTags: row.stackTags ?? [],
+    category: row.category,
+    usageCount: row.usageCount ?? 1,
+    lastUsedAt: row.lastUsedAt?.toISOString() ?? null,
+    externalTaskRef: row.externalTaskRef,
+    externalTrackerType: row.externalTrackerType,
   };
 };
 

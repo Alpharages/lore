@@ -1,0 +1,85 @@
+"use client";
+
+import { useCallback } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import type { Pattern } from "@/lib/api-types";
+
+const MAX_VISIBLE_TAGS = 4;
+const DESC_PREVIEW_MAX = 120;
+
+const firstSentence = (text: string): string => {
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+  const match = trimmed.match(/^.+?[.!?](?=\s|$)/);
+  const sentence = (match ? match[0] : trimmed).trim();
+  return sentence.length > DESC_PREVIEW_MAX
+    ? `${sentence.slice(0, DESC_PREVIEW_MAX).trimEnd()}…`
+    : sentence;
+};
+
+export const PatternCard = ({ pattern }: { pattern: Pattern }) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const open = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("pattern", pattern.id);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [router, pathname, searchParams, pattern.id]);
+
+  const handleKey = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        open();
+      }
+    },
+    [open]
+  );
+
+  const descPreview = firstSentence(pattern.description);
+  const visibleTags = pattern.stackTags.slice(0, MAX_VISIBLE_TAGS);
+  const overflowCount = pattern.stackTags.length - visibleTags.length;
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={pattern.title}
+      onClick={open}
+      onKeyDown={handleKey}
+      className={cn(
+        "flex flex-col gap-2 rounded-xl border border-border bg-card p-4 shadow-sm",
+        "cursor-pointer transition-shadow duration-150 hover:shadow-md",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <h3 className="flex-1 truncate text-sm font-medium text-foreground">{pattern.title}</h3>
+      </div>
+      {descPreview ? (
+        <p className="text-xs text-muted-foreground line-clamp-2">{descPreview}</p>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-1">
+        {visibleTags.map((tag) => (
+          <Badge key={tag} variant="outline" className="font-mono text-[10px]">
+            {tag}
+          </Badge>
+        ))}
+        {overflowCount > 0 ? (
+          <Badge variant="secondary" className="text-[10px]">
+            +{overflowCount} more
+          </Badge>
+        ) : null}
+        {pattern.category ? (
+          <Badge variant="secondary" className="text-[10px] ml-auto">
+            {pattern.category}
+          </Badge>
+        ) : null}
+      </div>
+    </div>
+  );
+};

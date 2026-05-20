@@ -1,5 +1,12 @@
 import { internalApiClient } from "./axios";
-import type { Lesson, Propagation, Stats, Project, ProjectKeyReference } from "./api-types";
+import type {
+  Lesson,
+  Pattern,
+  Propagation,
+  Stats,
+  Project,
+  ProjectKeyReference,
+} from "./api-types";
 
 export const login = async (password: string): Promise<void> => {
   let res: Response;
@@ -41,6 +48,29 @@ export const fetchLessons = async (params: {
 export const fetchLesson = async (id: string): Promise<Lesson> => {
   const { data } = await internalApiClient.get(`/api/lessons/${id}`);
   return data as Lesson;
+};
+
+export const fetchPatterns = async (params: {
+  project?: string;
+  tags?: string[];
+  category?: string;
+  limit?: number;
+}): Promise<{ patterns: Pattern[]; total: number }> => {
+  const { data } = await internalApiClient.get("/api/patterns", {
+    params: {
+      ...params,
+      tags: params.tags?.join(","),
+    },
+  });
+  return {
+    patterns: data.patterns as Pattern[],
+    total: typeof data.total === "number" ? data.total : data.patterns.length,
+  };
+};
+
+export const fetchPattern = async (id: string): Promise<Pattern> => {
+  const { data } = await internalApiClient.get(`/api/patterns/${id}`);
+  return data as Pattern;
 };
 
 export const fetchPropagations = async (project?: string): Promise<Propagation[]> => {
