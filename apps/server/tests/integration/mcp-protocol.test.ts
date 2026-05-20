@@ -93,7 +93,7 @@ describe("MCP Streamable HTTP Protocol", () => {
     expect(body.result.serverInfo.name).toBe("lore-memory");
   });
 
-  it("lists all 13 tools via tools/list", async () => {
+  it("lists all 15 tools via tools/list", async () => {
     const app = buildTestApp(pool, db);
     const { api_key } = await registerProject(app, "acme");
 
@@ -136,7 +136,7 @@ describe("MCP Streamable HTTP Protocol", () => {
 
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(res.payload);
-    expect(body.result.tools).toHaveLength(13);
+    expect(body.result.tools).toHaveLength(15);
     const names = body.result.tools.map((t: any) => t.name);
     expect(names).toContain("save_lesson");
     expect(names).toContain("increment_occurrence");
@@ -151,6 +151,8 @@ describe("MCP Streamable HTTP Protocol", () => {
     expect(names).toContain("accept_propagation");
     expect(names).toContain("reject_propagation");
     expect(names).toContain("capture_review_finding");
+    expect(names).toContain("save_pattern");
+    expect(names).toContain("get_patterns");
   });
 
   it("calls save_lesson via tools/call", async () => {

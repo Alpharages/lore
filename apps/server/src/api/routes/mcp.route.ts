@@ -19,6 +19,8 @@ import * as getPendingPropagationsController from "../controllers/get-pending-pr
 import * as acceptPropagationController from "../controllers/accept-propagation.controller.js";
 import * as rejectPropagationController from "../controllers/reject-propagation.controller.js";
 import * as captureReviewFindingController from "../controllers/capture-review-finding.controller.js";
+import * as savePatternController from "../controllers/save-pattern.controller.js";
+import * as getPatternsController from "../controllers/get-patterns.controller.js";
 
 const saveLessonBodySchema = {
   type: "object",
@@ -194,6 +196,32 @@ const rejectPropagationBodySchema = {
   additionalProperties: false,
   properties: {
     propagation_id: { type: "string", format: "uuid" },
+  },
+};
+
+const savePatternBodySchema = {
+  type: "object",
+  required: ["title", "description", "stack_tags"],
+  additionalProperties: false,
+  properties: {
+    title: { type: "string", minLength: 1 },
+    description: { type: "string", minLength: 1 },
+    code_example: { type: "string" },
+    stack_tags: { type: "array", items: { type: "string" }, default: [] },
+    category: { type: "string" },
+    external_task_id: { type: "string", minLength: 1 },
+    external_task_ref: { type: "string" },
+    external_tracker_type: { type: "string", enum: ["clickup", "jira", "asana"] },
+  },
+};
+
+const getPatternsBodySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    stack_tags: { type: "array", items: { type: "string" }, default: [] },
+    category: { type: "string" },
+    limit: { type: "number", minimum: 1, maximum: 20, default: 5 },
   },
 };
 
@@ -378,6 +406,24 @@ const mcpRoute = (
       "capture_review_finding",
       captureReviewFindingController.captureReviewFindingHandler
     )
+  );
+
+  app.post(
+    "/tools/save_pattern",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: savePatternBodySchema },
+    },
+    withMcpRouteLogging("save_pattern", savePatternController.savePatternHandler)
+  );
+
+  app.post(
+    "/tools/get_patterns",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: getPatternsBodySchema },
+    },
+    withMcpRouteLogging("get_patterns", getPatternsController.getPatternsHandler)
   );
 
   // Standard MCP Streamable HTTP transport entry point

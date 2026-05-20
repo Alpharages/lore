@@ -21,6 +21,7 @@ import {
   rejectPropagation,
 } from "../services/propagation.js";
 import { captureReviewFinding } from "../services/capture-review-finding.service.js";
+import { savePattern, getPatterns } from "../services/patterns.service.js";
 import { validationError } from "../utils/errors.js";
 
 // Tool-handler error tracking. The MCP SDK catches handler exceptions
@@ -514,6 +515,72 @@ export const createMcpProtocolServer = (
             }),
           },
         ],
+      };
+    })
+  );
+
+  server.registerTool(
+    "save_pattern",
+    {
+      description:
+        "Save a proven code pattern (no semantic dedup — code_example variants are independently valuable).",
+      inputSchema: {
+        title: z.string().min(1),
+        description: z.string().min(1),
+        code_example: z.string().optional(),
+        stack_tags: z.array(z.string()).default([]),
+        category: z.string().optional(),
+        external_task_id: z.string().optional(),
+        external_task_ref: z.string().optional(),
+        external_tracker_type: z.enum(["clickup", "jira", "asana"]).optional(),
+      },
+    },
+    wrap(async (args) => {
+      const result = await savePattern(db, {
+        title: args.title,
+        description: args.description,
+        codeExample: args.code_example ?? null,
+        stackTags: args.stack_tags,
+        category: args.category ?? null,
+        projectId: project.id,
+        externalTaskId: args.external_task_id ?? null,
+        externalTaskRef: args.external_task_ref ?? null,
+        externalTrackerType: args.external_tracker_type ?? null,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              pattern_id: result.patternId,
+              embedding_status: result.embeddingStatus,
+            }),
+          },
+        ],
+      };
+    })
+  );
+
+  server.registerTool(
+    "get_patterns",
+    {
+      description:
+        "Retrieve patterns filtered by stack_tags and category, sorted by usage_count DESC. Bumps usage_count for returned patterns.",
+      inputSchema: {
+        stack_tags: z.array(z.string()).default([]),
+        category: z.string().optional(),
+        limit: z.number().min(1).max(20).default(5),
+      },
+    },
+    wrap(async (args) => {
+      const result = await getPatterns(db, {
+        stackTags: args.stack_tags,
+        category: args.category ?? null,
+        projectId: project.id,
+        limit: args.limit,
+      });
+      return {
+        content: [{ type: "text", text: JSON.stringify(result) }],
       };
     })
   );

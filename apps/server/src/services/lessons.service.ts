@@ -14,6 +14,7 @@ import {
   type LessonRow,
   type FullLessonRow,
 } from "../repositories/lessons.repository.js";
+import { bumpPatternUsage } from "../repositories/patterns.repository.js";
 import { generateEmbeddingText, generateEmbedding } from "./embedding.js";
 import { findDuplicate } from "./deduplication.js";
 import { validationError } from "../utils/errors.js";
@@ -543,6 +544,13 @@ export const queryLessonsForTask = async (
       limit: Math.ceil(limit / 2),
     }),
   ]);
+
+  if (patternRows.length > 0) {
+    await bumpPatternUsage(
+      db,
+      patternRows.map((r) => r.id)
+    );
+  }
 
   const scoredLessons = lessonRows
     .map((row) => {
