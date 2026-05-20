@@ -10,6 +10,7 @@ import {
   findPatternsForUi,
   countPatternsForUi,
   findPatternById,
+  deletePattern,
   type PatternsTx,
 } from "../repositories/patterns.repository.js";
 import { generateEmbedding } from "./embedding.js";
@@ -173,6 +174,11 @@ export const findPatternByIdForUi = async (
     externalTaskRef: row.externalTaskRef,
     externalTrackerType: row.externalTrackerType,
   };
+};
+
+export const deletePatternForUi = async (db: PatternsTx, id: string): Promise<string | null> => {
+  const result = await deletePattern(db, id);
+  return result?.id ?? null;
 };
 
 export const getPatterns = async (

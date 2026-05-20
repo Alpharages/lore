@@ -193,3 +193,14 @@ export const bumpPatternUsage = async (db: PatternsTx, ids: string[]): Promise<P
     .where(inArray(schema.patterns.id, ids))
     .returning();
 };
+
+export const deletePattern = async (
+  db: PatternsTx,
+  id: string
+): Promise<{ id: string } | undefined> => {
+  const [row] = await db
+    .delete(schema.patterns)
+    .where(eq(schema.patterns.id, id))
+    .returning({ id: schema.patterns.id });
+  return row;
+};

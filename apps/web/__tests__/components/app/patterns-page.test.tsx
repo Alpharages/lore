@@ -19,8 +19,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 const mockFetchPatterns = vi.fn();
+const mockDeletePattern = vi.fn();
 vi.mock("@/lib/api", () => ({
   fetchPatterns: (...args: unknown[]) => mockFetchPatterns(...args),
+  deletePattern: (...args: unknown[]) => mockDeletePattern(...args),
 }));
 
 const createQueryClient = () =>

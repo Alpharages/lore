@@ -1,5 +1,9 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import { searchPatternsForUi, findPatternByIdForUi } from "../../services/patterns.service.js";
+import {
+  searchPatternsForUi,
+  findPatternByIdForUi,
+  deletePatternForUi,
+} from "../../services/patterns.service.js";
 import { DrizzleClient } from "../../repositories/projects.repository.js";
 
 interface RouteConfig {
@@ -44,6 +48,20 @@ export const getPatternHandler = async (request: FastifyRequest, reply: FastifyR
 
   reply.status(200);
   return row;
+};
+
+export const deletePatternHandler = async (request: FastifyRequest, reply: FastifyReply) => {
+  const db = getDb(request);
+  const { id } = request.params as { id: string };
+
+  const deletedId = await deletePatternForUi(db, id);
+  if (!deletedId) {
+    reply.status(404);
+    return { error: "not_found" };
+  }
+
+  reply.status(200);
+  return { deleted_id: deletedId };
 };
 
 const normalizeArray = (value: string | string[] | undefined): string[] | undefined => {

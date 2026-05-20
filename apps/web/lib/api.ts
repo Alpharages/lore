@@ -73,6 +73,11 @@ export const fetchPattern = async (id: string): Promise<Pattern> => {
   return data as Pattern;
 };
 
+export const deletePattern = async (id: string): Promise<{ deleted_id: string }> => {
+  const { data } = await internalApiClient.delete(`/api/patterns/${id}`);
+  return data as { deleted_id: string };
+};
+
 export const fetchPropagations = async (project?: string): Promise<Propagation[]> => {
   const { data } = await internalApiClient.get("/api/propagations/pending", {
     params: project ? { project } : undefined,

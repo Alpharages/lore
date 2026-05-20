@@ -1,7 +1,11 @@
 import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import { DrizzleClient } from "../../repositories/projects.repository.js";
 import { requireAdminSecret } from "../middleware/admin-auth.js";
-import { searchPatternsHandler, getPatternHandler } from "../controllers/patterns-ui.controller.js";
+import {
+  searchPatternsHandler,
+  getPatternHandler,
+  deletePatternHandler,
+} from "../controllers/patterns-ui.controller.js";
 
 const patternsRoute = (
   app: FastifyInstance,
@@ -42,6 +46,22 @@ const patternsRoute = (
       },
     },
     getPatternHandler
+  );
+
+  app.delete<{ Params: { id: string } }>(
+    "/:id",
+    {
+      preHandler: [requireAdminSecret],
+      config: { logTool: "rest:DELETE:/api/patterns/:id", db: opts.db },
+      schema: {
+        params: {
+          type: "object",
+          properties: { id: { type: "string", format: "uuid" } },
+          required: ["id"],
+        },
+      },
+    },
+    deletePatternHandler
   );
 
   done();
