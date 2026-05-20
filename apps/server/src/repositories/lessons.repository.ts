@@ -789,3 +789,14 @@ export const markLessonEmbeddingFailed = async (
     .set({ embeddingStatus: "failed" })
     .where(and(eq(schema.lessons.id, lessonId), eq(schema.lessons.projectId, projectId)));
 };
+
+export const deleteLesson = async (
+  db: LessonsTx,
+  id: string
+): Promise<{ id: string } | undefined> => {
+  const [row] = await db
+    .delete(schema.lessons)
+    .where(eq(schema.lessons.id, id))
+    .returning({ id: schema.lessons.id });
+  return row;
+};

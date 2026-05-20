@@ -4,6 +4,7 @@ import { requireAdminSecret } from "../middleware/admin-auth.js";
 import {
   searchLessonsHandler,
   getLessonHandler,
+  deleteLessonHandler,
 } from "../controllers/search-lessons.controller.js";
 
 const lessonsRoute = (
@@ -47,6 +48,22 @@ const lessonsRoute = (
       },
     },
     getLessonHandler
+  );
+
+  app.delete<{ Params: { id: string } }>(
+    "/:id",
+    {
+      preHandler: [requireAdminSecret],
+      config: { logTool: "rest:DELETE:/api/lessons/:id", db: opts.db },
+      schema: {
+        params: {
+          type: "object",
+          properties: { id: { type: "string", format: "uuid" } },
+          required: ["id"],
+        },
+      },
+    },
+    deleteLessonHandler
   );
 
   done();

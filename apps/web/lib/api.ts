@@ -50,6 +50,11 @@ export const fetchLesson = async (id: string): Promise<Lesson> => {
   return data as Lesson;
 };
 
+export const deleteLesson = async (id: string): Promise<{ deleted_id: string }> => {
+  const { data } = await internalApiClient.delete(`/api/lessons/${id}`);
+  return data as { deleted_id: string };
+};
+
 export const fetchPatterns = async (params: {
   project?: string;
   tags?: string[];

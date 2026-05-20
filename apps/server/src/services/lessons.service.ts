@@ -10,6 +10,8 @@ import {
   findPatternsForTask,
   searchSimilarLessonsAdmin,
   findFullLessonById,
+  findLessonById,
+  deleteLesson,
   type LessonsTx,
   type LessonRow,
   type FullLessonRow,
@@ -514,6 +516,13 @@ export const findLessonByIdForUi = async (
   db: LessonsTx,
   id: string
 ): Promise<FullLessonRow | undefined> => findFullLessonById(db, id);
+
+export const deleteLessonForUi = async (db: LessonsTx, id: string): Promise<string | null> => {
+  const row = await findLessonById(db, id);
+  if (!row) return null;
+  const result = await deleteLesson(db, id);
+  return result?.id ?? null;
+};
 
 export const queryLessonsForTask = async (
   db: LessonsTx,
