@@ -10,10 +10,13 @@ import {
   findPatternsForTask,
   searchSimilarLessonsAdmin,
   findFullLessonById,
+  findLessonById,
+  deleteLesson,
   type LessonsTx,
   type LessonRow,
   type FullLessonRow,
 } from "../repositories/lessons.repository.js";
+import { bumpPatternUsage } from "../repositories/patterns.repository.js";
 import { generateEmbeddingText, generateEmbedding } from "./embedding.js";
 import { findDuplicate } from "./deduplication.js";
 import { validationError } from "../utils/errors.js";
@@ -514,6 +517,13 @@ export const findLessonByIdForUi = async (
   id: string
 ): Promise<FullLessonRow | undefined> => findFullLessonById(db, id);
 
+export const deleteLessonForUi = async (db: LessonsTx, id: string): Promise<string | null> => {
+  const row = await findLessonById(db, id);
+  if (!row) return null;
+  const result = await deleteLesson(db, id);
+  return result?.id ?? null;
+};
+
 export const queryLessonsForTask = async (
   db: LessonsTx,
   input: QueryLessonsForTaskInput
@@ -543,6 +553,13 @@ export const queryLessonsForTask = async (
       limit: Math.ceil(limit / 2),
     }),
   ]);
+
+  if (patternRows.length > 0) {
+    await bumpPatternUsage(
+      db,
+      patternRows.map((r) => r.id)
+    );
+  }
 
   const scoredLessons = lessonRows
     .map((row) => {

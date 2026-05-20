@@ -2,43 +2,41 @@ import { FastifyInstance, FastifyPluginOptions } from "fastify";
 import { DrizzleClient } from "../../repositories/projects.repository.js";
 import { requireAdminSecret } from "../middleware/admin-auth.js";
 import {
-  searchLessonsHandler,
-  getLessonHandler,
-  deleteLessonHandler,
-} from "../controllers/search-lessons.controller.js";
+  searchPatternsHandler,
+  getPatternHandler,
+  deletePatternHandler,
+} from "../controllers/patterns-ui.controller.js";
 
-const lessonsRoute = (
+const patternsRoute = (
   app: FastifyInstance,
   opts: FastifyPluginOptions & { db: DrizzleClient },
   done: (err?: Error) => void
 ): void => {
   app.get(
-    "/search",
+    "/",
     {
       preHandler: [requireAdminSecret],
-      config: { logTool: "rest:GET:/api/lessons/search", db: opts.db },
+      config: { logTool: "rest:GET:/api/patterns", db: opts.db },
       schema: {
         querystring: {
           type: "object",
           properties: {
-            q: { type: "string" },
             project: { type: "string" },
             tags: { type: "string" },
-            severity: { type: "string" },
             category: { type: "string" },
             limit: { type: "string", pattern: "^[0-9]+$" },
           },
         },
       },
     },
-    searchLessonsHandler
+    searchPatternsHandler
   );
 
   app.get<{ Params: { id: string } }>(
     "/:id",
     {
       preHandler: [requireAdminSecret],
-      config: { logTool: "rest:GET:/api/lessons/:id", db: opts.db },
+      config: { logTool: "rest:GET:/api/patterns/:id", db: opts.db },
       schema: {
         params: {
           type: "object",
@@ -47,14 +45,14 @@ const lessonsRoute = (
         },
       },
     },
-    getLessonHandler
+    getPatternHandler
   );
 
   app.delete<{ Params: { id: string } }>(
     "/:id",
     {
       preHandler: [requireAdminSecret],
-      config: { logTool: "rest:DELETE:/api/lessons/:id", db: opts.db },
+      config: { logTool: "rest:DELETE:/api/patterns/:id", db: opts.db },
       schema: {
         params: {
           type: "object",
@@ -63,10 +61,10 @@ const lessonsRoute = (
         },
       },
     },
-    deleteLessonHandler
+    deletePatternHandler
   );
 
   done();
 };
 
-export default lessonsRoute;
+export default patternsRoute;

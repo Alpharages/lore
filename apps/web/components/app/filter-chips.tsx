@@ -3,16 +3,29 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import type { Lesson, FilterState } from "@/lib/api-types";
+import type { FilterState } from "@/lib/api-types";
+
+interface FilterableItem {
+  stackTags?: string[];
+  category?: string | null;
+  severity?: string | null;
+}
 
 interface FilterChipsProps {
-  results: Lesson[];
+  results: FilterableItem[];
   activeFilters: FilterState;
+  basePath?: string;
+  showSeverity?: boolean;
 }
 
 const SEVERITY_OPTIONS = ["critical", "high", "medium", "low"] as const;
 
-export const FilterChips = ({ results, activeFilters }: FilterChipsProps) => {
+export const FilterChips = ({
+  results,
+  activeFilters,
+  basePath = "/lessons",
+  showSeverity = true,
+}: FilterChipsProps) => {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -40,7 +53,7 @@ export const FilterChips = ({ results, activeFilters }: FilterChipsProps) => {
       params.set(key, value);
     }
     const qs = params.toString();
-    router.replace(qs ? `/lessons?${qs}` : "/lessons", { scroll: false });
+    router.replace(qs ? `${basePath}?${qs}` : basePath, { scroll: false });
   };
 
   const toggleTag = (tag: string) => {
@@ -69,7 +82,7 @@ export const FilterChips = ({ results, activeFilters }: FilterChipsProps) => {
     params.delete("category");
     params.delete("q");
     const qs = params.toString();
-    router.replace(qs ? `/lessons?${qs}` : "/lessons", { scroll: false });
+    router.replace(qs ? `${basePath}?${qs}` : basePath, { scroll: false });
   };
 
   const chipBase = "cursor-pointer select-none text-xs font-medium hover:opacity-80";
@@ -108,27 +121,29 @@ export const FilterChips = ({ results, activeFilters }: FilterChipsProps) => {
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Severity
-        </span>
-        {SEVERITY_OPTIONS.map((sev) => {
-          const active = activeFilters.severity.includes(sev);
-          const count = severityCount(sev);
-          return (
-            <Badge
-              key={sev}
-              asChild
-              variant={active ? "default" : "secondary"}
-              className={cn(chipBase, active && "bg-primary text-primary-foreground")}
-            >
-              <button type="button" aria-pressed={active} onClick={() => toggleSeverity(sev)}>
-                {sev} ({count})
-              </button>
-            </Badge>
-          );
-        })}
-      </div>
+      {showSeverity && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Severity
+          </span>
+          {SEVERITY_OPTIONS.map((sev) => {
+            const active = activeFilters.severity.includes(sev);
+            const count = severityCount(sev);
+            return (
+              <Badge
+                key={sev}
+                asChild
+                variant={active ? "default" : "secondary"}
+                className={cn(chipBase, active && "bg-primary text-primary-foreground")}
+              >
+                <button type="button" aria-pressed={active} onClick={() => toggleSeverity(sev)}>
+                  {sev} ({count})
+                </button>
+              </Badge>
+            );
+          })}
+        </div>
+      )}
 
       {availableCategories.length > 0 && (
         <div className="flex flex-wrap items-center gap-2">

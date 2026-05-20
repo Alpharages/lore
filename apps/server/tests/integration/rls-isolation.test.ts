@@ -272,4 +272,89 @@ describe("RLS Isolation Audit", () => {
     expect(body.action).toBe("accepted");
     expect(body.new_lesson_id).toBeDefined();
   });
+
+  it("AC-6: Project B's get_patterns returns no results from Project A's patterns", async () => {
+    const app = buildTestApp(appPool, db);
+    const projectA = await registerProject(app, "project-a");
+    const projectB = await registerProject(app, "project-b");
+
+    await adminPool.query(
+      `INSERT INTO patterns (id, project_id, title, description, stack_tags)
+       VALUES ($1, $2, 'Project A pattern', 'description', ARRAY['typescript'])`,
+      ["11111111-1111-1111-1111-111111111111", projectA.project_id]
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/mcp/tools/get_patterns",
+      headers: {
+        authorization: `Bearer ${projectB.api_key}`,
+        "content-type": "application/json",
+      },
+      payload: { stack_tags: ["typescript"] },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.patterns).toEqual([]);
+  });
+
+  it("AC-7: Project B's query_lessons_for_task returns no patterns from Project A", async () => {
+    const app = buildTestApp(appPool, db);
+    const projectA = await registerProject(app, "project-a");
+    const projectB = await registerProject(app, "project-b");
+
+    await adminPool.query(
+      `INSERT INTO patterns (id, project_id, title, description, stack_tags)
+       VALUES ($1, $2, 'Project A pattern', 'description', ARRAY['typescript'])`,
+      ["11111111-1111-1111-1111-111111111111", projectA.project_id]
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/mcp/tools/query_lessons_for_task",
+      headers: {
+        authorization: `Bearer ${projectB.api_key}`,
+        "content-type": "application/json",
+      },
+      payload: {
+        external_task_id: "task-123",
+        task_context: {
+          title: "Project A pattern",
+          stack_tags: ["typescript"],
+        },
+      },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.patterns).toEqual([]);
+    expect(body.total).toBe(0);
+  });
+
+  it("global patterns (project_id IS NULL) are visible to Project B", async () => {
+    const app = buildTestApp(appPool, db);
+    const projectB = await registerProject(app, "project-b");
+
+    await adminPool.query(
+      `INSERT INTO patterns (id, project_id, title, description, stack_tags)
+       VALUES ($1, NULL, 'Global pattern', 'description', ARRAY['typescript'])`,
+      ["11111111-1111-1111-1111-111111111111"]
+    );
+
+    const res = await app.inject({
+      method: "POST",
+      url: "/mcp/tools/get_patterns",
+      headers: {
+        authorization: `Bearer ${projectB.api_key}`,
+        "content-type": "application/json",
+      },
+      payload: { stack_tags: ["typescript"] },
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.payload);
+    expect(body.patterns).toHaveLength(1);
+    expect(body.patterns[0].title).toBe("Global pattern");
+  });
 });

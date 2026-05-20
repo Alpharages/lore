@@ -415,7 +415,7 @@ describe("POST /mcp/tools/query_lessons_for_task", () => {
     expect(titles).not.toContain("Project B lesson");
   });
 
-  it("returns patterns with matching stack tags", async () => {
+  it("returns patterns with matching stack tags and bumps usage_count", async () => {
     const app = buildTestApp(appPool, db);
     const { api_key, project_id } = await registerProject(app, "acme");
 
@@ -423,6 +423,7 @@ describe("POST /mcp/tools/query_lessons_for_task", () => {
       projectId: project_id,
       title: "TypeScript pattern",
       stackTags: ["typescript"],
+      usageCount: 1,
     });
 
     const res = await queryLessonsForTask(app, api_key, {
@@ -437,6 +438,11 @@ describe("POST /mcp/tools/query_lessons_for_task", () => {
     expect(body.patterns).toHaveLength(1);
     expect(body.patterns[0].title).toBe("TypeScript pattern");
     expect(body.patterns[0].match_reason).toBe("stack");
+
+    const row = await adminPool.query(`SELECT usage_count FROM patterns WHERE title = $1`, [
+      "TypeScript pattern",
+    ]);
+    expect(row.rows[0].usage_count).toBe(2);
   });
 
   it("respects combined limit and returns highest-ranked items (stack branch active)", async () => {

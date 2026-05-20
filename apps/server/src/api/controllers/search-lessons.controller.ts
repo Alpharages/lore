@@ -1,5 +1,9 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import { searchLessonsForUi, findLessonByIdForUi } from "../../services/lessons.service.js";
+import {
+  searchLessonsForUi,
+  findLessonByIdForUi,
+  deleteLessonForUi,
+} from "../../services/lessons.service.js";
 import { DrizzleClient } from "../../repositories/projects.repository.js";
 
 interface RouteConfig {
@@ -99,6 +103,18 @@ export const getLessonHandler = async (request: FastifyRequest, reply: FastifyRe
     severity: row.severity,
     provenance: parseProvenance(row.provenance as Record<string, unknown> | null),
   };
+};
+
+export const deleteLessonHandler = async (request: FastifyRequest, reply: FastifyReply) => {
+  const db = getDb(request);
+  const { id } = request.params as { id: string };
+  const deletedId = await deleteLessonForUi(db, id);
+  if (!deletedId) {
+    reply.status(404);
+    return { error: "not_found" };
+  }
+  reply.status(200);
+  return { deleted_id: deletedId };
 };
 
 const normalizeArray = (value: string | string[] | undefined): string[] | undefined => {

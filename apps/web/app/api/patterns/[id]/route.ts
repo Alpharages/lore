@@ -18,7 +18,7 @@ export const GET = async (
   if (authError) return authError;
 
   const { id } = await params;
-  const loreUrl = new URL(`/api/lessons/${id}`, config.apiUrl);
+  const loreUrl = new URL(`/api/patterns/${id}`, config.apiUrl);
 
   const res = await fetch(loreUrl.toString(), {
     headers: {
@@ -38,7 +38,7 @@ export const DELETE = async (
   if (authError) return authError;
 
   const { id } = await params;
-  const loreUrl = new URL(`/api/lessons/${id}`, config.apiUrl);
+  const loreUrl = new URL(`/api/patterns/${id}`, config.apiUrl);
 
   const res = await fetch(loreUrl.toString(), {
     method: "DELETE",

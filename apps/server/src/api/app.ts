@@ -14,6 +14,7 @@ import healthRoute from "./routes/health.route.js";
 import metricsRoute from "./routes/metrics.route.js";
 import inboxRoute from "./routes/inbox.route.js";
 import lessonsRoute from "./routes/lessons.route.js";
+import patternsRoute from "./routes/patterns.route.js";
 import adminStatsRoute from "./routes/admin-stats.route.js";
 
 export interface BuildAppDeps {
@@ -172,6 +173,7 @@ export const buildApp = (deps: BuildAppDeps) => {
 
   app.register(projectsRoute, { prefix: "/api/projects", db: deps.db });
   app.register(lessonsRoute, { prefix: "/api/lessons", db: deps.db });
+  app.register(patternsRoute, { prefix: "/api/patterns", db: deps.db });
   app.register(inboxRoute, { prefix: "/api", pool: deps.pool, db: deps.db });
   app.register(adminStatsRoute, { prefix: "/api", db: deps.db });
   app.register(mcpRoute, { prefix: "/mcp", pool: deps.pool, db: deps.db });
