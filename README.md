@@ -360,6 +360,7 @@ lore/
 Authoritative references:
 
 - [Product Requirements](planning-artifacts/PRD.md)
+- [Project Evolution PRD](planning-artifacts/project-evolution-prd.md)
 - [Architecture](planning-artifacts/architecture.md)
 - [Epics & Stories](planning-artifacts/epics-and-stories.md)
 - [Tech Spec](planning-artifacts/tech-spec.md)
@@ -374,6 +375,7 @@ Authoritative references:
 - [x] **Epic 7–11** — Web UI: dashboard, lesson search, slide-over detail, Cmd+K, propagation inbox, admin panel.
 - [x] **Epic 12** — Monorepo restructure into the `apps/server`, `apps/cli`, `apps/web` three-app layout. Independent versioning. Helmet/CORS hardening. Audit clean.
 - [ ] **Epic 13** — Patterns subsystem: `save_pattern` / `get_patterns` MCP tools, usage-count tracking, BMAD architect-workflow integration.
+- [ ] **Project Evolution** — Evidence-backed requirements, decisions, scope changes, constraints, history, and current project context. See the [Project Evolution PRD](planning-artifacts/project-evolution-prd.md).
 - [ ] Beyond — historical pattern mining, multi-tenant SaaS deployment mode, additional embedding providers.
 
 See [`planning-artifacts/epics-and-stories.md`](planning-artifacts/epics-and-stories.md) for the canonical, BMAD-compatible list.
