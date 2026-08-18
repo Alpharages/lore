@@ -141,23 +141,50 @@ streamable HTTP transport at `POST /mcp` and as per-tool REST routes under
 `/mcp/tools/*`. Any MCP-compatible client (Cursor, Claude Code, Claude Desktop,
 Windsurf, Cline, Continue, Google Antigravity) can call them.
 
-| Tool                       | Purpose                                                  |
-| -------------------------- | -------------------------------------------------------- |
-| `save_lesson`              | Persist a lesson with embedding and provenance           |
-| `query_lessons`            | Semantic search over lessons for a project               |
-| `query_lessons_for_task`   | Lessons + patterns scoped to a tracker task              |
-| `search_similar`           | Nearest-neighbour search across the lesson corpus        |
-| `get_patterns`             | Retrieve high-frequency patterns for a stack             |
-| `capture_review_finding`   | Ingest a code-review finding as a lesson with provenance |
-| `get_pending_propagations` | Cross-project propagation candidates for triage          |
-| `accept_propagation`       | Accept a propagated lesson into this project             |
-| `reject_propagation`       | Reject a propagated lesson                               |
-| `start_session`            | Open a BMAD workflow session                             |
-| `end_session`              | Close a session and record applied lessons               |
-| `link_lessons_to_task`     | Attach consulted lessons to a tracker task               |
+| Tool                       | Purpose                                                                                         |
+| -------------------------- | ----------------------------------------------------------------------------------------------- |
+| `save_lesson`              | Persist a lesson with embedding and provenance                                                  |
+| `query_lessons`            | Semantic search over lessons for a project                                                      |
+| `query_lessons_for_task`   | Lessons + patterns scoped to a tracker task                                                     |
+| `search_similar`           | Nearest-neighbour search across the lesson corpus                                               |
+| `get_patterns`             | Retrieve high-frequency patterns for a stack                                                    |
+| `capture_review_finding`   | Ingest a code-review finding as a lesson with provenance                                        |
+| `get_pending_propagations` | Cross-project propagation candidates for triage                                                 |
+| `accept_propagation`       | Accept a propagated lesson into this project                                                    |
+| `reject_propagation`       | Reject a propagated lesson                                                                      |
+| `start_session`            | Open a BMAD workflow session                                                                    |
+| `end_session`              | Close a session and record applied lessons                                                      |
+| `link_lessons_to_task`     | Attach consulted lessons to a tracker task                                                      |
+| `propose_project_update`   | Capture a requirement, decision, scope change, constraint or research finding with its evidence |
+| `review_project_update`    | Inspect, revise, accept or reject a proposal; append, supersede or redact its evidence          |
+| `query_project_context`    | Bounded current project context for a question or task, with evidence and conflict warnings     |
+| `get_project_history`      | Filtered project evolution events, including superseded and rejected material                   |
+| `link_project_updates`     | Typed relationships between project items, and links to sessions or tracker tasks               |
 
 Authentication is per-project — every tool call carries a `lore_<slug>_<24>`
 bearer token; RLS scopes every query to that project automatically.
+
+### Project Evolution
+
+Alongside Engineering Memory (lessons, patterns, sessions, propagation), Lore
+keeps an evidence-backed, time-aware record of what a project currently
+requires and how it got there — see
+[`planning-artifacts/project-evolution-prd.md`](planning-artifacts/project-evolution-prd.md).
+
+Three rules govern it:
+
+- **Discussion is not a decision.** Capture always produces a `proposed` item.
+  No amount of AI confidence accepts project truth; a human or a trusted
+  workflow ratifies it explicitly.
+- **Canonical history is append-only.** Revisions, evidence, review actions and
+  relationships are only ever added or tombstoned. Accepted knowledge changes
+  by proposing a superseding item, never by an in-place edit.
+- **Evidence, not archives.** Lore stores the relevant excerpt and a source
+  reference. It never needs to own the mailbox, channel or meeting it came from.
+
+A normal context query returns the current accepted state with its evidence and
+the reason each item matched. Ask using superseded wording and Lore returns the
+item that replaced it, with a warning saying so.
 
 ---
 
@@ -173,6 +200,7 @@ into the team's accumulated knowledge.
 | Lesson detail         | Slide-over panel with Fix / Context / Code / Provenance tabs. Shiki syntax highlighting. Deep-linkable.                           |
 | Cmd+K palette         | Global command palette. Find any lesson in under 15 seconds.                                                                      |
 | Propagation inbox     | Triage cross-project suggestions with optimistic Accept / Reject and a 5-second undo window.                                      |
+| Project Evolution     | Current context grouped by type, a review inbox for proposals, an evidence-backed timeline, and item detail with full provenance. |
 | Dashboard             | Memory growth chart, lessons captured, sessions run, propagations sent.                                                           |
 | Admin panel           | Projects table with API-key copy, revoke, and regenerate — no server SSH required.                                                |
 | Dark / Light / System | Three-mode theme with zero flash of unstyled content.                                                                             |
@@ -375,7 +403,8 @@ Authoritative references:
 - [x] **Epic 7–11** — Web UI: dashboard, lesson search, slide-over detail, Cmd+K, propagation inbox, admin panel.
 - [x] **Epic 12** — Monorepo restructure into the `apps/server`, `apps/cli`, `apps/web` three-app layout. Independent versioning. Helmet/CORS hardening. Audit clean.
 - [ ] **Epic 13** — Patterns subsystem: `save_pattern` / `get_patterns` MCP tools, usage-count tracking, BMAD architect-workflow integration.
-- [ ] **Project Evolution** — Evidence-backed requirements, decisions, scope changes, constraints, history, and current project context. See the [Project Evolution PRD](planning-artifacts/project-evolution-prd.md).
+- [x] **Project Evolution — Phase 1** — Evidence-backed requirements, decisions, scope changes, constraints and research findings: proposal/review lifecycle, supersession, typed relationships, hybrid current-context retrieval, history, and the Web UI review inbox, context and timeline views. See the [Project Evolution PRD](planning-artifacts/project-evolution-prd.md).
+- [ ] **Project Evolution — Phase 2** — AI-assisted extraction from evidence, duplicate and relationship suggestions, and links from evolution items to lessons and patterns.
 - [ ] Beyond — historical pattern mining, multi-tenant SaaS deployment mode, additional embedding providers.
 
 See [`planning-artifacts/epics-and-stories.md`](planning-artifacts/epics-and-stories.md) for the canonical, BMAD-compatible list.

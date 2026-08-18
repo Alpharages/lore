@@ -438,6 +438,71 @@ curl -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json"
 
 ---
 
+---
+
+## Epic 16 — Project Evolution Phase 1: trusted project evolution core
+
+**Goal:** Give each project an evidence-backed, time-aware memory of what it
+currently requires and how it got there, alongside — never replacing — the
+existing Engineering Memory. Delivers §12.1 of
+`project-evolution-prd.md`.
+
+**Out of scope (Phase 2 and later):** AI extraction from raw evidence inside
+Lore Core, duplicate/relationship suggestion beyond the semantic candidates
+already returned, links from evolution items to lessons and patterns
+(FR-PE-46), provider adapters, a dedicated graph database, and interactive
+graph visualization.
+
+**Motivation:** Projects change continuously, and the record of *why* they
+changed is scattered across messages, meetings and documents. Agents implement
+superseded requirements; teams reconstruct rationale they already had. Lessons
+answer "what went wrong in the code"; nothing answered "what is true about this
+project now, and what did it replace".
+
+**Acceptance (epic-level):**
+
+- [x] Six tables — items, versions, evidence, relations, links, events — with
+      strict per-project RLS and additive, backward-compatible migrations
+      (NFR-PE-01, NFR-PE-02).
+- [x] Canonical history is append-only; the item row's mutable columns are a
+      projection rebuildable from it (NFR-PE-13).
+- [x] Capture always yields `proposed`; AI confidence never accepts (FR-PE-11,
+      FR-PE-51).
+- [x] Repeated capture with the same project + source kind + external source id
+      is idempotent, enforced by a partial unique index (FR-PE-07).
+- [x] Exact duplicates are resolved before semantic duplicate suggestions, and
+      suggestions never merge accepted knowledge (FR-PE-08, FR-PE-09).
+- [x] Acceptance requires at least one live evidence record and applies any
+      declared supersession atomically (FR-PE-16, FR-PE-18).
+- [x] Current context combines pgvector, PostgreSQL full-text, recency,
+      evidence availability and one- to two-hop relationship expansion; it is
+      bounded, cites evidence, explains why each item matched, redirects
+      superseded matches to their replacement, and warns about unresolved
+      contradictions (FR-PE-32, FR-PE-36 … FR-PE-42).
+- [x] Retrieval stays deterministic and lifecycle-correct with no embedding
+      provider configured (NFR-PE-07, FR-PE-54).
+- [x] History returns rejected and superseded material with its relationships,
+      and exports as versioned JSON and JSON Lines (FR-PE-39, FR-PE-40,
+      NFR-PE-11).
+- [x] Web UI provides the review inbox, current context grouped by type, the
+      timeline, and item detail with evidence, review history and relationships
+      (FR-PE-60 … FR-PE-65).
+- [x] The PRD §20 MVP acceptance scenario passes end to end.
+- [x] Existing lesson, pattern, session, propagation, CLI and Web UI behaviour
+      is unchanged (FR-PE-47).
+
+**Covers:** MCP tools `propose_project_update`, `review_project_update`,
+`query_project_context`, `get_project_history`, `link_project_updates`; the
+admin-secret REST surface under `/api/project-evolution`; and the `/evolution`
+Web UI.
+
+**Notes for Phase 2:** `propose_project_update` already accepts evidence-only
+capture and derives a draft deterministically, flagged
+`extraction: "deterministic_draft"`. Phase 2 replaces that deriver with
+model-backed extraction without changing the wire contract — the result stays a
+proposal either way.
+
+
 ## Story Dependency Order
 
 ```
@@ -451,6 +516,8 @@ curl -X POST -H "Authorization: Bearer $KEY" -H "Content-Type: application/json"
                        │                           └── 12.6 QA bug cleanup
 
 13.1 Patterns subsystem  (independent of Epic 12; can ship anytime after 12.6)
+
+16   Project Evolution Phase 1  (additive; depends only on the three-app layout)
 ```
 
 12.1 and 12.2 can proceed in parallel on separate branches; 12.3 merges them.
