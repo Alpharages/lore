@@ -147,10 +147,12 @@ for explanation, audit, onboarding, and conflict resolution.
 AI confidence, message recency, or author seniority alone must not turn a discussion into
 accepted project truth. Extracted changes enter a reviewable lifecycle.
 
-### 4.4 Accepted History Is Never Silently Overwritten
+### 4.4 Canonical History Is Append-Only
 
-Accepted items are immutable. Corrections and changes create a new item that explicitly
-supersedes the old one. The original evidence remains available.
+Project Evolution items, revisions, evidence, review actions, and relationship actions are
+never overwritten. Corrections append a new revision or item, and accepted changes explicitly
+supersede prior knowledge. Rebuildable current-state projections may update, but the canonical
+history and original evidence remain available.
 
 ### 4.5 Capture Evidence, Not Entire Communication Systems
 
@@ -161,8 +163,8 @@ not need to copy an entire mailbox, channel, or meeting archive.
 
 AI may extract, classify, deduplicate, link, and automatically save high-confidence
 candidates. AI-generated candidates remain proposed until accepted by an authorized actor
-or trusted deterministic workflow. Authorized developers and team leads may ratify through
-the Web UI, REST, or the review-scoped Lore MCP tool.
+or trusted deterministic workflow. In the initial release, authenticated project members may
+ratify through the Web UI, REST, or Lore MCP using the existing project authentication model.
 
 ### 4.7 Knowledge Graph Semantics Without Premature Infrastructure
 
@@ -333,7 +335,7 @@ User opens Lore
   -> enters an important requirement, decision, scope change, or constraint
   -> adds source reference and relevant evidence
   -> saves as proposed
-  -> authorized reviewer edits and accepts it
+  -> authorized reviewer submits a revised version when needed and accepts it
   -> current project state updates
 ```
 
@@ -367,7 +369,7 @@ Approved adapter or workflow detects an explicit project change
   -> policy gates and duplicate checks pass
   -> candidate is automatically saved
   -> status remains proposed
-  -> reviewer accepts, edits, or rejects it
+  -> reviewer accepts, revises, or rejects it
 ```
 
 Automatic capture never grants automatic acceptance solely because an AI model is confident.
@@ -430,10 +432,13 @@ Contributor asks "What is this project and how did it get here?"
 
 - **FR-PE-11:** New items must default to proposed unless created by an explicitly configured
   trusted deterministic workflow.
-- **FR-PE-12:** Authorized reviewers must be able to edit proposed items before acceptance.
-- **FR-PE-13:** Authorized reviewers must be able to accept or reject proposed items through
-  the Web UI, REST, and MCP.
-- **FR-PE-14:** Accepted items must not be edited in place.
+- **FR-PE-12:** Authorized reviewers must be able to append a revised proposal version before
+  acceptance. Existing proposal versions must remain unchanged.
+- **FR-PE-13:** Any client authenticated for the project must be able to accept or reject
+  proposed items through the Web UI, REST, and MCP in the initial release. Fine-grained review
+  roles and permissions are deferred.
+- **FR-PE-14:** Project Evolution items, versions, evidence, review actions, and relationship
+  actions must not be edited in place.
 - **FR-PE-15:** Changing accepted project knowledge must create a new item and an explicit
   supersedes relationship.
 - **FR-PE-16:** Accepting a superseding item must atomically mark the replaced item as
@@ -459,8 +464,9 @@ Contributor asks "What is this project and how did it get here?"
 - **FR-PE-25:** Evidence must retain its source reference and relevant excerpt.
 - **FR-PE-26:** Evidence must record whether its excerpt was supplied by a human, adapter,
   workflow, or AI agent.
-- **FR-PE-27:** Deleting evidence used by an accepted item must require an explicit audited
-  action and leave the item marked as missing evidence.
+- **FR-PE-27:** Evidence corrections must append replacement evidence and a supersession record.
+  Security- or legal-mandated content erasure must leave an audited tombstone and mark the item
+  as missing or redacted evidence.
 - **FR-PE-28:** Lore must not require storage of a complete channel, mailbox, meeting, or
   document to preserve evidence.
 
@@ -499,8 +505,9 @@ Contributor asks "What is this project and how did it get here?"
 - **FR-PE-44:** Project isolation must continue to be enforced through PostgreSQL Row-Level
   Security.
 - **FR-PE-45:** Project Evolution items must be linkable to external tasks and Lore sessions.
-- **FR-PE-46:** Accepted decisions and requirements should be linkable to lessons and patterns
-  without changing the meaning of those existing entities.
+- **FR-PE-46:** Direct links from Project Evolution items to lessons and patterns are deferred
+  to Phase 2. V1 uses task and session links, with lessons available indirectly through
+  sessions.
 - **FR-PE-47:** Existing lesson, pattern, session, propagation, CLI, and Web UI behavior must
   remain backward-compatible.
 - **FR-PE-48:** BMAD and other agent workflows may query Project Evolution alongside existing
@@ -508,9 +515,11 @@ Contributor asks "What is this project and how did it get here?"
 
 ### 9.8 AI Assistance
 
-- **FR-PE-49:** AI assistance must support classification, concise statement extraction,
-  rationale extraction, duplicate suggestions, and relationship suggestions.
-- **FR-PE-50:** AI-generated fields must remain editable while the item is proposed.
+- **FR-PE-49:** Lore Core must own AI classification, concise statement extraction, rationale
+  extraction, duplicate suggestions, and relationship suggestions while also accepting
+  pre-structured input from callers.
+- **FR-PE-50:** AI-generated fields must be correctable through a new proposal revision while
+  the item is proposed.
 - **FR-PE-51:** AI confidence alone must never accept, reject, or supersede project knowledge.
 - **FR-PE-52:** Automatic capture must save items as proposed.
 - **FR-PE-53:** Automatic capture policies must be configurable per project and disabled by
@@ -548,8 +557,9 @@ The technical specification will finalize names and indexes. The minimum concept
 ```text
 projects
   `--< project_evolution_items
+         |--< project_evolution_item_versions
          |--< project_evolution_evidence
-         |--< project_evolution_reviews
+         |--< project_evolution_events
          |--< project_evolution_relations >-- project_evolution_items
          `--< links to sessions, tasks, lessons, or patterns
 ```
@@ -560,6 +570,7 @@ projects
 id
 project_id
 type
+revision
 title
 statement
 rationale
@@ -617,10 +628,10 @@ extraction. Always returns a proposed item unless a trusted workflow policy appl
 
 ### 11.2 `review_project_update`
 
-Inspects, edits, accepts, or rejects a proposal. Acceptance may declare that the proposal
-supersedes an existing accepted item. The tool requires an `evolution:review`-scoped
-credential and records the authenticating key identity in the audit trail. Lore must not
-register or expose this tool for credentials that lack the review scope.
+Inspects, revises, accepts, or rejects a proposal. Revisions and review actions are appended;
+existing records are not overwritten. Acceptance may declare that the proposal supersedes an
+existing accepted item. The initial release uses Lore's existing project authentication;
+fine-grained reviewer roles and scoped credentials are deferred.
 
 ### 11.3 `query_project_context`
 
@@ -634,8 +645,8 @@ items.
 
 ### 11.5 `link_project_updates`
 
-Creates or removes validated typed relationships between project items and supported existing
-Lore entities.
+Creates or retracts validated typed relationships between project items and supported existing
+Lore entities. Retraction appends an event rather than deleting the original relationship.
 
 REST endpoints will mirror these capabilities for the Web UI and optional external adapters.
 
@@ -647,9 +658,8 @@ REST endpoints will mirror these capabilities for the Web UI and optional extern
 
 - Project Evolution item, evidence, review, and relation storage
 - RLS policies and project isolation
-- Scoped MCP credentials for read, propose, and review capabilities
 - Manual Web UI and MCP/REST proposal capture
-- Accept, edit, reject, and supersede workflow
+- Accept, revise, reject, and supersede workflow
 - Current project context query
 - Project history query and timeline
 - PostgreSQL full-text, pgvector, and one- to two-hop relationship retrieval
@@ -657,13 +667,13 @@ REST endpoints will mirror these capabilities for the Web UI and optional extern
 
 ### 12.2 Phase 2 - AI-Assisted Capture
 
-- AI extraction from selected evidence
+- Lore Core AI extraction from selected evidence, with pre-structured caller input supported
 - Duplicate and relationship suggestions
 - Configurable suggestion mode
 - Capture confidence and model audit metadata
 - Links from Project Evolution items to lessons and patterns
 
-### 12.3 Phase 3 - Adapter Ecosystem
+### 12.3 Future Adapter Ecosystem - Out of Current Scope
 
 - Stable adapter SDK or documented capture contract
 - Reference "Save to Lore" application for one communication provider
@@ -698,12 +708,10 @@ REST endpoints will mirror these capabilities for the Web UI and optional extern
 - **NFR-PE-09:** Project Evolution must support both hosted and local embedding configurations
   already supported by Lore.
 - **NFR-PE-10:** No proprietary communication provider must be required to use the feature.
-- **NFR-PE-11:** Project history must be exportable in a documented machine-readable format.
+- **NFR-PE-11:** Project history must be exportable as versioned JSON and streaming JSON Lines.
 - **NFR-PE-12:** Logs must not include full evidence excerpts by default.
-- **NFR-PE-13:** MCP credentials must support `evolution:read`, `evolution:propose`, and
-  `evolution:review` scopes.
-- **NFR-PE-14:** Existing project credentials must not gain review authority implicitly during
-  migration.
+- **NFR-PE-13:** Canonical Project Evolution storage must be append-only. Any mutable current
+  state projection must be fully rebuildable from canonical history.
 
 ---
 
@@ -716,12 +724,13 @@ release must therefore enforce the following:
 2. Provider credentials remain outside Lore Core.
 3. Adapters send selected evidence, not unrestricted source access.
 4. Evidence excerpts are minimized to what supports the project item.
-5. Accepted-item deletion and evidence removal are audited.
+5. Security- or legal-mandated content erasure leaves an audited tombstone.
 6. API and structured logs redact evidence content by default.
 7. Automatic capture is opt-in and project-scoped.
 8. Export and retention behavior is documented for self-hosted operators.
-9. The review MCP tool is available only to explicitly review-scoped credentials.
-10. Every MCP review action records the credential ID and label used to authorize it.
+
+The initial release uses the existing project authentication boundary for review actions.
+Fine-grained reviewer roles, scoped credentials, and separation-of-duty policies are deferred.
 
 Fine-grained per-item access control is deferred. Projects that require different audiences
 for sensitive evidence should initially use separate Lore project boundaries or store only an
@@ -793,6 +802,7 @@ must not require provider-specific columns or credentials in Lore Core.
 ## 18. Out of Scope for the First Release
 
 - Built-in Slack or Gmail synchronization
+- Provider-specific reference applications, including Slack or Gmail "Save to Lore" apps
 - Full mailbox, channel, or meeting archives
 - Provider OAuth management inside Lore Core
 - Automatic acceptance of AI-generated project changes
@@ -807,19 +817,8 @@ must not require provider-specific columns or credentials in Lore Core.
 
 ## 19. Open Questions
 
-These decisions should be resolved before the technical specification is finalized:
-
-1. Should review capability be issued through personal credentials, role-labeled credentials,
-   or both?
-2. Should accepted evidence excerpts be editable through a correction record, or only
-   replaceable through audited evidence supersession?
-3. What is the minimum supported link surface for v1: tasks and sessions only, or lessons and
-   patterns as well?
-4. Should AI extraction run inside Lore Core or be caller-provided first, with Lore accepting
-   both forms from day one?
-5. Which provider should receive the first community reference "Save to Lore" application
-   after the core contract is stable?
-6. What export format best supports open-source portability: JSON, JSON Lines, or both?
+No product-scope questions remain open for this PRD. Technical design questions may be raised
+in the architecture and technical specification.
 
 ---
 
@@ -830,7 +829,7 @@ The first release is accepted when this flow works end to end:
 1. A user records and accepts an initial project requirement.
 2. A later discussion or research excerpt is captured as evidence for a proposed change.
 3. Lore or the caller's AI assistant extracts a normalized replacement requirement.
-4. An authorized reviewer edits and accepts the proposal.
+4. An authorized reviewer appends a corrected revision when needed and accepts the proposal.
 5. The replacement explicitly supersedes the original requirement.
 6. A normal project-context query returns the replacement, not the original.
 7. The response explains why the requirement changed and cites the evidence.
