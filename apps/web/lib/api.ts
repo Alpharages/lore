@@ -6,6 +6,12 @@ import type {
   Stats,
   Project,
   ProjectKeyReference,
+  EvolutionItem,
+  EvolutionItemDetail,
+  EvolutionHistory,
+  EvolutionWarning,
+  EvolutionStatus,
+  EvolutionReviewAction,
 } from "./api-types";
 
 export const login = async (password: string): Promise<void> => {
@@ -142,4 +148,66 @@ export const fetchPropagationMetadata = async (
     params: project ? { project } : undefined,
   });
   return data as { lastRunAt: string | null };
+};
+
+/* ------------------------------------------------------------------
+ * Project Evolution
+ * ------------------------------------------------------------------ */
+
+export const fetchEvolutionCurrent = async (
+  project: string,
+  types?: string[]
+): Promise<{ items: EvolutionItem[]; total: number; warnings: EvolutionWarning[] }> => {
+  const { data } = await internalApiClient.get("/api/evolution/current", {
+    params: { project, types: types?.length ? types.join(",") : undefined },
+  });
+  return data;
+};
+
+export const fetchEvolutionProposals = async (
+  project: string
+): Promise<{ items: EvolutionItem[]; total: number }> => {
+  const { data } = await internalApiClient.get("/api/evolution/proposals", {
+    params: { project },
+  });
+  return data;
+};
+
+export const fetchEvolutionHistory = async (project: string): Promise<EvolutionHistory> => {
+  const { data } = await internalApiClient.get("/api/evolution/history", { params: { project } });
+  return data;
+};
+
+export const fetchEvolutionItem = async (
+  project: string,
+  id: string
+): Promise<EvolutionItemDetail> => {
+  const { data } = await internalApiClient.get(`/api/evolution/items/${id}`, {
+    params: { project },
+  });
+  return data;
+};
+
+export const reviewEvolutionItem = async (params: {
+  project: string;
+  id: string;
+  action: EvolutionReviewAction;
+  reviewer?: string;
+  note?: string;
+  title?: string;
+  statement?: string;
+  rationale?: string;
+}): Promise<{ item_id: string; status: EvolutionStatus; revision: number }> => {
+  const { project, id, ...body } = params;
+  const { data } = await internalApiClient.post(`/api/evolution/items/${id}/review`, body, {
+    params: { project },
+  });
+  return data;
+};
+
+export const fetchEvolutionProposalCount = async (project: string): Promise<number> => {
+  const { data } = await internalApiClient.get("/api/evolution/proposals", {
+    params: { project },
+  });
+  return typeof data.total === "number" ? data.total : (data.items ?? []).length;
 };
