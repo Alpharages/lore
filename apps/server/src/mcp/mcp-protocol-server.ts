@@ -22,6 +22,13 @@ import {
 } from "../services/propagation.js";
 import { captureReviewFinding } from "../services/capture-review-finding.service.js";
 import { savePattern, getPatterns } from "../services/patterns.service.js";
+import {
+  proposeProjectUpdate,
+  reviewProjectUpdate,
+  queryProjectContext,
+  getProjectHistory,
+  linkProjectUpdates,
+} from "../services/project-evolution.service.js";
 import { validationError } from "../utils/errors.js";
 
 // Tool-handler error tracking. The MCP SDK catches handler exceptions
@@ -582,6 +589,233 @@ export const createMcpProtocolServer = (
       return {
         content: [{ type: "text", text: JSON.stringify(result) }],
       };
+    })
+  );
+
+  /* ----------------------------------------------------------------
+   * Project Evolution (PRD project-evolution-prd.md §11)
+   * ---------------------------------------------------------------- */
+
+  const evidenceShape = z.object({
+    source_kind: z.string().min(1),
+    source_reference: z.string().optional(),
+    external_source_id: z.string().optional(),
+    excerpt: z.string().optional(),
+    source_author: z.string().optional(),
+    provided_by: z.enum(["human", "adapter", "workflow", "ai_agent"]).optional(),
+    occurred_at: z.string().optional(),
+  });
+
+  const toEvidence = (evidence: z.infer<typeof evidenceShape>[] | undefined) =>
+    (evidence ?? []).map((e) => ({
+      sourceKind: e.source_kind,
+      sourceReference: e.source_reference ?? null,
+      externalSourceId: e.external_source_id ?? null,
+      excerpt: e.excerpt ?? null,
+      sourceAuthor: e.source_author ?? null,
+      providedBy: e.provided_by ?? null,
+      occurredAt: e.occurred_at ?? null,
+    }));
+
+  server.registerTool(
+    "propose_project_update",
+    {
+      description:
+        "Capture a project requirement, decision, scope change, constraint or research finding with its supporting evidence. Always returns a PROPOSED item — capture never accepts project truth.",
+      inputSchema: {
+        type: z.enum(["requirement", "decision", "scope_change", "constraint", "research_finding"]),
+        title: z.string().optional(),
+        statement: z.string().optional(),
+        rationale: z.string().optional(),
+        occurred_at: z.string().optional(),
+        proposed_by: z.string().optional(),
+        capture_mode: z.enum(["manual", "ai_assisted", "adapter", "workflow"]).optional(),
+        ai_confidence: z.number().min(0).max(1).optional(),
+        ai_model: z.string().optional(),
+        supersedes_item_id: z.string().uuid().optional(),
+        evidence: z.array(evidenceShape).default([]),
+      },
+    },
+    wrap(async (args) => {
+      const result = await proposeProjectUpdate(db, {
+        projectId: project.id,
+        type: args.type,
+        title: args.title ?? null,
+        statement: args.statement ?? null,
+        rationale: args.rationale ?? null,
+        occurredAt: args.occurred_at ?? null,
+        proposedBy: args.proposed_by ?? null,
+        captureMode: args.capture_mode ?? null,
+        aiConfidence: args.ai_confidence ?? null,
+        aiModel: args.ai_model ?? null,
+        supersedesItemId: args.supersedes_item_id ?? null,
+        evidence: toEvidence(args.evidence),
+      });
+      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    })
+  );
+
+  server.registerTool(
+    "review_project_update",
+    {
+      description:
+        "Inspect, revise, accept or reject a proposed project update, or append/supersede/redact its evidence. Acceptance may declare that the item supersedes an existing accepted item.",
+      inputSchema: {
+        item_id: z.string().uuid(),
+        action: z.enum([
+          "inspect",
+          "revise",
+          "accept",
+          "reject",
+          "add_evidence",
+          "supersede_evidence",
+          "redact_evidence",
+        ]),
+        reviewer: z.string().optional(),
+        note: z.string().optional(),
+        title: z.string().optional(),
+        statement: z.string().optional(),
+        rationale: z.string().optional(),
+        supersedes_item_id: z.string().uuid().optional(),
+        evidence: z.array(evidenceShape).default([]),
+        evidence_id: z.string().uuid().optional(),
+        redaction_reason: z.string().optional(),
+      },
+    },
+    wrap(async (args) => {
+      const result = await reviewProjectUpdate(db, {
+        projectId: project.id,
+        itemId: args.item_id,
+        action: args.action,
+        reviewer: args.reviewer ?? null,
+        note: args.note ?? null,
+        title: args.title ?? null,
+        statement: args.statement ?? null,
+        rationale: args.rationale === undefined ? undefined : args.rationale,
+        supersedesItemId: args.supersedes_item_id ?? null,
+        evidence: toEvidence(args.evidence),
+        evidenceId: args.evidence_id ?? null,
+        redactionReason: args.redaction_reason ?? null,
+      });
+      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    })
+  );
+
+  server.registerTool(
+    "query_project_context",
+    {
+      description:
+        "Retrieve bounded current project context for a question or task, with evidence citations, the reason each item matched, related items, and warnings about conflicts or superseded material. Omit the query to get the current accepted state.",
+      inputSchema: {
+        query: z.string().optional(),
+        task_context: z
+          .object({
+            title: z.string().optional(),
+            description: z.string().optional(),
+            acceptance_criteria: z.string().optional(),
+          })
+          .optional(),
+        types: z
+          .array(
+            z.enum(["requirement", "decision", "scope_change", "constraint", "research_finding"])
+          )
+          .optional(),
+        limit: z.number().min(1).max(50).default(20),
+        hops: z.number().min(0).max(2).default(1),
+        include_history: z.boolean().default(false),
+      },
+    },
+    wrap(async (args) => {
+      const result = await queryProjectContext(db, {
+        projectId: project.id,
+        query: args.query ?? null,
+        taskContext: args.task_context
+          ? {
+              title: args.task_context.title ?? null,
+              description: args.task_context.description ?? null,
+              acceptanceCriteria: args.task_context.acceptance_criteria ?? null,
+            }
+          : null,
+        types: args.types ?? null,
+        limit: args.limit,
+        hops: args.hops,
+        includeHistory: args.include_history,
+      });
+      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    })
+  );
+
+  server.registerTool(
+    "get_project_history",
+    {
+      description:
+        "Return filtered project evolution events and items, including superseded, rejected and contradictory material with their relationships.",
+      inputSchema: {
+        item_id: z.string().uuid().optional(),
+        types: z
+          .array(
+            z.enum(["requirement", "decision", "scope_change", "constraint", "research_finding"])
+          )
+          .optional(),
+        statuses: z.array(z.enum(["proposed", "accepted", "rejected", "superseded"])).optional(),
+        event_types: z.array(z.string()).optional(),
+        since: z.string().optional(),
+        until: z.string().optional(),
+        limit: z.number().min(1).max(200).default(50),
+        offset: z.number().min(0).default(0),
+      },
+    },
+    wrap(async (args) => {
+      const result = await getProjectHistory(db, {
+        projectId: project.id,
+        itemId: args.item_id ?? null,
+        types: args.types ?? null,
+        statuses: args.statuses ?? null,
+        eventTypes: args.event_types ?? null,
+        since: args.since ?? null,
+        until: args.until ?? null,
+        limit: args.limit,
+        offset: args.offset,
+      });
+      return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    })
+  );
+
+  server.registerTool(
+    "link_project_updates",
+    {
+      description:
+        "Create or retract a typed relationship between two project evolution items, or link an item to a Lore session or external task. Retraction appends an event rather than deleting the original relationship.",
+      inputSchema: {
+        action: z.enum(["create", "retract"]).default("create"),
+        actor: z.string().optional(),
+        from_item_id: z.string().uuid().optional(),
+        to_item_id: z.string().uuid().optional(),
+        relation_type: z
+          .enum(["supersedes", "supports", "contradicts", "caused_by", "implements", "related_to"])
+          .optional(),
+        item_id: z.string().uuid().optional(),
+        session_id: z.string().uuid().optional(),
+        external_task_id: z.string().optional(),
+        external_task_ref: z.string().optional(),
+        external_tracker_type: z.enum(["clickup", "jira", "asana"]).optional(),
+      },
+    },
+    wrap(async (args) => {
+      const result = await linkProjectUpdates(db, {
+        projectId: project.id,
+        action: args.action,
+        actor: args.actor ?? null,
+        fromItemId: args.from_item_id ?? null,
+        toItemId: args.to_item_id ?? null,
+        relationType: args.relation_type ?? null,
+        itemId: args.item_id ?? null,
+        sessionId: args.session_id ?? null,
+        externalTaskId: args.external_task_id ?? null,
+        externalTaskRef: args.external_task_ref ?? null,
+        externalTrackerType: args.external_tracker_type ?? null,
+      });
+      return { content: [{ type: "text", text: JSON.stringify(result) }] };
     })
   );
 

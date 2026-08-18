@@ -21,6 +21,14 @@ import * as rejectPropagationController from "../controllers/reject-propagation.
 import * as captureReviewFindingController from "../controllers/capture-review-finding.controller.js";
 import * as savePatternController from "../controllers/save-pattern.controller.js";
 import * as getPatternsController from "../controllers/get-patterns.controller.js";
+import * as projectEvolutionController from "../controllers/project-evolution.controller.js";
+import {
+  proposeProjectUpdateBodySchema,
+  reviewProjectUpdateBodySchema,
+  queryProjectContextBodySchema,
+  getProjectHistoryBodySchema,
+  linkProjectUpdatesBodySchema,
+} from "./project-evolution-schemas.js";
 
 const saveLessonBodySchema = {
   type: "object",
@@ -424,6 +432,63 @@ const mcpRoute = (
       schema: { body: getPatternsBodySchema },
     },
     withMcpRouteLogging("get_patterns", getPatternsController.getPatternsHandler)
+  );
+
+  app.post(
+    "/tools/propose_project_update",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: proposeProjectUpdateBodySchema },
+    },
+    withMcpRouteLogging(
+      "propose_project_update",
+      projectEvolutionController.proposeProjectUpdateHandler
+    )
+  );
+
+  app.post(
+    "/tools/review_project_update",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: reviewProjectUpdateBodySchema },
+    },
+    withMcpRouteLogging(
+      "review_project_update",
+      projectEvolutionController.reviewProjectUpdateHandler
+    )
+  );
+
+  app.post(
+    "/tools/query_project_context",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: queryProjectContextBodySchema },
+    },
+    withMcpRouteLogging(
+      "query_project_context",
+      projectEvolutionController.queryProjectContextHandler
+    )
+  );
+
+  app.post(
+    "/tools/get_project_history",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: getProjectHistoryBodySchema },
+    },
+    withMcpRouteLogging("get_project_history", projectEvolutionController.getProjectHistoryHandler)
+  );
+
+  app.post(
+    "/tools/link_project_updates",
+    {
+      preHandler: [requireProjectAuth],
+      schema: { body: linkProjectUpdatesBodySchema },
+    },
+    withMcpRouteLogging(
+      "link_project_updates",
+      projectEvolutionController.linkProjectUpdatesHandler
+    )
   );
 
   // Standard MCP Streamable HTTP transport entry point
