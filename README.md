@@ -37,10 +37,10 @@ heads of three senior engineers — never where the AI agent that's writing code
 right now can see it.
 
 **Lore is a self-hosted memory layer that fixes this.** It captures lessons from
-code reviews and developer sessions, embeds them semantically with OpenAI, and
-serves them to your AI agents through the Model Context Protocol — so the next
-agent that touches that auth flow already knows about the bug you fixed last
-quarter.
+code reviews and developer sessions, embeds them semantically (local Ollama by
+default, OpenAI optional), and serves them to your AI agents through the Model
+Context Protocol — so the next agent that touches that auth flow already knows
+about the bug you fixed last quarter.
 
 | Without Lore                                       | With Lore                                                              |
 | -------------------------------------------------- | ---------------------------------------------------------------------- |
@@ -227,7 +227,9 @@ into the team's accumulated knowledge.
 
 ## Quick Start
 
-**Prerequisites:** Docker, Docker Compose, an OpenAI API key, and pnpm 11.
+**Prerequisites:** Docker, Docker Compose, and pnpm 11. Embeddings default to a
+local Ollama model (no API key); an OpenAI key is needed only if you switch
+`EMBEDDING_PROVIDER=openai`.
 
 ```bash
 # 1. Clone
@@ -240,7 +242,7 @@ pnpm install
 # 3. Configure (per-app .env)
 cp apps/server/.env.example apps/server/.env
 cp apps/web/.env.example    apps/web/.env
-# Edit apps/server/.env — DATABASE_URL, ADMIN_SECRET, OPENAI_API_KEY, POSTGRES_PASSWORD
+# Edit apps/server/.env — DATABASE_URL, ADMIN_SECRET, POSTGRES_PASSWORD
 # Edit apps/web/.env    — WEB_UI_SECRET, NEXT_PUBLIC_LORE_API_URL
 
 # 4. TLS certs (production)
@@ -349,15 +351,17 @@ A ready-to-import Postman collection lives in the repo root:
 
 ### `@lore/server`
 
-| Variable               | Required | Default | Description                          |
-| ---------------------- | -------- | ------- | ------------------------------------ |
-| `DATABASE_URL`         | Yes      | —       | Postgres connection string           |
-| `POSTGRES_PASSWORD`    | Yes      | —       | Postgres password                    |
-| `OPENAI_API_KEY`       | Yes      | —       | Used for `text-embedding-3-small`    |
-| `ADMIN_SECRET`         | Yes      | —       | Bearer token for admin endpoints     |
-| `MCP_SERVER_PORT`      | No       | `3100`  | Internal port (nginx proxies to 443) |
-| `LOG_LEVEL`            | No       | `info`  | Pino log level                       |
-| `LORE_PG_VOLUME_BYTES` | No       | `0`     | Disk quota reported in `/metrics`    |
+| Variable               | Required  | Default               | Description                              |
+| ---------------------- | --------- | --------------------- | ---------------------------------------- |
+| `DATABASE_URL`         | Yes       | —                     | Postgres connection string               |
+| `POSTGRES_PASSWORD`    | Yes       | —                     | Postgres password                        |
+| `EMBEDDING_PROVIDER`   | No        | `local`               | `local` (Ollama, 768) or `openai` (1536) |
+| `OLLAMA_BASE_URL`      | No        | `http://ollama:11434` | Used when provider is `local`            |
+| `OPENAI_API_KEY`       | If openai | —                     | Used for `text-embedding-3-small`        |
+| `ADMIN_SECRET`         | Yes       | —                     | Bearer token for admin endpoints         |
+| `MCP_SERVER_PORT`      | No        | `3100`                | Internal port (nginx proxies to 443)     |
+| `LOG_LEVEL`            | No        | `info`                | Pino log level                           |
+| `LORE_PG_VOLUME_BYTES` | No        | `0`                   | Disk quota reported in `/metrics`        |
 
 ### `@lore/web`
 

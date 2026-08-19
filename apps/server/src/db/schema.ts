@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
 
-const EMBEDDING_DIMENSIONS = process.env.EMBEDDING_PROVIDER === "local" ? 768 : 1536;
+// 768 unless openai is explicitly selected — the shipped migrations create
+// these columns as vector(768). Deliberately not imported from
+// services/embedding.ts: db/ must not depend on services/.
+const EMBEDDING_DIMENSIONS = process.env.EMBEDDING_PROVIDER === "openai" ? 1536 : 768;
 import {
   pgTable,
   uuid,
