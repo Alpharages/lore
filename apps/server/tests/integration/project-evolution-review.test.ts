@@ -381,6 +381,36 @@ describe("POST /mcp/tools/review_project_update", () => {
     expect(JSON.parse(detail.payload).detail.evidence[0].redacted).toBe(true);
   });
 
+  it("reports redacted evidence distinctly from never-had-evidence (FR-PE-27)", async () => {
+    const app = buildTestApp(pool, db);
+    const { api_key } = await registerProject(app, "acme");
+    const proposal = await proposeRequirement(app, api_key);
+    await call(app, api_key, "review_project_update", {
+      item_id: proposal.item_id,
+      action: "accept",
+    });
+    await call(app, api_key, "review_project_update", {
+      item_id: proposal.item_id,
+      action: "redact_evidence",
+      evidence_id: proposal.evidence_ids[0],
+      redaction_reason: "GDPR erasure request",
+    });
+
+    const detail = JSON.parse(
+      (
+        await call(app, api_key, "review_project_update", {
+          item_id: proposal.item_id,
+          action: "inspect",
+        })
+      ).payload
+    ).detail.item;
+
+    // Zero *live* evidence, but the tombstone explains why — a listing surface
+    // must not render this as a missing-evidence defect (FR-PE-18).
+    expect(detail.evidence_count).toBe(0);
+    expect(detail.redacted_evidence_count).toBe(1);
+  });
+
   it("adds evidence to an already-accepted item without rewriting it (FR-PE-24)", async () => {
     const app = buildTestApp(pool, db);
     const { api_key } = await registerProject(app, "acme");

@@ -75,15 +75,21 @@ export const EvolutionItemCard = ({
         <span
           className={cn(
             "ml-auto flex items-center gap-1 text-[10px]",
-            // FR-PE-18: an item with no evidence can never be accepted, so the
-            // absence is worth flagging rather than rendering as a quiet zero.
-            item.evidence_count === 0
+            // FR-PE-18: an item with no *live* evidence can never be accepted,
+            // so the absence is worth flagging rather than rendering as a quiet
+            // zero — unless FR-PE-27 redaction explains it, which is lawful and
+            // must not read as a missing-evidence defect.
+            item.evidence_count === 0 && item.redacted_evidence_count === 0
               ? "text-amber-600 dark:text-amber-400"
               : "text-muted-foreground"
           )}
         >
           <FileText className="size-3" aria-hidden="true" />
-          {item.evidence_count === 0 ? "No evidence" : `${item.evidence_count} evidence`}
+          {item.evidence_count > 0
+            ? `${item.evidence_count} evidence`
+            : item.redacted_evidence_count > 0
+              ? "Evidence redacted"
+              : "No evidence"}
         </span>
       </div>
     </div>

@@ -53,6 +53,7 @@ const item = (overrides: Partial<EvolutionItem> = {}): EvolutionItem => ({
   created_at: "2026-08-01T00:00:00.000Z",
   reviewed_at: null,
   evidence_count: 1,
+  redacted_evidence_count: 0,
   ...overrides,
 });
 
@@ -221,6 +222,19 @@ describe("EvolutionPage", () => {
     setup();
 
     expect(await screen.findByText("No evidence")).toBeInTheDocument();
+  });
+
+  it("shows redacted evidence as redacted, not as missing evidence (FR-PE-27)", async () => {
+    mockFetchCurrent.mockResolvedValue({
+      items: [item({ evidence_count: 0, redacted_evidence_count: 1 })],
+      total: 1,
+      warnings: [],
+    });
+
+    setup();
+
+    expect(await screen.findByText("Evidence redacted")).toBeInTheDocument();
+    expect(screen.queryByText("No evidence")).not.toBeInTheDocument();
   });
 
   it("shows the evidence count when evidence is present", async () => {

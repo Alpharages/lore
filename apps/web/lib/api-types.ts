@@ -173,6 +173,7 @@ export interface EvolutionItem {
   created_at: string | null;
   reviewed_at: string | null;
   evidence_count: number;
+  redacted_evidence_count: number;
 }
 
 export interface EvolutionRelation {

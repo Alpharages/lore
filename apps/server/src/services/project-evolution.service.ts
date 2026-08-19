@@ -225,6 +225,7 @@ export interface ItemOutput {
   created_at: string | null;
   reviewed_at: string | null;
   evidence_count: number;
+  redacted_evidence_count: number;
 }
 
 export interface RelationOutput {
@@ -248,7 +249,11 @@ export interface EventOutput {
   created_at: string | null;
 }
 
-const toItemOutput = (row: ItemRow, evidenceCount: number): ItemOutput => ({
+const toItemOutput = (
+  row: ItemRow,
+  evidenceCount: number,
+  redactedEvidenceCount = 0
+): ItemOutput => ({
   id: row.id,
   type: row.type,
   revision: row.revision,
@@ -268,7 +273,31 @@ const toItemOutput = (row: ItemRow, evidenceCount: number): ItemOutput => ({
   created_at: iso(row.createdAt),
   reviewed_at: iso(row.reviewedAt),
   evidence_count: evidenceCount,
+  // FR-PE-27: a lawfully redacted excerpt leaves a tombstone, so an accepted
+  // item can hold zero *live* evidence without being a FR-PE-18 violation.
+  // Listing surfaces need to tell those two cases apart.
+  redacted_evidence_count: redactedEvidenceCount,
 });
+
+/** Live vs. redacted evidence per item, for the listing surfaces. */
+const tallyEvidence = (
+  evidence: Array<{
+    itemId: string;
+    redactedAt: Date | null;
+    supersededByEvidenceId: string | null;
+  }>
+): Map<string, { live: number; redacted: number }> => {
+  const counts = new Map<string, { live: number; redacted: number }>();
+  for (const row of evidence) {
+    const entry = counts.get(row.itemId) ?? { live: 0, redacted: 0 };
+    if (row.redactedAt !== null) entry.redacted += 1;
+    else if (row.supersededByEvidenceId === null) entry.live += 1;
+    counts.set(row.itemId, entry);
+  }
+  return counts;
+};
+
+const NO_EVIDENCE = { live: 0, redacted: 0 };
 
 const toEvidenceOutput = (
   row: EvidenceRow,
@@ -726,9 +755,10 @@ export const getItemDetail = async (
   const liveEvidenceCount = evidence.filter(
     (e) => e.redactedAt === null && e.supersededByEvidenceId === null
   ).length;
+  const redactedEvidenceCount = evidence.filter((e) => e.redactedAt !== null).length;
 
   return {
-    item: toItemOutput(item, liveEvidenceCount),
+    item: toItemOutput(item, liveEvidenceCount, redactedEvidenceCount),
     versions: versions.map((v) => ({
       revision: v.revision,
       title: v.title,
@@ -1347,7 +1377,11 @@ export const queryProjectContext = async (
 
   const items: ContextItemOutput[] = page.map(({ candidate, liveEvidence, evidence, score }) => {
     const output: ContextItemOutput = {
-      ...toItemOutput(candidate.row, liveEvidence.length),
+      ...toItemOutput(
+        candidate.row,
+        liveEvidence.length,
+        evidence.filter((e) => e.redactedAt !== null).length
+      ),
       score: Math.round(score * 1000) / 1000,
       match_reasons: Array.from(candidate.reasons).sort(),
       hops: candidate.hops,
@@ -1439,11 +1473,7 @@ export const getProjectHistory = async (
     findRelationsForItems(db, itemIds, { includeRetracted: true }),
   ]);
 
-  const evidenceCounts = new Map<string, number>();
-  for (const row of evidence) {
-    if (row.redactedAt !== null || row.supersededByEvidenceId !== null) continue;
-    evidenceCounts.set(row.itemId, (evidenceCounts.get(row.itemId) ?? 0) + 1);
-  }
+  const evidenceCounts = tallyEvidence(evidence);
 
   return {
     events: events.map((e) => ({
@@ -1457,7 +1487,11 @@ export const getProjectHistory = async (
       created_at: iso(e.createdAt),
     })),
     items: items.map((item) => ({
-      ...toItemOutput(item, evidenceCounts.get(item.id) ?? 0),
+      ...toItemOutput(
+        item,
+        (evidenceCounts.get(item.id) ?? NO_EVIDENCE).live,
+        (evidenceCounts.get(item.id) ?? NO_EVIDENCE).redacted
+      ),
       relations: relations
         .filter((r) => r.fromItemId === item.id || r.toItemId === item.id)
         .map(toRelationOutput),
@@ -1712,16 +1746,18 @@ export const listCurrentState = async (
     db,
     rows.map((r) => r.id)
   );
-  const counts = new Map<string, number>();
-  for (const row of evidence) {
-    if (row.redactedAt !== null || row.supersededByEvidenceId !== null) continue;
-    counts.set(row.itemId, (counts.get(row.itemId) ?? 0) + 1);
-  }
+  const counts = tallyEvidence(evidence);
 
   const contradictions = await findUnresolvedContradictions(db, input.projectId);
 
   return {
-    items: rows.map((row) => toItemOutput(row, counts.get(row.id) ?? 0)),
+    items: rows.map((row) =>
+      toItemOutput(
+        row,
+        (counts.get(row.id) ?? NO_EVIDENCE).live,
+        (counts.get(row.id) ?? NO_EVIDENCE).redacted
+      )
+    ),
     total,
     warnings: contradictions.map((c) => ({
       kind: "unresolved_contradiction" as const,
@@ -1757,13 +1793,18 @@ export const listProposals = async (
     db,
     rows.map((r) => r.id)
   );
-  const counts = new Map<string, number>();
-  for (const row of evidence) {
-    if (row.redactedAt !== null || row.supersededByEvidenceId !== null) continue;
-    counts.set(row.itemId, (counts.get(row.itemId) ?? 0) + 1);
-  }
+  const counts = tallyEvidence(evidence);
 
-  return { items: rows.map((row) => toItemOutput(row, counts.get(row.id) ?? 0)), total };
+  return {
+    items: rows.map((row) =>
+      toItemOutput(
+        row,
+        (counts.get(row.id) ?? NO_EVIDENCE).live,
+        (counts.get(row.id) ?? NO_EVIDENCE).redacted
+      )
+    ),
+    total,
+  };
 };
 
 /**

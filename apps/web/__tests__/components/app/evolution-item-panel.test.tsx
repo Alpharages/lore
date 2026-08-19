@@ -57,6 +57,7 @@ const detail = (overrides: Partial<EvolutionItemDetail> = {}): EvolutionItemDeta
     created_at: "2026-08-01T00:00:00.000Z",
     reviewed_at: null,
     evidence_count: 1,
+    redacted_evidence_count: 0,
   },
   versions: [
     {
