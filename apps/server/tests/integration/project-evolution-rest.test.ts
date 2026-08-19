@@ -2,6 +2,10 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from "vites
 import { Pool } from "pg";
 import { createTestPool, createTestDb, buildTestApp, resetDatabase } from "./helper.js";
 import * as embedding from "../../src/services/embedding.js";
+import { ignoreHonoSocketDestroySoonNoise } from "../helpers/hono-socket-noise.js";
+
+// This file drives the MCP Streamable HTTP transport (POST /mcp).
+ignoreHonoSocketDestroySoonNoise();
 
 const ADMIN_SECRET = "test_admin_secret_do_not_ship";
 process.env.ADMIN_SECRET = ADMIN_SECRET;

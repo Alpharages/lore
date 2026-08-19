@@ -1,23 +1,14 @@
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from "vitest";
 import { Pool } from "pg";
 import { createTestPool, createTestDb, buildTestApp, resetDatabase } from "./helper.js";
+import { ignoreHonoSocketDestroySoonNoise } from "../helpers/hono-socket-noise.js";
 
 const ADMIN_SECRET = "test_admin_secret_do_not_ship";
 process.env.ADMIN_SECRET = ADMIN_SECRET;
 
 const MCP_ACCEPT = "application/json, text/event-stream";
 
-// @hono/node-server calls socket.destroySoon() on a timeout, but Fastify's
-// inject-based mock streams don't implement it. Swallow those specific errors
-// so they don't pollute the test output.
-const originalListeners = process.listeners("uncaughtException");
-process.removeAllListeners("uncaughtException");
-process.on("uncaughtException", (err) => {
-  if (err instanceof TypeError && err.message.includes("socket.destroySoon is not a function")) {
-    return;
-  }
-  originalListeners.forEach((fn) => fn(err));
-});
+ignoreHonoSocketDestroySoonNoise();
 
 describe("MCP Streamable HTTP Protocol", () => {
   let pool: Pool;
