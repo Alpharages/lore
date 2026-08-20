@@ -313,7 +313,14 @@ cp apps/web/.env.example    apps/web/.env
 # Place fullchain.pem + privkey.pem under apps/server/nginx/certs/
 
 # 5. Bring it up
-docker compose up -d
+#    Both the bundled Postgres and Ollama are opt-in profiles, so a deployment
+#    using a managed database or a hosted embedding provider never starts a
+#    container it does not want. Self-hosting the whole stack means both:
+docker compose --profile local-db --profile local-embedding up -d
+
+#    Pointing DATABASE_URL at a managed Postgres (Supabase, RDS, Neon)?
+#    Drop local-db. Using EMBEDDING_PROVIDER=openai? Drop local-embedding.
+#    docker compose up -d          # server + web only
 
 # 6. Run migrations
 pnpm --filter @lore/server db:migrate

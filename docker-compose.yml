@@ -1,5 +1,9 @@
 services:
   postgres:
+    # Opt-in: a deployment pointing DATABASE_URL at a managed Postgres (Supabase,
+    # RDS, Neon) must not have this container start and race for the host port.
+    # Bring the bundled database up with `--profile local-db`.
+    profiles: ["local-db"]
     image: pgvector/pgvector:pg16
     restart: unless-stopped
     env_file:
@@ -44,6 +48,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+        # required: false keeps the health gate when the local-db profile is
+        # active, and lets the project stay valid when it is not. Without it
+        # compose refuses to parse: "depends on undefined service postgres".
+        required: false
 
   web:
     build:
@@ -58,7 +66,9 @@ services:
     env_file:
       - apps/web/.env
     ports:
-      - "127.0.0.1:3001:3001"
+      # Host port is env-driven so a box already using 3001 configures it in
+      # .env instead of carrying a local edit to this file forever.
+      - "127.0.0.1:${WEB_PORT:-3001}:3001"
     depends_on:
       mcp-server:
         condition: service_started
