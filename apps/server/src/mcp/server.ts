@@ -11,6 +11,8 @@ const listTools = new Set<string>([
   "query_lessons_for_task",
   "get_pending_propagations",
   "get_patterns",
+  "query_project_context",
+  "get_project_history",
 ]);
 
 const extractResultCount = (toolName: string, output: unknown): number | undefined => {
@@ -21,6 +23,8 @@ const extractResultCount = (toolName: string, output: unknown): number | undefin
     if (Array.isArray(obj.results)) return obj.results.length;
     if (Array.isArray(obj.patterns)) return obj.patterns.length;
     if (Array.isArray(obj.propagations)) return obj.propagations.length;
+    if (Array.isArray(obj.items)) return obj.items.length;
+    if (Array.isArray(obj.events)) return obj.events.length;
   }
   if (Array.isArray(output)) return output.length;
   return undefined;

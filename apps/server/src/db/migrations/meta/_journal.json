@@ -36,6 +36,20 @@
       "when": 1779177600000,
       "tag": "0004_api_key_management",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1786060800000,
+      "tag": "0005_project_evolution",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1786060801000,
+      "tag": "0006_project_evolution_rls_indexes",
+      "breakpoints": true
     }
   ]
 }

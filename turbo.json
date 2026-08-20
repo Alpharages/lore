@@ -3,7 +3,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": [".next/**", "!.next/cache/**", "dist/**"]
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "env": ["NEXT_PUBLIC_LORE_API_URL", "WEB_UI_SECRET", "LORE_ADMIN_SECRET", "COOKIE_SECURE"]
     },
     "dev": {
       "cache": false,
@@ -11,7 +12,15 @@
     },
     "test": {
       "dependsOn": ["build"],
-      "outputs": []
+      "outputs": [],
+      "env": [
+        "DATABASE_URL",
+        "EMBEDDING_PROVIDER",
+        "ADMIN_SECRET",
+        "NEXT_PUBLIC_LORE_API_URL",
+        "WEB_UI_SECRET",
+        "LORE_ADMIN_SECRET"
+      ]
     },
     "lint": {
       "outputs": []

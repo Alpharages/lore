@@ -1,9 +1,12 @@
 import OpenAI from "openai";
 import { logger } from "../utils/logger.js";
 
-export const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER ?? "openai") as
-  | "openai"
-  | "local";
+// Defaults to "local" because every shipped migration pins the embedding
+// columns to vector(768) (0003 for lessons/patterns, 0005 for project
+// evolution), which is nomic-embed-text's width. Defaulting to "openai" would
+// hand a 1536-wide vector to a 768-wide column and fail every insert. Choosing
+// "openai" therefore also means regenerating the migrations for 1536.
+export const EMBEDDING_PROVIDER = (process.env.EMBEDDING_PROVIDER ?? "local") as "openai" | "local";
 export const EMBEDDING_DIMENSIONS = EMBEDDING_PROVIDER === "local" ? 768 : 1536;
 
 const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL ?? "http://ollama:11434";
