@@ -19,6 +19,7 @@ _Stop explaining the same mistake twice._
 [Why Lore](#why-lore) ·
 [Architecture](#architecture) ·
 [Quick Start](#quick-start) ·
+[Deploying](#deploying) ·
 [MCP Tools](#mcp-tools) ·
 [What Lore Stores](#what-lore-stores) ·
 [Use Cases](#use-cases) ·
@@ -328,6 +329,9 @@ docker compose --profile local-db --profile local-embedding up -d
 # 6. Run migrations
 pnpm --filter @lore/server db:migrate
 
+# Subsequent deploys are one command — see Deploying below
+./scripts/deploy.sh
+
 # 7. Register your first project
 curl -X POST https://your-host/api/projects/register \
   -H "X-Admin-Secret: $ADMIN_SECRET" \
@@ -338,6 +342,43 @@ curl -X POST https://your-host/api/projects/register \
 
 The MCP endpoint is now reachable at `https://your-host/mcp`. Drop the returned
 API key into your client config and you're done.
+
+---
+
+## Deploying
+
+Once a server is running Lore under docker compose, updates are one command:
+
+```bash
+./scripts/deploy.sh
+```
+
+It pulls, rebuilds `mcp-server` and `web`, runs migrations, swaps the
+containers, and polls `/health` until the new build answers. Any failing step
+stops the deploy with the old containers still serving.
+
+The ordering is deliberate. Migrations run from the **newly built image**,
+because that image carries the new `.sql` files — but **before** the new
+containers start, so the database is ready when the new code arrives. Shipped
+migrations are additive, which is what makes the old containers safe to keep
+serving during that gap. A migration that drops or rewrites a column breaks
+that assumption and wants a maintenance window instead.
+
+Three preflight checks run before anything is touched, each one a failure this
+has actually hit in production:
+
+| Check                             | Why                                                                                                       |
+| --------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Working tree is clean             | A dirty tree aborts `git pull` halfway, leaving old source with a new compose file                        |
+| Root `.env` exists                | Compose resolves `${WEB_PORT}` and `${MCP_SERVER_PORT}` from it                                           |
+| `NEXT_PUBLIC_LORE_API_URL` is set | It is inlined at build time — unset, the build succeeds and silently bakes `localhost` into the dashboard |
+
+Migrations run in a one-off container rather than `docker compose run`, which
+would drag in `depends_on` services and race for their host ports. The
+container swap uses `--no-deps` so Ollama is left alone.
+
+If `/health` never comes back, the script prints the log and rollback commands
+rather than leaving you to guess.
 
 ---
 
